@@ -86,6 +86,14 @@ def _write_swift_hdf5_h5py(fname, X_kpc, V_kms, m_msun, boxsize_kpc):
         d_ids = pt1.create_dataset("ParticleIDs", data=np.arange(n_part, dtype=np.int64))
         _set_unit_attrs(d_ids, 1.0)
 
+_PLUMMER_CTX = {}
+
+
+def _sample_vel_worker(r):
+    sample_fn = _PLUMMER_CTX["sample_vel"]
+    return sample_fn(r)
+
+
 def generate_plummer(a=0.01, M=1e5, q=1.0, N=10000, bound=2.0, boxsize=4.0, 
                      use_parallel=True, nb_threads=2, 
                      shiftx=0.0, shifty=0.0, shiftz=0.0, 
@@ -188,9 +196,11 @@ def generate_plummer(a=0.01, M=1e5, q=1.0, N=10000, bound=2.0, boxsize=4.0,
     print("Sampling velocities...")
     ti = time.time()
     if use_parallel:
-        from multiprocessing import Pool
-        with Pool(nb_threads) as p:
-            vels = np.array(p.map(sample_vel, r_rand)).transpose()
+        import multiprocessing as mp
+        _PLUMMER_CTX["sample_vel"] = sample_vel
+        ctx = mp.get_context("fork")
+        with ctx.Pool(nb_threads) as p:
+            vels = np.array(p.map(_sample_vel_worker, r_rand, chunksize=max(1, N // (nb_threads * 4)))).transpose()
     else:
         from tqdm import tqdm
         vels = np.empty((2, N))
