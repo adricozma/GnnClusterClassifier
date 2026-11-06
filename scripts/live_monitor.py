@@ -104,6 +104,39 @@ def format_status_report(squeue_str, prog):
     return "\n".join(lines)
 
 
+def auto_push_to_github():
+    """Stage LIVE_STATUS.md and any new Study 2 figures/logs, commit, and push to origin/main."""
+    try:
+        subprocess.run(
+            ["git", "add", "LIVE_STATUS.md", "GNN-jed/trained_models/study2/"],
+            cwd=ROOT_DIR,
+            check=False,
+            timeout=15,
+        )
+        diff_res = subprocess.run(
+            ["git", "diff", "--cached", "--quiet"],
+            cwd=ROOT_DIR,
+            check=False,
+            timeout=10,
+        )
+        if diff_res.returncode != 0:
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+            subprocess.run(
+                ["git", "commit", "-m", f"Update Study 2 live status and figures ({now_str})"],
+                cwd=ROOT_DIR,
+                check=False,
+                timeout=15,
+            )
+            subprocess.run(
+                ["git", "push", "origin", "main"],
+                cwd=ROOT_DIR,
+                check=False,
+                timeout=30,
+            )
+    except Exception:
+        pass
+
+
 def main():
     parser = argparse.ArgumentParser(description="Publish live Study 2 status updates to ntfy.sh and LIVE_STATUS.md.")
     parser.add_argument("--topic", type=str, default=DEFAULT_TOPIC, help="ntfy.sh topic name.")
@@ -135,6 +168,7 @@ def main():
         )
         if args.once or state_signature != last_sent_report:
             send_ntfy_message(args.topic, report, title="EPFL Jed - Study 2 Live Update")
+            auto_push_to_github()
             last_sent_report = state_signature
 
         # Automatically push any newly generated PNG or HTML dashboard files
