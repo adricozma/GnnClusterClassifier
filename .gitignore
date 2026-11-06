@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 .qodo/
 .agents/
+THEORETICAL_CORRECTIONS_LOG.md
 .ipynb_checkpoints/
 restart
 

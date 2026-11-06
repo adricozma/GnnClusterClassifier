@@ -33,6 +33,18 @@ parser.add_argument(
     default=1.0,
     help="Positive class weight for BCEWithLogitsLoss to handle class imbalance (e.g. ~2.9)",
 )
+parser.add_argument(
+    "--pretrained_weights",
+    type=str,
+    default="",
+    help="Optional path to pre-trained model weights (.pth) for curriculum fine-tuning on noisy data",
+)
+parser.add_argument(
+    "--save_model",
+    type=str,
+    default="best_gnn_model_02.pth",
+    help="Output path to save the best model checkpoint (.pth)",
+)
 
 args = parser.parse_args()
 
@@ -44,6 +56,8 @@ epochs = args.epochs
 log_filename = args.log_file
 split_mode = args.split_mode
 pos_weight_val = args.pos_weight
+pretrained_weights = args.pretrained_weights
+best_model_path = args.save_model
 # -------------------------------------------------------
 
 # ---------- INTERN: CPU MANAGEMENT ----------
@@ -132,12 +146,8 @@ else:
         dataset, [0.8, 0.1, 0.1], generator=torch.Generator().manual_seed(42)
     )
 
-total_nodes_train = sum(d.num_nodes for d in train_set)
-total_nodes_val = sum(d.num_nodes for d in val_set)
-total_nodes_test = sum(d.num_nodes for d in test_set)
-
-# they load the data in // to improve training speed 
-nb_workers = 12
+# Load the data in parallel to improve training speed
+nb_workers = int(os.environ.get("SLURM_CPUS_PER_TASK", 12))
 
 train_loader = DataLoader(train_set, batch_size=bs, shuffle=True, num_workers=nb_workers)
 val_loader = DataLoader(val_set, batch_size=bs, shuffle=False, num_workers=nb_workers)
@@ -151,6 +161,12 @@ with open(log_filename, "w", encoding="utf-8") as f:
     f.write("Epoch | Train Loss | Train Acc | Val Loss | Val Acc | LR\n")
 
 model = GCN()
+if pretrained_weights:
+    if not os.path.exists(pretrained_weights):
+        raise FileNotFoundError(f"Pre-trained weights file not found: {pretrained_weights}")
+    print(f"Loading pre-trained weights from '{pretrained_weights}' for fine-tuning...")
+    model.load_state_dict(torch.load(pretrained_weights, weights_only=True))
+
 optimizer = torch.optim.Adam(model.parameters(), lr=Lr)
 if pos_weight_val != 1.0:
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_weight_val]))
@@ -162,7 +178,6 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', fa
 
 # Variables to track the best model for checkpointing
 best_val_loss = float('inf')
-best_model_path = "best_gnn_model_02.pth"
 
 train_loss_history = []
 val_loss_history = []
@@ -170,7 +185,7 @@ val_loss_history = []
 for epoch in range(epochs):
 
     model.train()
-    total_train_loss = 0
+    total_nodes_train = 0
     running_train_loss = 0.0
     # Variable to track correct predictions for training accuracy
     running_train_correct = 0
@@ -185,6 +200,7 @@ for epoch in range(epochs):
         optimizer.step()
 
         running_train_loss += loss.item() * batch.num_nodes
+        total_nodes_train += batch.num_nodes
         
         # Calculate correct predictions (binary classification threshold = 0.5)
         preds = (torch.sigmoid(out) > 0.5).float()
@@ -193,7 +209,7 @@ for epoch in range(epochs):
         print(f"Epoch {epoch+1:03d} | Batch {batch_idx+1:04d}/{len(train_loader)} | Batch Loss: {loss.item():.4f}")
 
     model.eval()
-    total_val_loss = 0
+    total_nodes_val = 0
     running_val_loss = 0.0
     # Variable to track correct predictions for validation accuracy
     running_val_correct = 0
@@ -205,17 +221,18 @@ for epoch in range(epochs):
             loss = criterion(out, batch.y)
 
             running_val_loss += loss.item() * batch.num_nodes
+            total_nodes_val += batch.num_nodes
             
             # Calculate correct predictions for validation
             preds = (torch.sigmoid(out) > 0.5).float()
             running_val_correct += (preds == batch.y).sum().item()
 
-    avg_train_loss = running_train_loss / total_nodes_train
-    avg_val_loss = running_val_loss / total_nodes_val
+    avg_train_loss = running_train_loss / max(1, total_nodes_train)
+    avg_val_loss = running_val_loss / max(1, total_nodes_val)
     
     # Calculate final accuracy percentages
-    train_acc = (running_train_correct / total_nodes_train) * 100
-    val_acc = (running_val_correct / total_nodes_val) * 100
+    train_acc = (running_train_correct / max(1, total_nodes_train)) * 100
+    val_acc = (running_val_correct / max(1, total_nodes_val)) * 100
 
     train_loss_history.append(avg_train_loss)
     val_loss_history.append(avg_val_loss)
@@ -253,8 +270,10 @@ print("Loading best model weights for test evaluation...")
 model.load_state_dict(torch.load(best_model_path))
 
 model.eval()
+total_nodes_test = 0
 running_test_loss = 0.0
 running_test_correct = 0
+tp_te = fp_te = tn_te = fn_te = 0
 
 with torch.no_grad():
     for batch in test_loader:
@@ -263,20 +282,36 @@ with torch.no_grad():
         loss = criterion(out, batch.y)
 
         running_test_loss += loss.item() * batch.num_nodes
+        total_nodes_test += batch.num_nodes
         
         preds = (torch.sigmoid(out) > 0.5).float()
         running_test_correct += (preds == batch.y).sum().item()
+        tp_te += int(((preds == 1) & (batch.y == 1)).sum().item())
+        fp_te += int(((preds == 1) & (batch.y == 0)).sum().item())
+        tn_te += int(((preds == 0) & (batch.y == 0)).sum().item())
+        fn_te += int(((preds == 0) & (batch.y == 1)).sum().item())
 
-avg_test_loss = running_test_loss / total_nodes_test
+avg_test_loss = running_test_loss / max(1, total_nodes_test)
 
-# Calculate test accuracy
-test_acc = (running_test_correct / total_nodes_test) * 100
+# Calculate test accuracy, F1, and balanced accuracy
+test_acc = (running_test_correct / max(1, total_nodes_test)) * 100
+test_prec = tp_te / max(1, tp_te + fp_te)
+test_rec = tp_te / max(1, tp_te + fn_te)
+test_spec = tn_te / max(1, tn_te + fp_te)
+test_f1 = 2.0 * test_prec * test_rec / max(1e-12, test_prec + test_rec)
+test_bal_acc = 50.0 * (test_rec + test_spec)
 
-print(f"--> Final Test Loss: {avg_test_loss:.4f} | Final Test Acc: {test_acc:.2f}%")
+print(
+    f"--> Final Test Loss: {avg_test_loss:.4f} | Final Test Acc: {test_acc:.2f}% | "
+    f"BalAcc: {test_bal_acc:.2f}% | F1: {test_f1:.4f} (Prec: {test_prec:.4f}, Rec: {test_rec:.4f})"
+)
 
 with open(log_filename, "a", encoding="utf-8") as f:
     f.write("-" * 50 + "\n")
-    f.write(f"Final Test Loss : {avg_test_loss:.4f} | Acc: {test_acc:.2f}%\n")
+    f.write(
+        f"Final Test Loss : {avg_test_loss:.4f} | Acc: {test_acc:.2f}% | "
+        f"BalAcc: {test_bal_acc:.2f}% | F1: {test_f1:.4f} | Prec: {test_prec:.4f} | Rec: {test_rec:.4f}\n"
+    )
     f.write("=== END OF TRAINING ===\n")
 
 # best model is already saved during the loop.
