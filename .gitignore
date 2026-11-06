@@ -3,6 +3,7 @@
 __pycache__/
 *.pyc
 .qodo/
+.agents/
 .ipynb_checkpoints/
 restart
 
