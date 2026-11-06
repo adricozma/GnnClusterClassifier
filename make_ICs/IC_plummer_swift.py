@@ -23,8 +23,68 @@ import scipy.special as sci
 from scipy.optimize import minimize
 import time
 import argparse
-from swiftsimio import Writer
-import unyt
+try:
+    from swiftsimio import Writer
+    import unyt
+    _HAS_SWIFTSIMIO = True
+except ImportError:
+    import h5py
+    _HAS_SWIFTSIMIO = False
+
+
+def _write_swift_hdf5_h5py(fname, X_kpc, V_kms, m_msun, boxsize_kpc):
+    """Write a SWIFT-compatible HDF5 initial conditions file via h5py.
+
+    Matches the exact `/Header`, `/Units`, and `/PartType1` schema and CGS
+    conversion attributes produced by `swiftsimio.Writer(galactic_units)`.
+    """
+    n_part = len(m_msun)
+    u_l_cgs = 3.08567758e21       # 1 kpc in cm
+    u_m_cgs = 1.98841586e43       # 1e10 M_sun in g
+    u_t_cgs = 3.08567758e19       # 1 Mpc / (km/s) in s (vel unit = 1e-3 km/s = 100 cm/s)
+
+    with h5py.File(fname, "w") as f:
+        hdr = f.create_group("Header")
+        hdr.attrs["BoxSize"] = float(boxsize_kpc)
+        hdr.attrs["Dimension"] = np.array([3], dtype=np.int64)
+        hdr.attrs["Flag_Entropy_ICs"] = np.int64(0)
+        hdr.attrs["MassTable"] = np.array([0.0, float(m_msun[0]) * 1e-10, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float64)
+        hdr.attrs["NumFilesPerSnapshot"] = np.int64(1)
+        hdr.attrs["NumPart_ThisFile"] = np.array([0, n_part, 0, 0, 0, 0, 0], dtype=np.int64)
+        hdr.attrs["NumPart_Total"] = np.array([0, n_part, 0, 0, 0, 0, 0], dtype=np.int64)
+        hdr.attrs["NumPart_Total_HighWord"] = np.zeros(6, dtype=np.int64)
+
+        units = f.create_group("Units")
+        units.attrs["Unit current in cgs (U_I)"] = np.array([1.0], dtype=np.float64)
+        units.attrs["Unit length in cgs (U_L)"] = np.array([u_l_cgs], dtype=np.float64)
+        units.attrs["Unit mass in cgs (U_M)"] = np.array([u_m_cgs], dtype=np.float64)
+        units.attrs["Unit temperature in cgs (U_T)"] = np.array([1.0], dtype=np.float64)
+        units.attrs["Unit time in cgs (U_t)"] = np.array([u_t_cgs], dtype=np.float64)
+
+        pt1 = f.create_group("PartType1")
+
+        def _set_unit_attrs(dset, conv_cgs, u_l=0.0, u_m=0.0, u_t=0.0):
+            dset.attrs["Conversion factor to CGS (not including cosmological corrections)"] = np.array([conv_cgs], dtype=np.float64)
+            dset.attrs["Conversion factor to physical CGS (including cosmological corrections)"] = np.array([conv_cgs], dtype=np.float64)
+            dset.attrs["U_I exponent"] = np.array([0.0], dtype=np.float64)
+            dset.attrs["U_L exponent"] = np.array([u_l], dtype=np.float64)
+            dset.attrs["U_M exponent"] = np.array([u_m], dtype=np.float64)
+            dset.attrs["U_T exponent"] = np.array([0.0], dtype=np.float64)
+            dset.attrs["U_t exponent"] = np.array([u_t], dtype=np.float64)
+            dset.attrs["a-scale exponent"] = np.array([0], dtype=np.int64)
+            dset.attrs["h-scale exponent"] = np.array([0.0], dtype=np.float64)
+
+        d_coords = pt1.create_dataset("Coordinates", data=np.asarray(X_kpc, dtype=np.float64))
+        _set_unit_attrs(d_coords, u_l_cgs, u_l=1.0)
+
+        d_vels = pt1.create_dataset("Velocities", data=np.asarray(V_kms, dtype=np.float64) * 1000.0)
+        _set_unit_attrs(d_vels, 100.0, u_l=1.0, u_t=-1.0)
+
+        d_masses = pt1.create_dataset("Masses", data=np.asarray(m_msun, dtype=np.float64) * 1e-10)
+        _set_unit_attrs(d_masses, u_m_cgs, u_m=1.0)
+
+        d_ids = pt1.create_dataset("ParticleIDs", data=np.arange(n_part, dtype=np.int64))
+        _set_unit_attrs(d_ids, 1.0)
 
 def generate_plummer(a=0.01, M=1e5, q=1.0, N=10000, bound=2.0, boxsize=4.0, 
                      use_parallel=True, nb_threads=2, 
@@ -164,16 +224,19 @@ def generate_plummer(a=0.01, M=1e5, q=1.0, N=10000, bound=2.0, boxsize=4.0,
     X += np.array([shiftx, shifty, shiftz])
 
     ### Write to hdf5
-    galactic_units = unyt.UnitSystem(
-        "galactic", unyt.kpc, unyt.unyt_quantity(1e10, units=unyt.Solar_Mass),
-        unyt.unyt_quantity(1.0, units=unyt.s * unyt.Mpc / unyt.km).to(unyt.Gyr),
-    )
-    wrt = Writer(galactic_units, boxsize * unyt.kpc)
-    wrt.dark_matter.coordinates = X * unyt.kpc
-    wrt.dark_matter.velocities = V * (unyt.km / unyt.s)
-    wrt.dark_matter.masses = m * unyt.msun
-    wrt.dark_matter.particle_ids = np.arange(new_N)
-    wrt.write(fname)
+    if _HAS_SWIFTSIMIO:
+        galactic_units = unyt.UnitSystem(
+            "galactic", unyt.kpc, unyt.unyt_quantity(1e10, units=unyt.Solar_Mass),
+            unyt.unyt_quantity(1.0, units=unyt.s * unyt.Mpc / unyt.km).to(unyt.Gyr),
+        )
+        wrt = Writer(galactic_units, boxsize * unyt.kpc)
+        wrt.dark_matter.coordinates = X * unyt.kpc
+        wrt.dark_matter.velocities = V * (unyt.km / unyt.s)
+        wrt.dark_matter.masses = m * unyt.msun
+        wrt.dark_matter.particle_ids = np.arange(new_N)
+        wrt.write(fname)
+    else:
+        _write_swift_hdf5_h5py(fname, X, V, m, boxsize)
     print("Writing IC file...")
     
     return fname 
