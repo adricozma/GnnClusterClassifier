@@ -1,3 +1,11 @@
+import os
+import sys
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+for _p in (ROOT_DIR, os.path.join(ROOT_DIR, "src"), os.path.join(ROOT_DIR, "visualization")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
 from Stellar_objects.cluster_v4_properties import *
 from Stellar_objects.visu import *
 from Stellar_objects.dispersion_vel_LOS import *
@@ -11,15 +19,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 #%%
-path = "outputs_SWIFT_jed/withoutDF/IC_54/"
-path = "/Volumes/Adrian 1 SS/MA2/TP4b/outputs_SWIFT_jed/withoutDF/IC_54"
-save_folder = "Plots/IC_54_orbit/"
+path = os.path.join(ROOT_DIR, "outputs_SWIFT_jed/withoutDF/IC_54/")
+save_folder = os.path.join(ROOT_DIR, "plots/IC_54_orbit/")
 if not os.path.exists(save_folder):
     os.makedirs(save_folder)
 
 output_list = [f for f in os.listdir(path) if f.startswith("snapshot_")]
-#output_list = ["snapshot_0050.hdf5", "snapshot_0060.hdf5", "snapshot_0070.hdf5", "snapshot_0080.hdf5"]  # Example: specify the exact snapshot file
-orbit_file = "make_ICs/orbits/orbit_54.txt"
+orbit_file = os.path.join(ROOT_DIR, "make_ICs/orbits/orbit_54.txt")
 for output in output_list:
     fname = os.path.join(path, output)
     pos, vel, _, _ = load_snapshot(fname, shift=500.0)

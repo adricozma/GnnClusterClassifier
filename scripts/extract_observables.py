@@ -1,3 +1,11 @@
+import os
+import sys
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+for _p in (ROOT_DIR, os.path.join(ROOT_DIR, "src"), os.path.join(ROOT_DIR, "visualization")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
 from Stellar_objects.cluster_v4_properties import *
 from Stellar_objects.visu import *
 from Stellar_objects.dispersion_vel_LOS import *

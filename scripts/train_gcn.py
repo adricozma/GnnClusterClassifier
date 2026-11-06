@@ -32,7 +32,13 @@ class GCN(torch.nn.Module):
 dataset = []
 outputlist = list(range(0,101))
 n = 5
-data_folder = '../../../../../../../../Volumes/Adrian 1 SS/MA2/graph_data/'
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+data_folder = os.environ.get(
+    "GRAPH_DATA_DIR",
+    os.path.join(ROOT_DIR, "GNN-jed", "graph_data") + "/",
+)
+if not os.path.exists(data_folder):
+    data_folder = '../../../../../../../../Volumes/Adrian 1 SS/MA2/graph_data/'
 
 for dir in os.listdir(data_folder):
     if dir.startswith('IC_'):

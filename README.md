@@ -1,89 +1,217 @@
 # Identifying Potential Escapers with Graph Neural Networks: Recovering Cluster Dynamics from Partial Kinematics
 
-**Author:** Adrian Cozma (adrian.cozma@epfl.ch)  
-**Affiliation:** Laboratory of Astrophysics (LASTRO), EPFL, Lausanne, Switzerland
+**Author:** Adrian Cozma ([@adricozma](https://github.com/adricozma))  
+**Affiliation:** Laboratory of Astrophysics (LASTRO), École Polytechnique Fédérale de Lausanne (EPFL)  
+**Supervisors:** Prof. Yves Revaz, Dr. Sruthi Nagesh  
+
+---
 
 ## Overview
 
-Observational studies of globular cluster (GC) stellar streams in the Milky Way are frequently constrained by incomplete 6D phase-space information, specifically the lack of radial line-of-sight velocities ($v_{\mathrm{los}}$) which require expensive spectroscopic follow-up. 
+As globular clusters orbit the Milky Way, gravitational tidal forces strip stars from their outer envelopes, forming elongated **stellar streams**. Determining whether an observed star remains gravitationally bound to the progenitor core, is a **potential escaper** trapped inside the Jacobi surface with excess energy, or has already escaped into the unbound tidal tails formally requires full 6D phase-space coordinates $(x, y, z, v_x, v_y, v_z)$ and explicit knowledge of the host galactic potential.
 
-This repository contains the complete numerical and machine-learning pipeline to:
-1. Generate observationally motivated initial conditions (ICs) for globular clusters from the Gaia DR3 / STREAMFINDER catalogue of Ibata et al. (2024).
-2. Evolve N-body Plummer clusters in a static `MWPotential2014` galactic potential (Bovy 2015) using the **SWIFT** cosmological and astrophysical code on the EPFL HPC cluster (Jed).
-3. Classify stars as gravitationally bound, unbound, or potential escapers using the Jacobi radius ($R_J$) and Jacobi energy ($E_J < E_{\mathrm{crit}}$) criteria of Küpper et al. (2010a,b).
-4. Train and evaluate Graph Convolutional Networks (GCN) and Graph Attention Networks (GAT) in PyTorch Geometric to recover bound cluster populations using only 5D astrometric observables ($\alpha, \delta, D, \mu_{\alpha^*}, \mu_\delta$), completely blind to $v_{\mathrm{los}}$.
+In observational surveys such as *Gaia*, however, radial velocities ($v_{\mathrm{los}}$) are missing for the vast majority of faint stars ($G > 16$), leaving only 5D astrometric measurements: sky positions $(\alpha, \delta)$, parallax ($\varpi$), and proper motions $(\mu_{\alpha^*}, \mu_\delta)$.
 
----
-
-## Workflow and Pipeline Structure
-
-The codebase is organized into four main stages.
-
-### Stage 1: Initial Conditions and Backward Orbit Integration (`make_ICs/`)
-
-* **Step 1.1: Observational Data Filtering**
-  * **File:** `make_ICs/WorkflowIbata.ipynb`
-  * **Input:** `make_ICs/Ibata_catalog.txt` (24,540 stream stars from Ibata et al. 2024)
-  * **Action:** Filters the catalogue to retain only stars with complete 6D phase-space measurements.
-  * **Output:** `make_ICs/stars_6D_ibata2024.csv` (1,703 stars across 84 streams)
-
-* **Step 1.2: Backward Orbit Integration**
-  * **File:** `make_ICs/OrbitIntegration_Ibata.ipynb`
-  * **Input:** `make_ICs/stars_6D_ibata2024.csv`
-  * **Action:** Computes median 6D coordinates per stream and integrates the orbits backward in time for $2\text{ Gyr}$ in `MWPotential2014` using `galpy`. Filters out unbounded trajectories outside a $100\text{ kpc}$ galactocentric box.
-  * **Output:** `make_ICs/SWIFT_seeds.npy` and `make_ICs/orbits/orbit_<ID>.txt` (75 retained orbits)
-
-* **Step 1.3: Plummer Cluster Realization for SWIFT**
-  * **Files:** `make_ICs/IC_plummer_swift.py`, `make_ICs/auto_multiple_IC_swift.ipynb`
-  * **Input:** `make_ICs/SWIFT_seeds.npy`
-  * **Action:** Generates discrete N-body realizations of Plummer spheres ($N \in [20\,000, 50\,000]$, $m = 1.0\,M_\odot$) boosted onto the $t = -2\text{ Gyr}$ orbital positions and velocities.
-  * **Output:** `make_ICs/initial_conditions/IC_<ID>.hdf5`
+This repository provides a complete numerical and deep-learning pipeline that:
+1. Reconstructs realistic progenitor initial conditions via backward orbit integration of observed Milky Way stellar streams from the *Gaia* DR3 atlas (Ibata et al. 2024) inside a realistic three-component Milky Way potential (`MWPotential2014`, Bovy 2015).
+2. Evolves 75 self-consistent $N$-body Plummer globular clusters forward in time for $2.0\text{ Gyr}$ using the cosmological/astrophysical code `SWIFT` (Schaller et al. 2024) on the EPFL HPC cluster **Jed**.
+3. Computes exact physical boundness and potential escaper labels from 3D Jacobi energies and tidal radii following Küpper et al. (2010a,b), using a 3D $k$-nearest-neighbor local density estimator (Casertano & Hut 1985) and iterative shrinking spheres to track the surviving core accurately even in heavily stripped streams.
+4. Projects the simulations into synthetic 5D *Gaia*-like astrometric observables with data augmentation over random observer orientations and physical-scale standardization.
+5. Trains **Graph Convolutional Networks (GCN)** and **Graph Attention Networks (GAT)** on $k$-NN phase-space graphs ($k = 20$) to recover node-level dynamical boundness directly from incomplete 5D kinematics, using strict stream-level (`IC_ID`) train/validation/test partitioning to evaluate generalization to unseen orbital families.
 
 ---
 
-### Stage 2: N-Body Simulations with SWIFT
+## Repository Structure
 
-* **Configuration:** `old/params.yml`
-* **Action:** Each of the 75 initial conditions is evolved forward for $2\text{ Gyr}$ (101 snapshots per orbit) inside a static `MWPotential2014` potential in SWIFT.
-* **Visualization:** `plot_swift_output.py`, `visu_stream_outputs.py`, `final_sims_vizu.ipynb`, and `Stellar_objects/cluster_v4_properties.py` compute 3D $k$-d tree volume densities and project orbital evolution.
+The repository is organized to separate core physical/feature-engineering modules (`src/`), executable production pipelines (`scripts/`), initial condition generation (`make_ICs/`), visualization utilities (`visualization/`), and interactive analysis notebooks (`notebooks/`):
+
+```text
+.
+├── assets/
+│   └── figures/                         # Example figures from simulations, dynamics, and GNN evaluation
+├── configs/
+│   ├── params.yml                       # SWIFT runtime configuration (MilkyWayPotential2014, leapfrog/gravity)
+│   └── dependency_graph_0.csv           # SWIFT task-level dependency graph from HPC execution
+├── make_ICs/
+│   ├── Ibata_catalog.txt                # Gaia DR3 stellar stream catalog (Ibata et al. 2024)
+│   ├── stars_6D_ibata2024.csv           # Filtered 6D stream stars used to define progenitor orbits
+│   ├── OrbitIntegration_Ibata.ipynb     # Backward orbit integration (-2 Gyr) in galpy MWPotential2014
+│   ├── WorkflowIbata.ipynb              # Catalog processing and progenitor seed extraction workflow
+│   ├── SWIFT_seeds.npy                  # 6D phase-space seeds at t = -2 Gyr for the 75 stream progenitors
+│   ├── IC_plummer_swift.py              # Isotropic/anisotropic Plummer sphere HDF5 generator for SWIFT
+│   ├── auto_multiple_IC_swift.ipynb     # Batch generation of the 75 initial condition directories
+│   └── orbits/                          # Integrated 2 Gyr orbital trajectories (orbit_1.txt ... orbit_87.txt)
+├── src/
+│   ├── bound_labels.py                  # Core-density centering + Jacobi energy & tidal radius labeling
+│   ├── observables_matrix.py            # 3D rotation augmentation, Astropy ICRS projection, physical scaling
+│   └── Stellar_objects/                 # Utilities for King/Plummer cluster profiles and LOS dispersion
+├── scripts/
+│   ├── extract_observables.py           # Batch extraction of 5D/6D observable matrices from SWIFT HDF5 outputs
+│   ├── train_gcn.py                     # Baseline 3-layer Graph Convolutional Network (GCN) training script
+│   └── train_gat.py                     # Multi-head Graph Attention Network (GAT) with stream-level IC split
+├── visualization/
+│   ├── plot_swift_output.py             # HDF5 snapshot loader (DMParticles coordinates, velocities, masses, time)
+│   ├── visu_stream_outputs.py           # 3D Galactocentric stream rendering and projection animations
+│   ├── plot_metric_live.py              # Training vs. validation loss curve plotter from training logs
+│   ├── final_sims_vizu.ipynb            # All-sky orthographic (Cartopy) and depth-sorted Galactocentric plots
+│   └── fraction_bound_stars.ipynb       # Bound fraction evolution vs. orbital eccentricity and perigalacticon
+├── notebooks/
+│   ├── labels_data_matrices.ipynb       # Interactive generation and verification of labels and observable matrices
+│   ├── graph_data.ipynb                 # PyTorch Geometric k-NN graph construction from 5D observables
+│   └── test-model-GCN.ipynb             # Model inference, perigalacticon error analysis, and RMT SVD diagnostics
+└── GNN-jed/
+    └── trained_models/
+        ├── GCN-01/                      # Trained baseline GCN weights (best_gnn_model_01.pth) & logs
+        └── GCN-02/                      # Trained multi-head GAT weights (best_gnn_model_02.pth), script & logs
+```
+
+*Note:* Bulk simulation snapshots (`outputs_SWIFT_jed/`, ~35 GB), raw pre-computed `.npy` observable/label arrays (`GNN-jed/obs_all_stars/`, `GNN-jed/labels_bound_stars/`), and serialized `.pt` graph datasets (`GNN-jed/graph_data/`, ~23 GB) are excluded from version control via `.gitignore`.
 
 ---
 
-### Stage 3: Dynamical Labeling and 5D Observable Projection
+## Physical & Methodological Pipeline
 
-* **Step 3.1: Jacobi Radius and Energy Criteria**
-  * **Files:** `bound_labels.py`, `fraction_bound_stars.ipynb`
-  * **Action:** Locates the progenitor cluster core via 3D $k$-NN local density estimation and shrinking spheres, iteratively solves for the Jacobi radius $R_J$ using the projected cylindrical Hessian of `MWPotential2014`, and evaluates the Jacobi energy $E_J$ in the local co-rotating frame against the critical Lagrange energy $E_{\mathrm{crit}} = -3GM / (2R_J)$. Labels bound stars ($r < R_J$ and $E_J < E_{\mathrm{crit}}$) and potential escapers ($r < R_J$ and $E_J \ge E_{\mathrm{crit}}$).
-  * **Output:** `GNN-jed/labels_bound_stars/IC_<ID>/B_L_snapshot_<snap>.npy`
+### 1. Progenitor Orbit Reconstruction & $N$-Body Simulations (`make_ICs/`, `configs/`)
 
-* **Step 3.2: Coordinate Transformation, 3D Rotations, and Normalization**
-  * **Files:** `observables_matrix.py`, `labels_data_matrices.ipynb`
-  * **Action:** Applies 5 random 3D Euler rotations per snapshot for data augmentation, transforms Galactocentric Cartesian vectors into ICRS astrometric observables ($\alpha, \delta, D, \mu_{\alpha^*}, \mu_\delta, v_{\mathrm{los}}$) via `astropy`, centers each stream on the tangent sky plane, and normalizes features before discarding $v_{\mathrm{los}}$.
-  * **Output:** `GNN-jed/obs_all_stars/IC_<ID>/obs_matrices_snapshot_<snap>.npy`
+Starting from the *Gaia* DR3 stellar stream catalog of Ibata et al. (2024), stars with complete 6D phase-space measurements are grouped by stream identifier (`Track`). Representative present-day stream anchors are integrated backward in time for $\Delta t = -2.0\text{ Gyr}$ using `galpy` (Bovy 2015) inside `MWPotential2014` (a Miyamoto-Nagai disk, power-law bulge with exponential cut-off, and NFW dark matter halo, with solar calibration $R_0 = 8.0\text{ kpc}$ and $V_c = 220\text{ km s}^{-1}$).
 
----
+| Present-Day Stream Anchors ($t = 0\text{ Gyr}$) | Backward-Integrated Progenitor Seeds ($t = -2.0\text{ Gyr}$) |
+| :---: | :---: |
+| ![Present-day positions](assets/figures/positions_today.png) | ![Backward-integrated seeds](assets/figures/seeds_positions.png) |
 
-### Stage 4: Graph Neural Network Training and Evaluation (`GNN-jed/`)
+At each $t = -2.0\text{ Gyr}$ seed position, an isotropic ($q = 0$) Plummer sphere (Plummer 1911) of total mass $M = 10^4\,M_\odot$, scale radius $a = 4\text{ pc}$, and $N \in [2500, 3500]$ equal-mass particles is initialized via `make_ICs/IC_plummer_swift.py`:
 
-* **Step 4.1: Graph Construction**
-  * **File:** `GNN-jed/graph_data.ipynb`
-  * **Action:** Builds $k$-nearest-neighbor ($k$-NN) graphs in the reduced 5D astrometric space (`Data(x, edge_index)`).
-  * **Output:** `GNN-jed/graph_data/IC_<ID>/graph_data_output_<snap>_rotation_<i>.pt`
+$$\rho(r) = \frac{3M}{4\pi a^3}\left(1 + \frac{r^2}{a^2}\right)^{-5/2}, \qquad \Phi(r) = -\frac{GM}{\sqrt{r^2 + a^2}}.$$
 
-* **Step 4.2: GCN and GAT Architectures**
-  * **Files:** `GNN-jed/GNN_01.py`, `GNN-jed/trained_models/GCN-02/GNN_02.py`
-  * **Action:** Implements 3-layer message-passing networks (`GCNConv` baseline and `GATConv` self-attention architecture) trained with `BCEWithLogitsLoss`, Adam optimizer, and `ReduceLROnPlateau` scheduling on the EPFL Jed cluster. Supports stream-level (`IC_ID`) dataset splitting to prevent spatio-temporal or rotational data leakage between training, validation, and test sets.
-  * **Output:** `best_gnn_model_01.pth` (GCN), `best_gnn_model_02.pth` (GAT), and training logs.
+Each cluster is evolved forward for $2.0\text{ Gyr}$ in `SWIFT` (Schaller et al. 2024) using `configs/params.yml` (101 HDF5 snapshots per simulation, $\Delta t_{\mathrm{snap}} = 20\text{ Myr}$, Comoving Plummer-equivalent softening $\epsilon = 1\text{ pc}$).
 
-* **Step 4.3: Post-Training Evaluation and Spectral Analysis**
-  * **Files:** `GNN-jed/trained_models/test-model-GCN.ipynb`, `GNN-jed/trained_models/plot_metric_live.py`
-  * **Action:** Evaluates classification metrics across streams ordered by first pericenter passage ($R_{p1}$), generates spatial TP/TN/FP/FN projections, and performs Random Matrix Theory (RMT) Singular Value Decomposition (SVD) spectral analysis on the trained weight matrices.
+| Tidal Disruption Sequence (`IC_53`, Low Perigalacticon) | Multi-Epoch Stream Formation (`IC_70`) |
+| :---: | :---: |
+| ![Tidal disruption sequence IC_53](assets/figures/sequence_IC_53.png) | ![Stream series IC_70](assets/figures/series_IC_70.png) |
 
 ---
 
-## Requirements
+### 2. Dynamical Boundness, Potential Escapers & Orbital Evolution (`src/bound_labels.py`)
 
-* Python 3.9+
-* `numpy`, `scipy`, `pandas`, `matplotlib`, `tqdm`
-* `astropy`, `galpy`, `unyt`, `swiftsimio`, `h5py`
-* `torch`, `torch_geometric`, `torch_cluster`
+Following Binney & Tremaine (2008) and Küpper et al. (2010a,b), a star in a cluster orbiting at galactocentric distance $R_{\mathrm{gal}}$ with instantaneous angular velocity $\boldsymbol{\Omega} = (\mathbf{R}_{\mathrm{gal}} \times \mathbf{V}_{\mathrm{gal}}) / R_{\mathrm{gal}}^2$ experiences an effective tidal boundary given by the King (1962) / Jacobi radius:
+
+$$R_J = \left(\frac{G M(<R_J)}{\Omega^2 - \frac{\partial^2 \Phi_{\mathrm{gal}}}{\partial R_{\mathrm{gal}}^2}}\right)^{1/3}, \qquad E_{\mathrm{crit}} = -\frac{3}{2}\frac{G M(<R_J)}{R_J}.$$
+
+Each star's specific Jacobi energy in the co-rotating frame relative to the surviving cluster core is:
+
+$$E_J = \frac{1}{2}|\mathbf{v}_{\mathrm{rel}}|^2 + \Phi_{\mathrm{cluster}}(r_{3D}) - \frac{1}{2}\left[\Omega^2 r_{3D}^2 - (\boldsymbol{\Omega}\cdot\mathbf{r}_{\mathrm{rel}})^2\right].$$
+
+To prevent extended, asymmetric tidal tails from biasing the cluster center-of-mass toward empty space between the tails, `src/bound_labels.py` locates the surviving core via a 3D $k$-nearest-neighbor local density estimator ($\rho_i \propto d_{k,i}^{-3}$, Casertano & Hut 1985) followed by an iterative shrinking-sphere refinement from $0.5\text{ kpc}$ down to $0.05\text{ kpc}$. Stars are classified into:
+- **Bound Core Stars (`label = 1`):** $E_J < E_{\mathrm{crit}}$ and $r_{3D} < R_J$ (solved iteratively to convergence).
+- **Potential Escapers:** $E_J \ge E_{\mathrm{crit}}$ and $r_{3D} < R_J$ (stars energetically unbound that remain spatially trapped inside the Jacobi surface near the $L_1 / L_2$ Lagrange points).
+- **Unbound Stream Stars (`label = 0`):** Stars outside the Jacobi radius or exceeding the critical Jacobi energy.
+
+![Bound Star Fraction vs Galactocentric Radius](assets/figures/R_vs_t_6panels_rp1.png)
+*Evolution of the Galactocentric radius $R(t)$ over $2.0\text{ Gyr}$ across the 75 simulated clusters, grouped into six panels by their first perigalacticon distance $R_{p1}$ and color-coded by the instantaneous fraction of bound stars.*
+
+---
+
+### 3. Synthetic 5D *Gaia* Observables & $k$-NN Graph Construction (`src/observables_matrix.py`)
+
+For each snapshot, the 3D Galactocentric particle coordinates are rotated by $n_{\mathrm{rot}} = 5$ random 3D Euler matrices $\mathbf{R} \in \mathrm{SO}(3)$ to augment viewing angles, transformed into the heliocentric International Celestial Reference System (ICRS) via `astropy.coordinates.SkyCoord`, and restricted to the 5D astrometric feature vector:
+
+$$\mathbf{x}_i = \left(\Delta\alpha_i\cos\delta_c,\; \Delta\delta_i,\; \Delta\varpi_i,\; \Delta\mu_{\alpha^*,i},\; \Delta\mu_{\delta,i}\right) \in \mathbb{R}^5.$$
+
+In `src/observables_matrix.py`, features are centered on the robust stream median (handling the $0^\circ / 360^\circ$ Right Ascension wrap via circular trigonometry) and normalized by fixed reference physical scales (`mode="physical"`) rather than per-snapshot unit-variance Z-scores, preserving the contrast in angular and kinematic compactness between bound cores and dispersed tidal tails. A directed $k$-nearest-neighbor graph ($k = 20$) is constructed in this 5D feature space using `torch_geometric.nn.knn_graph`.
+
+---
+
+### 4. Graph Neural Network Architectures & Evaluation (`scripts/`, `notebooks/`)
+
+We compare two message-passing architectures implemented in PyTorch Geometric:
+1. **Baseline GCN (`scripts/train_gcn.py`):** A 3-layer Graph Convolutional Network (`5 -> 16 -> 32 -> 1`, Kipf & Welling 2017) with isotropic neighborhood aggregation.
+2. **Multi-Head GAT (`scripts/train_gat.py`):** A 3-layer Graph Attention Network (Veličković et al. 2018) with multi-head attention (`GATConv(5, 16, heads=4)` $\rightarrow$ `GATConv(64, 32, heads=2)` $\rightarrow$ `GATConv(64, 1, heads=1, concat=False)`), Exponential Linear Unit (`ELU`) activations, feature dropout ($p = 0.2$), and residual linear skip connections (`Linear(5, 64)`, `Linear(64, 64)`) to prevent over-smoothing and preserve each star's local kinematics relative to its neighbors.
+
+| Training & Validation Loss Convergence (GCN vs. GAT) | Weight Matrix Singular Value Spectrum (RMT) |
+| :---: | :---: |
+| ![Training and validation loss curves](assets/figures/live_plots_GNN.png) | ![Spectral analysis of GNN weights](assets/figures/spectral_analysis_GNN.png) |
+
+At $t = 2.0\text{ Gyr}$ (snapshot 100), the multi-head GAT model achieves **96.26% mean node accuracy** across all 75 streams, accurately separating surviving bound cores from stripped tidal tails while concentrating its remaining errors on marginal systems undergoing final dissolution at intermediate perigalacticon ($R_{p1} \sim 8\text{--}18\text{ kpc}$).
+
+| Dissolved Stream (`IC_1`, $R_{p1} = 1.9\text{ kpc}$, 100% Accuracy) | Surviving Bound Core (`IC_81`, $R_{p1} = 16.5\text{ kpc}$, 98.11% Accuracy) |
+| :---: | :---: |
+| ![GAT predictions on IC_1 at snapshot 100](assets/figures/prediction_GAT_ID1_output100.png) | ![GAT predictions on IC_81 at snapshot 100](assets/figures/prediction_GAT_ID81_output100.png) |
+
+![GAT Error Percentage by First Perigalacticon](assets/figures/error_percentage_by_perigalacticon.png)
+*Classification error percentage at $t = 2.0\text{ Gyr}$ (snapshot 100) across all 75 simulated streams ordered by first perigalacticon distance $R_{p1}$. Streams with small $R_{p1}$ are completely disrupted early on, whereas intermediate-$R_{p1}$ clusters retain marginally bound cores rich in potential escapers.*
+
+---
+
+## Installation & Usage
+
+### Dependencies
+
+Create a Python 3.10+ environment with the required astrophysics and deep-learning packages:
+
+```bash
+pip install numpy scipy pandas matplotlib h5py astropy galpy swiftsimio unyt cartopy
+pip install torch torch_geometric torch_cluster
+```
+
+### 1. Computing Dynamical Labels & 5D Observable Matrices
+
+To extract ground-truth bound labels (`src/bound_labels.py`) and standardized 5D observable matrices (`src/observables_matrix.py`) from raw `SWIFT` HDF5 snapshots:
+
+```bash
+python scripts/extract_observables.py
+```
+
+Or interactively via `notebooks/labels_data_matrices.ipynb`. In Python, `compute_bound_stars` can also return the boolean mask of **potential escapers** ($r_{3D} < R_J$ and $E_J \ge E_{\mathrm{crit}}$):
+
+```python
+from src.bound_labels import compute_bound_stars
+
+is_bound, is_potential_escaper, x_rel, y_rel, z_rel, vx_rel, vy_rel, vz_rel, rj, m_bound, e_j, e_crit = (
+    compute_bound_stars(x, y, z, vx, vy, vz, masses, return_potential_escapers=True)
+)
+```
+
+### 2. Constructing $k$-NN Graphs
+
+Use `notebooks/graph_data.ipynb` to convert the standardized 5D observable matrices (`obs_matrices_snapshot_*.npy`) and bound labels (`B_L_snapshot_*.npy`) into PyTorch Geometric `Data` objects with $k$-NN connectivity.
+
+### 3. Training the GAT / GCN Models
+
+Run `scripts/train_gat.py` to train the multi-head GAT model with stream-level (`IC_ID`) partitioning (ensuring no snapshot or rotation of a validation/test stream leaks into the training set) and optional positive-class loss weighting:
+
+```bash
+python scripts/train_gat.py \
+    --data_folder /path/to/graph_data \
+    --split_mode ic \
+    --epochs 70 \
+    --lr 0.005 \
+    --batch_size 64 \
+    --pos_weight 2.91 \
+    --save_model best_gnn_model_02.pth \
+    --log_file training_metrics.log
+```
+
+To plot live training and validation loss curves from a log file:
+
+```bash
+python visualization/plot_metric_live.py
+```
+
+---
+
+## Theoretical References
+
+1. **Ibata, R., Malhan, K., Tenorio, L., et al. (2024).** *Charting the Galactic Acceleration Field. II. A Global Mass Model of the Milky Way from the STREAMFINDER Atlas of Stellar Streams Detected in Gaia DR3.* The Astrophysical Journal, 967(1), 89. [doi:10.3847/1538-4357/ad382d](https://doi.org/10.3847/1538-4357/ad382d)
+2. **Küpper, A. H. W., Kroupa, P., Baumgardt, H., & Heggie, D. C. (2010a).** *Tidal tails of star clusters.* Monthly Notices of the Royal Astronomical Society, 401(1), 105–120. [doi:10.1111/j.1365-2966.2009.15690.x](https://doi.org/10.1111/j.1365-2966.2009.15690.x)
+3. **Küpper, A. H. W., Kroupa, P., Baumgardt, H., & Heggie, D. C. (2010b).** *Palaeontology of star clusters: faint haloes and eccentric orbits.* Monthly Notices of the Royal Astronomical Society, 407(3), 1580–1600. [doi:10.1111/j.1365-2966.2010.17084.x](https://doi.org/10.1111/j.1365-2966.2010.17084.x)
+4. **Binney, J., & Tremaine, S. (2008).** *Galactic Dynamics* (2nd ed.). Princeton University Press.
+5. **King, I. (1962).** *The structure of star clusters. I. An empirical density law.* The Astronomical Journal, 67, 471–485. [doi:10.1086/108756](https://doi.org/10.1086/108756)
+6. **Plummer, H. C. (1911).** *On the problem of distribution in globular star clusters.* Monthly Notices of the Royal Astronomical Society, 71(5), 460–470. [doi:10.1093/mnras/71.5.460](https://doi.org/10.1093/mnras/71.5.460)
+7. **Casertano, S., & Hut, P. (1985).** *Core radius and density measurements in N-body experiments: Connections with theoretical and observational definitions.* The Astrophysical Journal, 298, 80–94. [doi:10.1086/163589](https://doi.org/10.1086/163589)
+8. **Bovy, J. (2015).** *galpy: A python Library for Galactic Dynamics.* The Astrophysical Journal Supplement Series, 216(2), 29. [doi:10.1088/0067-0049/216/2/29](https://doi.org/10.1088/0067-0049/216/2/29)
+9. **Schaller, M., Borrow, J., Draper, P. W., et al. (2024).** *SWIFT: A modern highly-parallel gravity and smoothed particle hydrodynamics solver for cosmological and planetary simulations.* Monthly Notices of the Royal Astronomical Society, 530(2), 2378–2419. [doi:10.1093/mnras/stae922](https://doi.org/10.1093/mnras/stae922)
+10. **Gaia Collaboration, Prusti, T., de Bruijne, J. H. J., et al. (2016).** *The Gaia mission.* Astronomy & Astrophysics, 595, A1. [doi:10.1051/0004-6361/201629272](https://doi.org/10.1051/0004-6361/201629272)
+11. **Kipf, T. N., & Welling, M. (2017).** *Semi-Supervised Classification with Graph Convolutional Networks.* International Conference on Learning Representations (ICLR 2017). [arXiv:1609.02907](https://arxiv.org/abs/1609.02907)
+12. **Veličković, P., Cucurull, G., Casanova, A., Romero, A., Liò, P., & Bengio, Y. (2018).** *Graph Attention Networks.* International Conference on Learning Representations (ICLR 2018). [arXiv:1710.10903](https://arxiv.org/abs/1710.10903)
+13. **Alon, U., & Yahav, E. (2021).** *On the Bottleneck of Graph Neural Networks and its Practical Implications.* International Conference on Learning Representations (ICLR 2021). [arXiv:2006.05205](https://arxiv.org/abs/2006.05205)
+14. **Martin, C. H., & Mahoney, M. W. (2021).** *Implicit Self-Regularization in Deep Neural Networks: Evidence from Random Matrix Theory and Implications for Learning.* Journal of Machine Learning Research, 22(165), 1–73. [arXiv:1810.01075](https://arxiv.org/abs/1810.01075)

@@ -4,8 +4,13 @@ import os
 from adri_plotstyle import init_plot_style
 init_plot_style(14)
 
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TRAINED_MODELS_DIR = os.path.join(ROOT_DIR, "GNN-jed", "trained_models")
 
-log_filenames = ["GCN-01/training_metrics_GNN_01.log", "GCN-02/training_metrics_GNN_02.log"]
+log_filenames = [
+    os.path.join(TRAINED_MODELS_DIR, "GCN-01", "training_metrics_GNN_01.log"),
+    os.path.join(TRAINED_MODELS_DIR, "GCN-02", "training_metrics_GNN_02.log"),
+]
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 3))
 i = 0
 for log_filename in log_filenames:
