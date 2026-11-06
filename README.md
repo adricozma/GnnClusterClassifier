@@ -95,7 +95,7 @@ Each cluster is evolved forward for $2.0\text{ Gyr}$ in `SWIFT` (Schaller et al.
 
 Following Binney & Tremaine (2008) and Küpper et al. (2010a,b), a star in a cluster orbiting at galactocentric distance $R_{\mathrm{gal}}$ with instantaneous angular velocity $\boldsymbol{\Omega} = (\mathbf{R}_{\mathrm{gal}} \times \mathbf{V}_{\mathrm{gal}}) / R_{\mathrm{gal}}^2$ experiences an effective tidal boundary given by the King (1962) / Jacobi radius:
 
-$$R_J = \left(\frac{G M(<R_J)}{\Omega^2 - \frac{\partial^2 \Phi_{\mathrm{gal}}}{\partial R_{\mathrm{gal}}^2}}\right)^{1/3}, \qquad E_{\mathrm{crit}} = -\frac{3}{2}\frac{G M(<R_J)}{R_J}.$$
+$$R_J = \left(\frac{G M(<R_J)}{\Omega^2 - \frac{\partial^2 \Phi_{\mathrm{gal}}}{\partial R_{\mathrm{gal}}^2}}\right)^{1/3}, \qquad E_{\mathrm{crit}} = -\frac{3}{2}\frac{G M(\mathrel{<}R_J)}{R_J}.$$
 
 Each star's specific Jacobi energy in the co-rotating frame relative to the surviving cluster core is:
 
