@@ -1,0 +1,1431 @@
+0
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.600e-02 kpc
+Total Mass:                                        M = 2.916e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_1.hdf5
+Number of particles:                               N = 2.9e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.4945e-03 kpc
+Sampling velocities...
+  0%|          | 0/29163 [00:00<?, ?it/s]/opt/anaconda3/envs/pymses/lib/python3.9/site-packages/scipy/optimize/_slsqp_py.py:437: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+  0%|          | 12/29163 [00:00<04:07, 117.79it/s]/Users/adriancozma/Desktop/Ecole/MA2/TP4b/simulations-SWIFT/make_ICs/IC_plummer_swift.py:79: RuntimeWarning: divide by zero encountered in scalar divide
+  x_val = L ** 2 / (2.0 * E * a ** 2)
+  4%|▍         | 1292/29163 [00:04<01:24, 330.43it/s]/Users/adriancozma/Desktop/Ecole/MA2/TP4b/simulations-SWIFT/make_ICs/IC_plummer_swift.py:79: RuntimeWarning: invalid value encountered in scalar divide
+  x_val = L ** 2 / (2.0 * E * a ** 2)
+100%|██████████| 29163/29163 [01:20<00:00, 360.05it/s]
+Sampling took 81.02 seconds.
+Writing IC file...
+1
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.600e-03 kpc
+Total Mass:                                        M = 3.052e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_3.hdf5
+Number of particles:                               N = 3.1e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.4719e-04 kpc
+Sampling velocities...
+100%|██████████| 30523/30523 [00:44<00:00, 685.38it/s]
+Sampling took 44.54 seconds.
+Writing IC file...
+2
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 3.751e-02 kpc
+Total Mass:                                        M = 2.059e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_4.hdf5
+Number of particles:                               N = 2.1e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.3684e-03 kpc
+Sampling velocities...
+100%|██████████| 20591/20591 [01:07<00:00, 303.04it/s]
+Sampling took 67.95 seconds.
+Writing IC file...
+3
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.987e-02 kpc
+Total Mass:                                        M = 4.008e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_5.hdf5
+Number of particles:                               N = 4.0e+04
+
+############################################################################################# 
+
+Recommended Softening length: 8.7266e-04 kpc
+Sampling velocities...
+100%|██████████| 40084/40084 [03:19<00:00, 200.83it/s]
+Sampling took 199.60 seconds.
+Writing IC file...
+4
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.025e-02 kpc
+Total Mass:                                        M = 4.502e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_6.hdf5
+Number of particles:                               N = 4.5e+04
+
+############################################################################################# 
+
+Recommended Softening length: 5.6932e-04 kpc
+Sampling velocities...
+100%|██████████| 45020/45020 [02:57<00:00, 254.25it/s]
+Sampling took 177.07 seconds.
+Writing IC file...
+5
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.054e-02 kpc
+Total Mass:                                        M = 4.132e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_8.hdf5
+Number of particles:                               N = 4.1e+04
+
+############################################################################################# 
+
+Recommended Softening length: 5.9410e-04 kpc
+Sampling velocities...
+100%|██████████| 41324/41324 [04:03<00:00, 169.90it/s]
+Sampling took 243.23 seconds.
+Writing IC file...
+6
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.489e-02 kpc
+Total Mass:                                        M = 2.975e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_9.hdf5
+Number of particles:                               N = 3.0e+04
+
+############################################################################################# 
+
+Recommended Softening length: 8.0310e-04 kpc
+Sampling velocities...
+100%|██████████| 29752/29752 [02:46<00:00, 178.50it/s]
+Sampling took 166.69 seconds.
+Writing IC file...
+7
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.189e-02 kpc
+Total Mass:                                        M = 3.270e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_11.hdf5
+Number of particles:                               N = 3.3e+04
+
+############################################################################################# 
+
+Recommended Softening length: 6.8442e-04 kpc
+Sampling velocities...
+100%|██████████| 32704/32704 [03:37<00:00, 150.44it/s]
+Sampling took 217.39 seconds.
+Writing IC file...
+8
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.742e-02 kpc
+Total Mass:                                        M = 3.733e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_12.hdf5
+Number of particles:                               N = 3.7e+04
+
+############################################################################################# 
+
+Recommended Softening length: 5.2111e-04 kpc
+Sampling velocities...
+100%|██████████| 37333/37333 [03:37<00:00, 171.44it/s]
+Sampling took 217.77 seconds.
+Writing IC file...
+9
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.473e-02 kpc
+Total Mass:                                        M = 2.957e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_13.hdf5
+Number of particles:                               N = 3.0e+04
+
+############################################################################################# 
+
+Recommended Softening length: 4.7643e-04 kpc
+Sampling velocities...
+100%|██████████| 29574/29574 [02:58<00:00, 165.69it/s]
+Sampling took 178.50 seconds.
+Writing IC file...
+10
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.518e-02 kpc
+Total Mass:                                        M = 2.138e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_14.hdf5
+Number of particles:                               N = 2.1e+04
+
+############################################################################################# 
+
+Recommended Softening length: 9.0724e-04 kpc
+Sampling velocities...
+100%|██████████| 21376/21376 [01:11<00:00, 299.24it/s]
+Sampling took 71.46 seconds.
+Writing IC file...
+11
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.167e-02 kpc
+Total Mass:                                        M = 4.960e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_15.hdf5
+Number of particles:                               N = 5.0e+04
+
+############################################################################################# 
+
+Recommended Softening length: 5.8966e-04 kpc
+Sampling velocities...
+100%|██████████| 49600/49600 [03:17<00:00, 250.69it/s]
+Sampling took 197.86 seconds.
+Writing IC file...
+12
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 3.332e-02 kpc
+Total Mass:                                        M = 2.756e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_16.hdf5
+Number of particles:                               N = 2.8e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.1031e-03 kpc
+Sampling velocities...
+100%|██████████| 27563/27563 [00:57<00:00, 479.22it/s]
+Sampling took 57.52 seconds.
+Writing IC file...
+13
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.048e-02 kpc
+Total Mass:                                        M = 3.111e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_17.hdf5
+Number of particles:                               N = 3.1e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.2870e-03 kpc
+Sampling velocities...
+100%|██████████| 31113/31113 [01:09<00:00, 445.25it/s]
+Sampling took 69.88 seconds.
+Writing IC file...
+14
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.059e-02 kpc
+Total Mass:                                        M = 2.618e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_18.hdf5
+Number of particles:                               N = 2.6e+04
+
+############################################################################################# 
+
+Recommended Softening length: 6.9333e-04 kpc
+Sampling velocities...
+100%|██████████| 26179/26179 [00:51<00:00, 506.76it/s]
+Sampling took 51.66 seconds.
+Writing IC file...
+15
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.659e-02 kpc
+Total Mass:                                        M = 2.501e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_19.hdf5
+Number of particles:                               N = 2.5e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.5930e-03 kpc
+Sampling velocities...
+100%|██████████| 25011/25011 [00:57<00:00, 434.68it/s]
+Sampling took 57.54 seconds.
+Writing IC file...
+16
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.720e-02 kpc
+Total Mass:                                        M = 2.786e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_20.hdf5
+Number of particles:                               N = 2.8e+04
+
+############################################################################################# 
+
+Recommended Softening length: 8.9742e-04 kpc
+Sampling velocities...
+100%|██████████| 27855/27855 [01:01<00:00, 455.55it/s]
+Sampling took 61.15 seconds.
+Writing IC file...
+17
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.413e-02 kpc
+Total Mass:                                        M = 4.215e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_21.hdf5
+Number of particles:                               N = 4.2e+04
+
+############################################################################################# 
+
+Recommended Softening length: 6.9349e-04 kpc
+Sampling velocities...
+100%|██████████| 42150/42150 [01:39<00:00, 422.93it/s]
+Sampling took 99.66 seconds.
+Writing IC file...
+18
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.415e-02 kpc
+Total Mass:                                        M = 2.315e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_22.hdf5
+Number of particles:                               N = 2.3e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.5492e-03 kpc
+Sampling velocities...
+100%|██████████| 23151/23151 [00:52<00:00, 441.48it/s]
+Sampling took 52.44 seconds.
+Writing IC file...
+19
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 8.209e-03 kpc
+Total Mass:                                        M = 3.465e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_23.hdf5
+Number of particles:                               N = 3.5e+04
+
+############################################################################################# 
+
+Recommended Softening length: 2.5178e-04 kpc
+Sampling velocities...
+100%|██████████| 34653/34653 [00:59<00:00, 584.20it/s]
+Sampling took 59.32 seconds.
+Writing IC file...
+20
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.601e-02 kpc
+Total Mass:                                        M = 4.704e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_24.hdf5
+Number of particles:                               N = 4.7e+04
+
+############################################################################################# 
+
+Recommended Softening length: 7.2055e-04 kpc
+Sampling velocities...
+100%|██████████| 47040/47040 [01:55<00:00, 406.12it/s]
+Sampling took 115.83 seconds.
+Writing IC file...
+21
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.765e-02 kpc
+Total Mass:                                        M = 3.551e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_25.hdf5
+Number of particles:                               N = 3.6e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.4495e-03 kpc
+Sampling velocities...
+100%|██████████| 35514/35514 [01:41<00:00, 349.02it/s]
+Sampling took 101.76 seconds.
+Writing IC file...
+22
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.216e-02 kpc
+Total Mass:                                        M = 3.020e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_26.hdf5
+Number of particles:                               N = 3.0e+04
+
+############################################################################################# 
+
+Recommended Softening length: 7.1164e-04 kpc
+Sampling velocities...
+100%|██████████| 30195/30195 [01:00<00:00, 496.53it/s]
+Sampling took 60.81 seconds.
+Writing IC file...
+23
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 3.447e-03 kpc
+Total Mass:                                        M = 3.976e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_28.hdf5
+Number of particles:                               N = 4.0e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.0100e-04 kpc
+Sampling velocities...
+100%|██████████| 39758/39758 [00:51<00:00, 773.10it/s]
+Sampling took 51.43 seconds.
+Writing IC file...
+24
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.824e-02 kpc
+Total Mass:                                        M = 2.710e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_29.hdf5
+Number of particles:                               N = 2.7e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.6060e-03 kpc
+Sampling velocities...
+100%|██████████| 27101/27101 [01:00<00:00, 448.59it/s]
+Sampling took 60.42 seconds.
+Writing IC file...
+25
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.483e-02 kpc
+Total Mass:                                        M = 4.483e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_30.hdf5
+Number of particles:                               N = 4.5e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.2620e-03 kpc
+Sampling velocities...
+100%|██████████| 44832/44832 [01:45<00:00, 426.41it/s]
+Sampling took 105.14 seconds.
+Writing IC file...
+26
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.176e-02 kpc
+Total Mass:                                        M = 2.667e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_31.hdf5
+Number of particles:                               N = 2.7e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.3977e-03 kpc
+Sampling velocities...
+100%|██████████| 26667/26667 [00:57<00:00, 462.45it/s]
+Sampling took 57.67 seconds.
+Writing IC file...
+27
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 3.713e-02 kpc
+Total Mass:                                        M = 3.128e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_32.hdf5
+Number of particles:                               N = 3.1e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.1784e-03 kpc
+Sampling velocities...
+100%|██████████| 31276/31276 [01:08<00:00, 459.84it/s]
+Sampling took 68.02 seconds.
+Writing IC file...
+28
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.004e-02 kpc
+Total Mass:                                        M = 2.131e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_33.hdf5
+Number of particles:                               N = 2.1e+04
+
+############################################################################################# 
+
+Recommended Softening length: 3.6207e-04 kpc
+Sampling velocities...
+100%|██████████| 21307/21307 [00:33<00:00, 634.56it/s]
+Sampling took 33.58 seconds.
+Writing IC file...
+29
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 3.949e-02 kpc
+Total Mass:                                        M = 3.082e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_34.hdf5
+Number of particles:                               N = 3.1e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.2594e-03 kpc
+Sampling velocities...
+100%|██████████| 30819/30819 [01:07<00:00, 455.15it/s]
+Sampling took 67.72 seconds.
+Writing IC file...
+30
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 3.501e-02 kpc
+Total Mass:                                        M = 4.434e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_35.hdf5
+Number of particles:                               N = 4.4e+04
+
+############################################################################################# 
+
+Recommended Softening length: 9.8917e-04 kpc
+Sampling velocities...
+100%|██████████| 44340/44340 [01:43<00:00, 427.32it/s]
+Sampling took 103.77 seconds.
+Writing IC file...
+31
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.130e-02 kpc
+Total Mass:                                        M = 4.778e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_36.hdf5
+Number of particles:                               N = 4.8e+04
+
+############################################################################################# 
+
+Recommended Softening length: 3.1130e-04 kpc
+Sampling velocities...
+100%|██████████| 47782/47782 [01:28<00:00, 538.26it/s]
+Sampling took 88.77 seconds.
+Writing IC file...
+32
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.663e-02 kpc
+Total Mass:                                        M = 2.437e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_37.hdf5
+Number of particles:                               N = 2.4e+04
+
+############################################################################################# 
+
+Recommended Softening length: 5.7366e-04 kpc
+Sampling velocities...
+100%|██████████| 24366/24366 [00:44<00:00, 544.05it/s]
+Sampling took 44.79 seconds.
+Writing IC file...
+33
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.305e-02 kpc
+Total Mass:                                        M = 3.410e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_38.hdf5
+Number of particles:                               N = 3.4e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.3274e-03 kpc
+Sampling velocities...
+100%|██████████| 34105/34105 [01:16<00:00, 448.69it/s]
+Sampling took 76.01 seconds.
+Writing IC file...
+34
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.286e-02 kpc
+Total Mass:                                        M = 3.739e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_39.hdf5
+Number of particles:                               N = 3.7e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.2818e-03 kpc
+Sampling velocities...
+100%|██████████| 37386/37386 [01:25<00:00, 436.28it/s]
+Sampling took 85.70 seconds.
+Writing IC file...
+35
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.775e-02 kpc
+Total Mass:                                        M = 3.135e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_40.hdf5
+Number of particles:                               N = 3.1e+04
+
+############################################################################################# 
+
+Recommended Softening length: 8.8009e-04 kpc
+Sampling velocities...
+100%|██████████| 31347/31347 [01:08<00:00, 459.80it/s]
+Sampling took 68.18 seconds.
+Writing IC file...
+36
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.066e-02 kpc
+Total Mass:                                        M = 3.898e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_41.hdf5
+Number of particles:                               N = 3.9e+04
+
+############################################################################################# 
+
+Recommended Softening length: 6.0922e-04 kpc
+Sampling velocities...
+100%|██████████| 38977/38977 [01:48<00:00, 358.91it/s]
+Sampling took 108.60 seconds.
+Writing IC file...
+37
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.979e-02 kpc
+Total Mass:                                        M = 2.684e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_42.hdf5
+Number of particles:                               N = 2.7e+04
+
+############################################################################################# 
+
+Recommended Softening length: 6.6106e-04 kpc
+Sampling velocities...
+100%|██████████| 26842/26842 [01:04<00:00, 414.57it/s]
+Sampling took 64.75 seconds.
+Writing IC file...
+38
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.203e-02 kpc
+Total Mass:                                        M = 2.582e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_43.hdf5
+Number of particles:                               N = 2.6e+04
+
+############################################################################################# 
+
+Recommended Softening length: 7.4538e-04 kpc
+Sampling velocities...
+100%|██████████| 25822/25822 [01:01<00:00, 418.12it/s]
+Sampling took 61.76 seconds.
+Writing IC file...
+39
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.520e-02 kpc
+Total Mass:                                        M = 4.460e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_44.hdf5
+Number of particles:                               N = 4.5e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.2746e-03 kpc
+Sampling velocities...
+100%|██████████| 44604/44604 [02:19<00:00, 320.85it/s]
+Sampling took 139.02 seconds.
+Writing IC file...
+40
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.637e-02 kpc
+Total Mass:                                        M = 2.698e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_46.hdf5
+Number of particles:                               N = 2.7e+04
+
+############################################################################################# 
+
+Recommended Softening length: 8.7914e-04 kpc
+Sampling velocities...
+100%|██████████| 26978/26978 [01:09<00:00, 386.51it/s]
+Sampling took 69.80 seconds.
+Writing IC file...
+41
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 3.244e-02 kpc
+Total Mass:                                        M = 2.315e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_47.hdf5
+Number of particles:                               N = 2.3e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.1382e-03 kpc
+Sampling velocities...
+100%|██████████| 23153/23153 [00:54<00:00, 423.04it/s]
+Sampling took 54.73 seconds.
+Writing IC file...
+42
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.652e-02 kpc
+Total Mass:                                        M = 3.207e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_48.hdf5
+Number of particles:                               N = 3.2e+04
+
+############################################################################################# 
+
+Recommended Softening length: 8.3486e-04 kpc
+Sampling velocities...
+100%|██████████| 32071/32071 [01:23<00:00, 384.18it/s]
+Sampling took 83.48 seconds.
+Writing IC file...
+43
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.404e-02 kpc
+Total Mass:                                        M = 3.137e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_50.hdf5
+Number of particles:                               N = 3.1e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.3965e-03 kpc
+Sampling velocities...
+100%|██████████| 31370/31370 [01:24<00:00, 369.54it/s]
+Sampling took 84.89 seconds.
+Writing IC file...
+44
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.146e-02 kpc
+Total Mass:                                        M = 3.478e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_51.hdf5
+Number of particles:                               N = 3.5e+04
+
+############################################################################################# 
+
+Recommended Softening length: 3.5109e-04 kpc
+Sampling velocities...
+100%|██████████| 34784/34784 [01:14<00:00, 464.29it/s]
+Sampling took 74.92 seconds.
+Writing IC file...
+45
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.721e-02 kpc
+Total Mass:                                        M = 3.524e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_52.hdf5
+Number of particles:                               N = 3.5e+04
+
+############################################################################################# 
+
+Recommended Softening length: 8.2984e-04 kpc
+Sampling velocities...
+100%|██████████| 35245/35245 [01:32<00:00, 380.57it/s]
+Sampling took 92.61 seconds.
+Writing IC file...
+46
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 3.376e-02 kpc
+Total Mass:                                        M = 2.786e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_53.hdf5
+Number of particles:                               N = 2.8e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.1137e-03 kpc
+Sampling velocities...
+100%|██████████| 27855/27855 [01:11<00:00, 389.61it/s]
+Sampling took 71.50 seconds.
+Writing IC file...
+47
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.592e-02 kpc
+Total Mass:                                        M = 3.845e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_54.hdf5
+Number of particles:                               N = 3.8e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.3603e-03 kpc
+Sampling velocities...
+100%|██████████| 38453/38453 [01:48<00:00, 355.56it/s]
+Sampling took 108.15 seconds.
+Writing IC file...
+48
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 3.482e-02 kpc
+Total Mass:                                        M = 4.846e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_55.hdf5
+Number of particles:                               N = 4.8e+04
+
+############################################################################################# 
+
+Recommended Softening length: 9.5509e-04 kpc
+Sampling velocities...
+100%|██████████| 48457/48457 [02:26<00:00, 330.81it/s]
+Sampling took 146.49 seconds.
+Writing IC file...
+49
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.484e-03 kpc
+Total Mass:                                        M = 2.666e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_59.hdf5
+Number of particles:                               N = 2.7e+04
+
+############################################################################################# 
+
+Recommended Softening length: 8.3160e-05 kpc
+Sampling velocities...
+100%|██████████| 26661/26661 [00:41<00:00, 642.47it/s]
+Sampling took 41.50 seconds.
+Writing IC file...
+50
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.483e-02 kpc
+Total Mass:                                        M = 4.759e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_60.hdf5
+Number of particles:                               N = 4.8e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.2371e-03 kpc
+Sampling velocities...
+100%|██████████| 47588/47588 [02:22<00:00, 335.12it/s]
+Sampling took 142.01 seconds.
+Writing IC file...
+51
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.817e-02 kpc
+Total Mass:                                        M = 4.037e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_61.hdf5
+Number of particles:                               N = 4.0e+04
+
+############################################################################################# 
+
+Recommended Softening length: 5.2960e-04 kpc
+Sampling velocities...
+100%|██████████| 40374/40374 [01:45<00:00, 384.45it/s]
+Sampling took 105.02 seconds.
+Writing IC file...
+52
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 3.713e-02 kpc
+Total Mass:                                        M = 3.922e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_62.hdf5
+Number of particles:                               N = 3.9e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.0928e-03 kpc
+Sampling velocities...
+100%|██████████| 39219/39219 [02:12<00:00, 295.97it/s]
+Sampling took 132.52 seconds.
+Writing IC file...
+53
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.770e-02 kpc
+Total Mass:                                        M = 2.987e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_63.hdf5
+Number of particles:                               N = 3.0e+04
+
+############################################################################################# 
+
+Recommended Softening length: 5.7041e-04 kpc
+Sampling velocities...
+100%|██████████| 29870/29870 [01:22<00:00, 360.50it/s]
+Sampling took 82.86 seconds.
+Writing IC file...
+54
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 3.873e-02 kpc
+Total Mass:                                        M = 3.221e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_64.hdf5
+Number of particles:                               N = 3.2e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.2174e-03 kpc
+Sampling velocities...
+100%|██████████| 32206/32206 [01:32<00:00, 347.54it/s]
+Sampling took 92.67 seconds.
+Writing IC file...
+55
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 5.453e-03 kpc
+Total Mass:                                        M = 4.458e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_65.hdf5
+Number of particles:                               N = 4.5e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.5380e-04 kpc
+Sampling velocities...
+100%|██████████| 44582/44582 [01:25<00:00, 524.45it/s]
+Sampling took 85.01 seconds.
+Writing IC file...
+56
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.809e-02 kpc
+Total Mass:                                        M = 2.728e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_66.hdf5
+Number of particles:                               N = 2.7e+04
+
+############################################################################################# 
+
+Recommended Softening length: 9.3301e-04 kpc
+Sampling velocities...
+100%|██████████| 27284/27284 [01:08<00:00, 400.88it/s]
+Sampling took 68.06 seconds.
+Writing IC file...
+57
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.812e-02 kpc
+Total Mass:                                        M = 3.740e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_68.hdf5
+Number of particles:                               N = 3.7e+04
+
+############################################################################################# 
+
+Recommended Softening length: 5.4198e-04 kpc
+Sampling velocities...
+100%|██████████| 37400/37400 [01:30<00:00, 413.63it/s]
+Sampling took 90.42 seconds.
+Writing IC file...
+58
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.009e-02 kpc
+Total Mass:                                        M = 2.563e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_69.hdf5
+Number of particles:                               N = 2.6e+04
+
+############################################################################################# 
+
+Recommended Softening length: 6.8136e-04 kpc
+Sampling velocities...
+100%|██████████| 25628/25628 [00:58<00:00, 439.32it/s]
+Sampling took 58.34 seconds.
+Writing IC file...
+59
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.334e-02 kpc
+Total Mass:                                        M = 3.052e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_70.hdf5
+Number of particles:                               N = 3.1e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.3868e-03 kpc
+Sampling velocities...
+100%|██████████| 30524/30524 [01:25<00:00, 357.76it/s]
+Sampling took 85.32 seconds.
+Writing IC file...
+60
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.309e-02 kpc
+Total Mass:                                        M = 4.872e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_71.hdf5
+Number of particles:                               N = 4.9e+04
+
+############################################################################################# 
+
+Recommended Softening length: 6.3225e-04 kpc
+Sampling velocities...
+100%|██████████| 48723/48723 [02:22<00:00, 341.02it/s]
+Sampling took 142.88 seconds.
+Writing IC file...
+61
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 4.328e-03 kpc
+Total Mass:                                        M = 3.069e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_72.hdf5
+Number of particles:                               N = 3.1e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.3822e-04 kpc
+Sampling velocities...
+100%|██████████| 30694/30694 [00:52<00:00, 582.62it/s]
+Sampling took 52.69 seconds.
+Writing IC file...
+62
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.361e-02 kpc
+Total Mass:                                        M = 3.018e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_73.hdf5
+Number of particles:                               N = 3.0e+04
+
+############################################################################################# 
+
+Recommended Softening length: 4.3707e-04 kpc
+Sampling velocities...
+100%|██████████| 30185/30185 [01:09<00:00, 433.15it/s]
+Sampling took 69.69 seconds.
+Writing IC file...
+63
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.218e-02 kpc
+Total Mass:                                        M = 4.362e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_74.hdf5
+Number of particles:                               N = 4.4e+04
+
+############################################################################################# 
+
+Recommended Softening length: 6.2998e-04 kpc
+Sampling velocities...
+100%|██████████| 43617/43617 [01:57<00:00, 371.92it/s]
+Sampling took 117.28 seconds.
+Writing IC file...
+64
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 3.256e-02 kpc
+Total Mass:                                        M = 2.566e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_75.hdf5
+Number of particles:                               N = 2.6e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.1039e-03 kpc
+Sampling velocities...
+100%|██████████| 25658/25658 [01:04<00:00, 397.83it/s]
+Sampling took 64.50 seconds.
+Writing IC file...
+65
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.622e-02 kpc
+Total Mass:                                        M = 2.312e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_76.hdf5
+Number of particles:                               N = 2.3e+04
+
+############################################################################################# 
+
+Recommended Softening length: 5.6942e-04 kpc
+Sampling velocities...
+100%|██████████| 23120/23120 [00:50<00:00, 460.26it/s]
+Sampling took 50.23 seconds.
+Writing IC file...
+66
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 3.755e-02 kpc
+Total Mass:                                        M = 3.635e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_77.hdf5
+Number of particles:                               N = 3.6e+04
+
+############################################################################################# 
+
+Recommended Softening length: 1.1334e-03 kpc
+Sampling velocities...
+100%|██████████| 36350/36350 [01:38<00:00, 367.24it/s]
+Sampling took 98.99 seconds.
+Writing IC file...
+67
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.031e-02 kpc
+Total Mass:                                        M = 2.618e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_78.hdf5
+Number of particles:                               N = 2.6e+04
+
+############################################################################################# 
+
+Recommended Softening length: 6.8386e-04 kpc
+Sampling velocities...
+100%|██████████| 26178/26178 [01:11<00:00, 365.25it/s]
+Sampling took 71.67 seconds.
+Writing IC file...
+68
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 3.104e-02 kpc
+Total Mass:                                        M = 3.081e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_79.hdf5
+Number of particles:                               N = 3.1e+04
+
+############################################################################################# 
+
+Recommended Softening length: 9.9020e-04 kpc
+Sampling velocities...
+100%|██████████| 30809/30809 [01:38<00:00, 312.17it/s]
+Sampling took 98.70 seconds.
+Writing IC file...
+69
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.508e-02 kpc
+Total Mass:                                        M = 3.328e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_80.hdf5
+Number of particles:                               N = 3.3e+04
+
+############################################################################################# 
+
+Recommended Softening length: 7.7967e-04 kpc
+Sampling velocities...
+100%|██████████| 33283/33283 [01:39<00:00, 334.47it/s]
+Sampling took 99.51 seconds.
+Writing IC file...
+70
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.224e-02 kpc
+Total Mass:                                        M = 4.299e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_81.hdf5
+Number of particles:                               N = 4.3e+04
+
+############################################################################################# 
+
+Recommended Softening length: 3.4948e-04 kpc
+Sampling velocities...
+100%|██████████| 42992/42992 [01:39<00:00, 431.10it/s]
+Sampling took 99.73 seconds.
+Writing IC file...
+71
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 2.796e-02 kpc
+Total Mass:                                        M = 2.914e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_82.hdf5
+Number of particles:                               N = 2.9e+04
+
+############################################################################################# 
+
+Recommended Softening length: 9.0872e-04 kpc
+Sampling velocities...
+100%|██████████| 29137/29137 [01:13<00:00, 395.73it/s]
+Sampling took 73.63 seconds.
+Writing IC file...
+72
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.492e-02 kpc
+Total Mass:                                        M = 4.512e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_83.hdf5
+Number of particles:                               N = 4.5e+04
+
+############################################################################################# 
+
+Recommended Softening length: 4.1918e-04 kpc
+Sampling velocities...
+100%|██████████| 45119/45119 [01:46<00:00, 422.64it/s]
+Sampling took 106.76 seconds.
+Writing IC file...
+73
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.669e-02 kpc
+Total Mass:                                        M = 3.219e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_86.hdf5
+Number of particles:                               N = 3.2e+04
+
+############################################################################################# 
+
+Recommended Softening length: 5.2460e-04 kpc
+Sampling velocities...
+100%|██████████| 32194/32194 [01:16<00:00, 422.07it/s]
+Sampling took 76.28 seconds.
+Writing IC file...
+74
+
+############################################################################################# 
+
+Generating Plummer ICs with the following parameters::
+
+Softening length:                                  a = 1.999e-02 kpc
+Total Mass:                                        M = 4.851e+04 Solar Masses
+Anisotropy parameter:                              q = 1.0
+Output file:                                       initial_conditions/IC_87.hdf5
+Number of particles:                               N = 4.9e+04
+
+############################################################################################# 
+
+Recommended Softening length: 5.4800e-04 kpc
+Sampling velocities...
+100%|██████████| 48514/48514 [02:10<00:00, 372.35it/s]
+Sampling took 130.30 seconds.
+Writing IC file..

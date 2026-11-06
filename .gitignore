@@ -1,0 +1,28 @@
+# OS & Editor artifacts
+.DS_Store
+__pycache__/
+*.pyc
+.qodo/
+.ipynb_checkpoints/
+restart
+
+# Large simulation snapshots & HDF5 files
+outputs_SWIFT_jed/
+make_ICs/initial_conditions/
+*.hdf5
+
+# Large intermediate GNN tensors & matrices (57+ GB)
+GNN-jed/obs_all_stars/
+GNN-jed/labels_bound_stars/
+GNN-jed/graph_data/
+GNN-jed/trained_models/graphs/
+*.pt
+
+# Heavy bulk plot/video directories (keep final paper plots in GNN-jed/trained_models/)
+plots/
+all_streams_figure/
+frac_plots_0/
+frac_plots_5/
+frac_plots_10/
+*.mp4
+old/swift
