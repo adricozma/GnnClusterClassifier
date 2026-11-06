@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH --job-name=Study2_Step2_SWIFT
 #SBATCH --nodes=1
-#SBATCH --ntasks=72
-#SBATCH --mem=400G
+#SBATCH --ntasks=36
+#SBATCH --mem=180G
 #SBATCH --account=master
 #SBATCH --qos=academic
 #SBATCH --partition=academic
-#SBATCH --time=72:00:00
-#SBATCH --array=0-80
+#SBATCH --time=120:00:00
+#SBATCH --array=0-80%6
 #SBATCH --output=slurm_logs/step2_swift_%A_%a.out
 
 set -euo pipefail
@@ -18,6 +18,7 @@ ICS_DIR="$REPO_DIR/make_ICs/initial_conditions_unbiased"
 STUDY1_OUTPUT_BASE="/home/cozma/swift_sims/outputs"
 OUTPUT_BASE="/home/cozma/swift_sims/outputs_unbiased"
 REUSE_EXISTING_SWIFT="${REUSE_EXISTING_SWIFT:-1}"
+N_THREADS="${SLURM_NTASKS:-36}"
 
 mkdir -p "$REPO_DIR/slurm_logs" "$OUTPUT_BASE"
 
@@ -33,8 +34,6 @@ BASENAME="${BASENAME_EXT%.*}"
 
 OUTPUT_FOLDER="$OUTPUT_BASE/${BASENAME}"
 
-# If REUSE_EXISTING_SWIFT=1 and Study 1 already has all 101 snapshots for this cluster,
-# create a read-only symlink in outputs_unbiased/ to save 88% of N-body compute time.
 if [ "$REUSE_EXISTING_SWIFT" = "1" ] && [ -f "$STUDY1_OUTPUT_BASE/${BASENAME}/snapshot_0100.hdf5" ]; then
     if [ ! -e "$OUTPUT_FOLDER" ]; then
         ln -s "$STUDY1_OUTPUT_BASE/${BASENAME}" "$OUTPUT_FOLDER"
@@ -60,12 +59,14 @@ sed -e "s|__OUTPUT_DIR__|$OUTPUT_FOLDER|g" \
 cd "$OUTPUT_FOLDER"
 module load gcc/13.2.0 gsl hdf5 metis
 
-echo "Running SWIFT on $BASENAME with $SLURM_NTASKS threads..."
+echo "Running SWIFT on $BASENAME with $N_THREADS threads..."
 "$SWIFT_BIN" \
     --self-gravity \
     --external-gravity \
-    --threads="$SLURM_NTASKS" \
+    --threads="$N_THREADS" \
     --pin \
     "$CONFIG_FILE"
 
 echo "Finished SWIFT simulation for $BASENAME."
+cd "$REPO_DIR"
+python3 scripts/live_monitor.py --once || true

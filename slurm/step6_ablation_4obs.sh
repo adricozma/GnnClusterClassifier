@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH --job-name=Study2_Step6_4Obs
 #SBATCH --nodes=1
-#SBATCH --ntasks=72
-#SBATCH --mem=492G
+#SBATCH --ntasks=36
+#SBATCH --mem=220G
 #SBATCH --account=master
 #SBATCH --qos=academic
 #SBATCH --partition=academic
-#SBATCH --time=96:00:00
-#SBATCH --array=0-4
+#SBATCH --time=168:00:00
+#SBATCH --array=0-4%3
 #SBATCH --output=slurm_logs/step6_ablation4obs_%A_%a.out
 
 set -euo pipefail
@@ -25,6 +25,7 @@ GRAPH_DIR_NOISY="/scratch/cozma/graph_data_${TAG}_noisy"
 OUT_DIR_CLEAN="GNN-jed/trained_models/study2/${TAG}_clean"
 OUT_DIR_NOISY="GNN-jed/trained_models/study2/${TAG}_noisy"
 SIM_DIR="${SIM_DIR:-/home/cozma/swift_sims/outputs_unbiased}"
+N_WORKERS="${SLURM_NTASKS:-36}"
 
 mkdir -p slurm_logs "$GRAPH_DIR_CLEAN" "$GRAPH_DIR_NOISY" "$OUT_DIR_CLEAN" "$OUT_DIR_NOISY"
 
@@ -46,7 +47,7 @@ python3 scripts/build_graph_dataset.py \
     --rotations 5 \
     --k_neighbors 20 \
     --feature_indices "$FEAT" \
-    --num_workers "$SLURM_NTASKS"
+    --num_workers "$N_WORKERS"
 
 echo "=== [2/4] Building 4D Gaia DR3 Noisy k-NN Graphs for $TAG (features=$FEAT) ==="
 python3 scripts/build_graph_dataset.py \
@@ -56,7 +57,7 @@ python3 scripts/build_graph_dataset.py \
     --rotations 5 \
     --k_neighbors 20 \
     --feature_indices "$FEAT" \
-    --num_workers "$SLURM_NTASKS"
+    --num_workers "$N_WORKERS"
 
 echo "=== [3/4] Stage 1: Clean Pre-Training on 4 Observables ($TAG) ==="
 python3 scripts/train_gcn.py \

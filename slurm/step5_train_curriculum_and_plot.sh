@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=Study2_Step5_Train
 #SBATCH --nodes=1
-#SBATCH --ntasks=72
-#SBATCH --mem=492G
+#SBATCH --ntasks=36
+#SBATCH --mem=220G
 #SBATCH --account=master
 #SBATCH --qos=academic
 #SBATCH --partition=academic
-#SBATCH --time=96:00:00
+#SBATCH --time=168:00:00
 #SBATCH --output=slurm_logs/step5_train_curriculum_%j.out
 
 set -euo pipefail

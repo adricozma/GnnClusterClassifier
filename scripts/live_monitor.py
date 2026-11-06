@@ -38,6 +38,62 @@ def send_ntfy_message(topic, message, title="EPFL Jed - GNN Study 2", priority="
         pass
 
 
+def auto_heal_slurm_jobs(topic=DEFAULT_TOPIC):
+    """Downscale CPU/RAM and extend walltime for pending jobs blocked on QOS/resource limits."""
+    try:
+        res = subprocess.run(
+            ["squeue", "-u", "cozma", "-h", "-o", "%i|%t|%C|%m|%R"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        throttled_reasons = (
+            "QOSGrpCpuLimit",
+            "QOSMaxCpuPerUserLimit",
+            "QOSGrpMemLimit",
+            "QOSMaxMemoryPerUser",
+            "QOSMaxMemoryPerJob",
+            "AssocMaxCpuPerJobLimit",
+            "ReqNodeNotAvail",
+            "Resources",
+        )
+        for line in res.stdout.strip().splitlines():
+            parts = line.strip().split("|")
+            if len(parts) < 5:
+                continue
+            job_id, state, cpus_str, mem_str, reason = parts[0], parts[1], parts[2], parts[3], parts[4]
+            base_jid = job_id.split("_")[0]
+            if state == "PD" and any(r in reason for r in throttled_reasons):
+                try:
+                    cur_cpus = int(cpus_str)
+                except ValueError:
+                    cur_cpus = 36
+                if cur_cpus > 4:
+                    new_cpus = max(4, cur_cpus // 2)
+                    new_mem_gb = max(24, new_cpus * 4)
+                    upd = subprocess.run(
+                        [
+                            "scontrol",
+                            "update",
+                            f"JobId={base_jid}",
+                            f"NumTasks={new_cpus}",
+                            f"MinMemoryNode={new_mem_gb}G",
+                            "TimeLimit=168:00:00",
+                        ],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    if upd.returncode == 0:
+                        send_ntfy_message(
+                            topic,
+                            f"Auto-scaled Job {base_jid} ({reason}): {cur_cpus} -> {new_cpus} CPUs, {new_mem_gb}G RAM, TimeLimit=168:00:00",
+                            title="EPFL Jed - Auto Resource Fallback",
+                        )
+    except Exception:
+        pass
+
+
 def get_slurm_queue():
     """Return current squeue output for user cozma."""
     try:
@@ -148,6 +204,7 @@ def main():
     uploaded_plots = set()
 
     while True:
+        auto_heal_slurm_jobs(args.topic)
         squeue_str = get_slurm_queue()
         prog = collect_pipeline_progress()
         report = format_status_report(squeue_str, prog)

@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=Study2_Step1_ICs
 #SBATCH --nodes=1
-#SBATCH --ntasks=72
-#SBATCH --mem=200G
+#SBATCH --ntasks=16
+#SBATCH --mem=64G
 #SBATCH --account=master
 #SBATCH --qos=academic
 #SBATCH --partition=academic
-#SBATCH --time=04:00:00
+#SBATCH --time=12:00:00
 #SBATCH --output=slurm_logs/step1_ics_%j.out
 
 set -euo pipefail
@@ -23,6 +23,8 @@ module load py-h5py/3.11.0
 export MPLBACKEND=Agg
 source env_astro/bin/activate
 
+N_WORKERS="${SLURM_NTASKS:-16}"
+
 echo "=== STEP 1A: Selecting all physical progenitor orbits inside SWIFT box (R_p >= 0.0 kpc, |xyz| <= 480 kpc) ==="
 python3 make_ICs/select_unbiased_orbits.py \
     --min_perigalacticon 0.0 \
@@ -30,7 +32,7 @@ python3 make_ICs/select_unbiased_orbits.py \
 
 echo "=== STEP 1B: Generating virialized Plummer HDF5 initial conditions (linking existing Study 1 ICs) ==="
 python3 make_ICs/generate_unbiased_ics.py \
-    --nb_threads "$SLURM_NTASKS" \
+    --nb_threads "$N_WORKERS" \
     --seed 42
 
 echo "=== STEP 1 COMPLETED SUCCESSFULLY ==="
