@@ -1,48 +1,51 @@
 # Define the system of units to use internally.
 InternalUnitSystem:
-  UnitMass_in_cgs:     1.98841e33    # 1 Solar mass (en grammes)
-  UnitLength_in_cgs:   3.08567758e21 # 1 kpc (en centimètres)
-  UnitVelocity_in_cgs: 1e5           # 1 km/s (en cm/s)
+  UnitMass_in_cgs:     1.98841e33    # 1 Solar mass (in grams)
+  UnitLength_in_cgs:   3.08567758e21 # 1 kpc (in centimeters)
+  UnitVelocity_in_cgs: 1e5           # 1 km/s (in cm/s)
   UnitCurrent_in_cgs:  1             # Amperes
   UnitTemp_in_cgs:     1             # Kelvin
+
 
 # Parameters governing the time integration
 TimeIntegration:
   time_begin:          0.      # The starting time of the simulation (in internal units).
-  time_end:            0.05     # The end time of the simulation (in internal units).
+  time_end:            2.      # The end time of the simulation (in internal units).
   dt_min:              1e-11   # The minimal time-step size of the simulation (in internal units).
   dt_max:              1e-3    # The maximal time-step size of the simulation (in internal units).
 
 # Parameters for the self-gravity scheme
 Gravity:
   eta:                           0.002      # Constant dimensionless multiplier for time integration.
-  MAC:                           adaptive  # Choice of mulitpole acceptance criterion: 'adaptive' OR 'geometric'.
+  MAC:                           adaptive   # Choice of multipole acceptance criterion: 'adaptive' OR 'geometric'.
   epsilon_fmm:                   0.001      # Tolerance parameter for the adaptive multipole acceptance criterion.
-  theta_cr:                      0.7        # Opening angle for the purely gemoetric criterion.
+  theta_cr:                      0.7        # Opening angle for the purely geometric criterion.
   max_physical_DM_softening:     0.005      # Physical softening length (in internal units).
   
 # Parameters governing the snapshots
 Snapshots:
-  basename:            snapshot  # Common part of the name of output files
-  time_first:          0.        # Time of the first output (in internal units)
-  delta_time:          2e-2      # Time difference between consecutive outputs (in internal units)
+  basename:            snapshot        # Common part of the name of output files
+  subdir:              __OUTPUT_DIR__  # Subdirectory where to write the output files
+  time_first:          0.              # Time of the first output (in internal units)
+  delta_time:          2e-2            # Time difference between consecutive outputs (in internal units)
 
 # Parameters governing the conserved quantities statistics
 Statistics:
-  delta_time:          1e-3    # Time between statistics output
+  delta_time:          2e-2            # Time between statistics output
+  subdir:              __OUTPUT_DIR__  # Subdirectory where to write the output files
 
 # Parameters related to the initial conditions
 InitialConditions:
-  file_name:          plummer.hdf5 # The file to read
-  shift:              [30.,30.,30.]
+  file_name:          __IC_FILE_PATH__ # The file to read
+  shift:              [500.,500.,500.]
   periodic:           0
 
 MWPotential2014Potential:
-  useabspos:       0                 # 0 -> positions based on centre, 1 -> absolute positions 
-  position:        [30.,30.,30.]        #Centre of the potential with respect to centre of the box
-  timestep_mult:   0.0005            # Dimensionless pre-factor for the time-step condition
-  epsilon:         0.001e-3          # Softening size (internal units)
-  with_dynamical_friction:1          # Are we running with dynamical friction ? 0 -> no, 1 -> yes
+  useabspos:       0                   # 0 -> positions based on centre, 1 -> absolute positions 
+  position:        [0.,0.,0.]          # Centre of the potential with respect to centre of the box
+  timestep_mult:   0.0005              # Dimensionless pre-factor for the time-step condition
+  epsilon:         0.001e-3            # Softening size (internal units)
+  with_dynamical_friction: 0           # Are we running with dynamical friction ? 0 -> no, 1 -> yes
   df_lnLambda:        5.0              # Coulomb logarithm
   df_satellite_mass_in_Msun: 1e10      # Satellite mass in solar mass
   df_core_radius_in_kpc: 10            # Radius below which the dynamical friction vanishes.  

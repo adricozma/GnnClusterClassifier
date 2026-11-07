@@ -31,33 +31,7 @@ for _p in (ROOT_DIR, os.path.join(ROOT_DIR, "src"), os.path.join(ROOT_DIR, "visu
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-
-class GCNModel(torch.nn.Module):
-    def __init__(self, in_channels=5):
-        super().__init__()
-        self.conv1 = GCNConv(in_channels, 32)
-        self.conv2 = GCNConv(32, 64)
-        self.conv3 = GCNConv(64, 1)
-
-    def forward(self, data):
-        x, edge_index = data.x, data.edge_index
-        x = F.relu(self.conv1(x, edge_index))
-        x = F.relu(self.conv2(x, edge_index))
-        return self.conv3(x, edge_index)
-
-
-class GATModel(torch.nn.Module):
-    def __init__(self, in_channels=5):
-        super().__init__()
-        self.conv1 = GATConv(in_channels, 128)
-        self.conv2 = GATConv(128, 256)
-        self.conv3 = GATConv(256, 1)
-
-    def forward(self, data):
-        x, edge_index = data.x, data.edge_index
-        x = F.relu(self.conv1(x, edge_index))
-        x = F.relu(self.conv2(x, edge_index))
-        return self.conv3(x, edge_index)
+from gnn_models import GCN as GCNModel, GAT as GATModel
 
 
 def _write_plotly_html(out_html, title, traces, layout):

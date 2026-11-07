@@ -1,19 +1,27 @@
 """Live remote telemetry and notification daemon for Study 2 on EPFL Jed.
 
 Publishes real-time SLURM job status, simulation/extraction progress, epoch-by-epoch
-GNN training metrics, and generated PNG/HTML figures to a public web stream
-(`https://ntfy.sh/<topic>`) and updates `LIVE_STATUS.md` so progress can be followed
-from any browser or smartphone without SSH access to Jed.
+GNN training metrics, and real-time learning curve figures (`latest_live_training.png`
+and `live_plots_GNN_*.png`) to a public web stream (`https://ntfy.sh/<topic>`) and
+updates `LIVE_STATUS.md` so progress and live plots can be followed from any browser
+or smartphone without SSH access to Jed.
 """
 
 import argparse
 import glob
 import os
 import subprocess
+import sys
 import time
 from datetime import datetime
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+for _p in (ROOT_DIR, os.path.join(ROOT_DIR, "scripts")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from live_plot_utils import parse_log_file, update_live_plots_for_log, update_master_study2_live_plot
+
 DEFAULT_TOPIC = "epfl-cozma-gnn-study2"
 
 
@@ -98,7 +106,7 @@ def get_slurm_queue():
     """Return current squeue output for user cozma."""
     try:
         res = subprocess.run(
-            ["squeue", "-u", "cozma", "-o", "%.12i %.10P %.22j %.4t %.10M %.6D %R"],
+            ["squeue", "-u", "cozma", "-o", "%.14i %.10P %.22j %.4t %.10M %.6D %R"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -109,7 +117,7 @@ def get_slurm_queue():
 
 
 def collect_pipeline_progress():
-    """Count completed files across each stage of Study 2."""
+    """Count completed files across each stage of Study 2 and refresh live training plots."""
     n_ics = len(glob.glob(os.path.join(ROOT_DIR, "make_ICs", "initial_conditions_unbiased", "IC_*.hdf5")))
     n_swift_done = len(glob.glob("/home/cozma/swift_sims/outputs_unbiased/IC_*/snapshot_0100.hdf5"))
     n_labels = len(glob.glob(os.path.join(ROOT_DIR, "GNN-jed", "labels_clean", "IC_*", "B_L_snapshot_0100.npy")))
@@ -120,15 +128,34 @@ def collect_pipeline_progress():
 
     logs = sorted(glob.glob(os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2", "**", "training_metrics_*.log"), recursive=True))
     latest_epochs = []
+    training_rows = []
     for lg in logs:
         rel = os.path.relpath(lg, os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2"))
-        try:
-            with open(lg, "r", encoding="utf-8") as f:
-                lines = [ln.strip() for ln in f if ln.strip() and not ln.startswith("===") and not ln.startswith("Epoch") and not ln.startswith("Val") and not ln.startswith("Test")]
-            if lines:
-                latest_epochs.append(f"{rel}: {lines[-1]}")
-        except Exception:
-            pass
+        d = parse_log_file(lg)
+        if d["epochs"]:
+            try:
+                update_live_plots_for_log(lg)
+            except Exception:
+                pass
+            ep = d["epochs"][-1]
+            tr_l = d["train_loss"][-1]
+            tr_a = d["train_acc"][-1]
+            va_l = d["val_loss"][-1]
+            va_a = d["val_acc"][-1]
+            best_va = max(d["val_acc"])
+            test_str = f"{d['test_acc']:.2f}%" if d["test_acc"] is not None else "In progress"
+            f1_str = f"{d['test_f1']:.4f}" if d["test_f1"] is not None else "-"
+            latest_epochs.append(
+                f"{rel}: Ep {ep:03d} | Train {tr_l:.4f} ({tr_a:.2f}%) | Val {va_l:.4f} ({va_a:.2f}%, Best={best_va:.2f}%) | Test={test_str}"
+            )
+            exp_name = os.path.basename(os.path.dirname(lg))
+            model_name = "GAT" if "_gat" in os.path.basename(lg) else "GCN"
+            training_rows.append((exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, test_str, f1_str))
+
+    try:
+        update_master_study2_live_plot()
+    except Exception:
+        pass
 
     return {
         "n_ics": n_ics,
@@ -139,6 +166,7 @@ def collect_pipeline_progress():
         "n_graphs_clean": n_graphs_clean,
         "n_graphs_noisy": n_graphs_noisy,
         "latest_epochs": latest_epochs,
+        "training_rows": training_rows,
     }
 
 
@@ -152,12 +180,49 @@ def format_status_report(squeue_str, prog):
         f"- Step 4 (5D Graphs): Clean={prog['n_graphs_clean']}/81 | GaiaNoisy={prog['n_graphs_noisy']}/81",
     ]
     if prog["latest_epochs"]:
-        lines.append("- Step 5/6 Training Logs:")
+        lines.append("- Step 5/6 Live GNN Training Progress:")
         for le in prog["latest_epochs"]:
             lines.append(f"  * {le}")
     lines.append("\nSLURM Queue:")
     lines.append(squeue_str if squeue_str else "(No active jobs)")
     return "\n".join(lines)
+
+
+def write_live_status_markdown(report, prog):
+    """Write LIVE_STATUS.md with embedded live training plots and metrics table."""
+    status_md_path = os.path.join(ROOT_DIR, "LIVE_STATUS.md")
+    md_lines = [
+        "# Live Pipeline Status on Jed",
+        "",
+        "```text",
+        report,
+        "```",
+    ]
+
+    if prog["training_rows"]:
+        md_lines.extend([
+            "",
+            "## Live Neural Network Training Metrics",
+            "",
+            "| Experiment | Architecture | Latest Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Best Val Acc | Test Acc | Test F1 |",
+            "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
+        ])
+        for exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, test_str, f1_str in prog["training_rows"]:
+            md_lines.append(
+                f"| `{exp_name}` | **{model_name}** | {ep} | {tr_l:.4f} | {tr_a:.2f}% | {va_l:.4f} | {va_a:.2f}% | **{best_va:.2f}%** | **{test_str}** | {f1_str} |"
+            )
+
+    master_plot_rel = "GNN-jed/trained_models/study2/latest_live_training.png"
+    if os.path.exists(os.path.join(ROOT_DIR, master_plot_rel)):
+        md_lines.extend([
+            "",
+            "## Real-Time GNN Learning Curves (Loss & Accuracy Evolution)",
+            "",
+            f"![Live GNN Training Curves]({master_plot_rel})",
+        ])
+
+    with open(status_md_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(md_lines) + "\n")
 
 
 def auto_push_to_github():
@@ -193,12 +258,35 @@ def auto_push_to_github():
         pass
 
 
+def daemonize(log_path="/scratch/cozma/slurm_logs/live_monitor_daemon.log"):
+    """Detach process via POSIX double-fork and setsid so it survives VS Code/SSH exit."""
+    import signal
+    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+    if os.fork() > 0:
+        sys.exit(0)
+    os.setsid()
+    if os.fork() > 0:
+        sys.exit(0)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    with open("/dev/null", "r") as devnull:
+        os.dup2(devnull.fileno(), sys.stdin.fileno())
+    with open(log_path, "a+") as logf:
+        os.dup2(logf.fileno(), sys.stdout.fileno())
+        os.dup2(logf.fileno(), sys.stderr.fileno())
+
+
 def main():
     parser = argparse.ArgumentParser(description="Publish live Study 2 status updates to ntfy.sh and LIVE_STATUS.md.")
     parser.add_argument("--topic", type=str, default=DEFAULT_TOPIC, help="ntfy.sh topic name.")
     parser.add_argument("--interval", type=int, default=300, help="Polling interval in seconds (default: 300s = 5 min).")
     parser.add_argument("--once", action="store_true", help="Send a single status snapshot and exit.")
+    parser.add_argument("--daemon", action="store_true", help="Run detached in background (survives closing VS Code / SSH).")
     args = parser.parse_args()
+
+    if args.daemon:
+        daemonize()
 
     last_sent_report = None
     uploaded_plots = set()
@@ -208,12 +296,8 @@ def main():
         squeue_str = get_slurm_queue()
         prog = collect_pipeline_progress()
         report = format_status_report(squeue_str, prog)
+        write_live_status_markdown(report, prog)
 
-        status_md_path = os.path.join(ROOT_DIR, "LIVE_STATUS.md")
-        with open(status_md_path, "w", encoding="utf-8") as f:
-            f.write(f"# Live Pipeline Status on Jed\n\n```text\n{report}\n```\n")
-
-        # Only push notification if state changed or --once
         state_signature = (
             squeue_str,
             prog["n_ics"],
@@ -228,20 +312,20 @@ def main():
             auto_push_to_github()
             last_sent_report = state_signature
 
-        # Automatically push any newly generated PNG or HTML dashboard files
+        # Automatically push newly generated or updated PNG/HTML figures (including live training curves)
         new_files = glob.glob(
             os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2", "**", "*.*"),
             recursive=True,
         )
         for fpath in sorted(new_files):
             if fpath.endswith((".png", ".html")):
-                mtime = os.path.getmtime(fpath)
-                key = (fpath, int(mtime))
+                mtime = int(os.path.getmtime(fpath))
+                key = (fpath, mtime)
                 if key not in uploaded_plots:
                     send_ntfy_message(
                         args.topic,
                         f"Updated figure: {os.path.basename(fpath)}",
-                        title="EPFL Jed - New Study 2 Figure",
+                        title="EPFL Jed - Live Study 2 Figure",
                         attachment_path=fpath,
                     )
                     uploaded_plots.add(key)

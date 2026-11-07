@@ -59,6 +59,19 @@ def load_data_and_create_graphs(
         if not (os.path.exists(data_path) and os.path.exists(label_path)):
             continue
 
+        all_rot_exist = all(
+            os.path.exists(
+                os.path.join(output_folder_path, f"graph_data_output_{snap}_rotation_{r}.pt")
+            )
+            and os.path.exists(
+                os.path.join(output_folder_path, f"label_output_{snap}_rotation_{r}.pt")
+            )
+            for r in range(n_rotations)
+        )
+        if all_rot_exist:
+            saved_count += n_rotations
+            continue
+
         data_matrix3d = np.load(data_path)
         label_matrix = np.load(label_path)
         label_tensor = torch.tensor(label_matrix, dtype=torch.float)

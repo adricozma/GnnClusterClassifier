@@ -1,21 +1,30 @@
-"""Training and curriculum fine-tuning script for the 3-layer GCN classifier (GCN-01).
+"""Training and curriculum fine-tuning script for the 3-layer Residual GCN classifier.
 
 Supports:
 - Simulation-level (`--split_mode ic`) train/val/test partitioning (zero data leakage).
+- Local k-NN phase-space relational feature encoding (`src/gnn_models.py`).
 - Two-stage Curriculum Learning (`--pretrained_weights`).
 - Arbitrary observable subsets (`--feature_indices`, e.g. 5D or 4D ablation studies).
-- Optimal 72-core CPU threading for EPFL Jed compute nodes.
+- Real-time epoch-by-epoch live training curve generation (`scripts/live_plot_utils.py`).
 """
 
 import argparse
 import os
+import subprocess
+import sys
 import torch
-import torch.nn.functional as F
 from torch.utils.data import Dataset, random_split
 from torch_geometric.loader import DataLoader
-from torch_geometric.nn import GCNConv
 
-parser = argparse.ArgumentParser(description="Train or fine-tune the 3-layer GCN model.")
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+for _p in (ROOT_DIR, os.path.join(ROOT_DIR, "src"), os.path.join(ROOT_DIR, "scripts")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from gnn_models import GCN
+from live_plot_utils import update_live_plots_for_log
+
+parser = argparse.ArgumentParser(description="Train or fine-tune the 3-layer Residual GCN model.")
 parser.add_argument("--data_folder", "--data_dir", dest="data_folder", type=str, required=True, help="Path to graph data folder.")
 parser.add_argument("--n", type=int, default=5, help="Number of 3D rotations per snapshot.")
 parser.add_argument("--lr", type=float, default=0.001, help="Learning rate.")
@@ -81,23 +90,6 @@ math_threads = min(max(1, num_cpus), 72)
 torch.set_num_threads(math_threads)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Device: {device} | PyTorch configured to use {torch.get_num_threads()} CPU cores")
-
-
-class GCN(torch.nn.Module):
-    """Three-layer Graph Convolutional Network (`in_channels -> 32 -> 64 -> 1`)."""
-
-    def __init__(self, in_channels=5):
-        super(GCN, self).__init__()
-        self.conv1 = GCNConv(in_channels, 32)
-        self.conv2 = GCNConv(32, 64)
-        self.conv3 = GCNConv(64, 1)
-
-    def forward(self, data):
-        x, edge_index = data.x, data.edge_index
-        x = F.relu(self.conv1(x, edge_index))
-        x = F.relu(self.conv2(x, edge_index))
-        x = self.conv3(x, edge_index)
-        return x
 
 
 class AstroGraphDataset(Dataset):
@@ -193,13 +185,13 @@ if pretrained_weights:
     print(f"Loading pre-trained weights from '{pretrained_weights}' for fine-tuning...")
     model.load_state_dict(torch.load(pretrained_weights, map_location=device, weights_only=True))
 
-optimizer = torch.optim.Adam(model.parameters(), lr=Lr)
+optimizer = torch.optim.AdamW(model.parameters(), lr=Lr, weight_decay=1e-4)
 if pos_weight_val != 1.0:
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_weight_val], device=device))
 else:
     criterion = torch.nn.BCEWithLogitsLoss()
 
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.1, patience=3)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=3)
 best_val_loss = float("inf")
 
 for epoch in range(epochs):
@@ -215,6 +207,7 @@ for epoch in range(epochs):
 
         loss = criterion(out, batch.y)
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0)
         optimizer.step()
 
         running_train_loss += loss.item() * batch.num_nodes
@@ -223,7 +216,8 @@ for epoch in range(epochs):
         preds = (torch.sigmoid(out) > 0.5).float()
         running_train_correct += (preds == batch.y).sum().item()
 
-        print(f"Epoch {epoch+1:03d} | Batch {batch_idx+1:04d}/{len(train_loader)} | Batch Loss: {loss.item():.4f}")
+        if (batch_idx + 1) % 25 == 0 or (batch_idx + 1) == len(train_loader):
+            print(f"Epoch {epoch+1:03d} | Batch {batch_idx+1:04d}/{len(train_loader)} | Batch Loss: {loss.item():.4f}")
 
     model.eval()
     total_nodes_val = 0
@@ -257,14 +251,27 @@ for epoch in range(epochs):
 
     scheduler.step(avg_val_loss)
 
+    is_best = False
     if avg_val_loss < best_val_loss:
         best_val_loss = avg_val_loss
         torch.save(model.state_dict(), best_model_path)
         print("      --> Best model saved!")
         log_line += " (*)"
+        is_best = True
 
     with open(log_filename, "a", encoding="utf-8") as f:
         f.write(log_line + "\n")
+
+    try:
+        update_live_plots_for_log(log_filename)
+        if epoch == 0 or (epoch + 1) % 5 == 0 or (epoch + 1) == epochs:
+            subprocess.Popen(
+                [sys.executable, os.path.join(ROOT_DIR, "scripts", "live_monitor.py"), "--once"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+    except Exception:
+        pass
 
 print("\nFinal test evaluation...")
 model.load_state_dict(torch.load(best_model_path, map_location=device, weights_only=True))
@@ -310,5 +317,15 @@ with open(log_filename, "a", encoding="utf-8") as f:
         f"BalAcc: {test_bal_acc:.2f}% | F1: {test_f1:.4f} | Prec: {test_prec:.4f} | Rec: {test_rec:.4f}\n"
     )
     f.write("=== END OF TRAINING ===\n")
+
+try:
+    update_live_plots_for_log(log_filename)
+    subprocess.run(
+        [sys.executable, os.path.join(ROOT_DIR, "scripts", "live_monitor.py"), "--once"],
+        check=False,
+        timeout=30,
+    )
+except Exception:
+    pass
 
 print(f"Training finished. Logs written to '{log_filename}'. Best model is '{best_model_path}'.")

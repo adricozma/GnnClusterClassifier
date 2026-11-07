@@ -22,7 +22,7 @@ N_THREADS="${SLURM_NTASKS:-36}"
 
 mkdir -p "$REPO_DIR/slurm_logs" "$OUTPUT_BASE"
 
-FILES_IC=("$ICS_DIR"/IC_*.hdf5)
+mapfile -t FILES_IC < <(ls "$ICS_DIR"/IC_*.hdf5 | sort -V)
 if [ "$SLURM_ARRAY_TASK_ID" -ge "${#FILES_IC[@]}" ]; then
     echo "Task ID $SLURM_ARRAY_TASK_ID exceeds number of IC files (${#FILES_IC[@]}). Exiting cleanly."
     exit 0
@@ -51,6 +51,9 @@ if [ -f "$OUTPUT_FOLDER/snapshot_0100.hdf5" ]; then
     exit 0
 fi
 
+# Clean any incomplete artifacts before starting fresh SWIFT integration
+rm -rf "$OUTPUT_FOLDER/restart" "$OUTPUT_FOLDER"/snapshot_*.hdf5 "$OUTPUT_FOLDER"/statistics.txt
+
 CONFIG_FILE="$OUTPUT_FOLDER/config_task_${BASENAME}.yaml"
 sed -e "s|__OUTPUT_DIR__|$OUTPUT_FOLDER|g" \
     -e "s|__IC_FILE_PATH__|$CURRENT_FILE_IC|g" \
@@ -59,7 +62,7 @@ sed -e "s|__OUTPUT_DIR__|$OUTPUT_FOLDER|g" \
 cd "$OUTPUT_FOLDER"
 module load gcc/13.2.0 gsl hdf5 metis
 
-echo "Running SWIFT on $BASENAME with $N_THREADS threads..."
+echo "Running SWIFT on $BASENAME (task $SLURM_ARRAY_TASK_ID) with $N_THREADS threads..."
 "$SWIFT_BIN" \
     --self-gravity \
     --external-gravity \
@@ -69,4 +72,6 @@ echo "Running SWIFT on $BASENAME with $N_THREADS threads..."
 
 echo "Finished SWIFT simulation for $BASENAME."
 cd "$REPO_DIR"
+module load python/3.11.7
+source env_astro/bin/activate
 python3 scripts/live_monitor.py --once || true

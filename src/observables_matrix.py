@@ -137,10 +137,18 @@ def standardise_matrix(matrix, mode="zscore", ref_scales=(2.0, 2.0, 1.5, 1.0, 1.
     work[:, 0] = ((work[:, 0] - ra_center_deg + 180.0) % 360.0 - 180.0) * cos_dec
 
     if mode == "zscore":
-        means = np.mean(work, axis=0)
-        stds = np.std(work, axis=0)
-        stds = np.where(stds > 1e-8, stds, 1.0)
-        standardized = (work - means) / stds
+        medians = np.median(work, axis=0)
+        mad_scale = 1.4826 * np.median(np.abs(work - medians), axis=0)
+        raw_stds = np.std(work, axis=0)
+        robust_scale = np.where(mad_scale > 1e-6, mad_scale, np.where(raw_stds > 1e-8, raw_stds, 1.0))
+
+        # Winsorize extreme >6*MAD astrometric noise spikes (e.g. non-linear 1/parallax inversions)
+        # so heavy-tailed measurement noise cannot inflate the variance and collapse the core-tail contrast.
+        clipped = np.clip(work, medians - 6.0 * robust_scale, medians + 6.0 * robust_scale)
+        means = np.mean(clipped, axis=0)
+        stds = np.std(clipped, axis=0)
+        stds = np.where(stds > 1e-8, stds, robust_scale)
+        standardized = (clipped - means) / stds
         means_out = means.copy()
         means_out[0] = ra_center_deg
         return standardized, means_out, stds

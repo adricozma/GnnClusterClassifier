@@ -35,11 +35,13 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 │   ├── params.yml                             # SWIFT runtime configuration (MWPotential2014, adaptive FMM gravity)
 │   └── dependency_graph_0.csv                 # SWIFT task dependency diagnostics
 │
-├── src/                                       # STEP 3: Core physical & astrometric library
+├── src/                                       # STEP 3: Core physical, astrometric & GNN library
 │   ├── bound_labels.py                        # [Study 2] 3D k-NN density + Shrinking Spheres + Gaussian Mean-Shift
 │   │                                          #   core centering, exact monotonic Roche/King R_J solver, Jacobi energy
 │   ├── observables_matrix.py                  # [Study 2] Haar-uniform SO(3) rotations, circular RA centering,
-│   │                                          #   Gaia DR3 magnitude-dependent noise model (Lindegren et al. 2021)
+│   │                                          #   Gaia DR3 magnitude-dependent noise model & MAD-winsorized scaling
+│   ├── gnn_models.py                          # [Study 2] Local k-NN phase-space relational encoder, Residual GCN &
+│   │                                          #   Multi-Head Residual GAT (4 heads, LayerNorm, ego-relational readout)
 │   └── Stellar_objects/                       # 3D cluster density, line-of-sight dispersion, and sequence utilities
 │       ├── cluster_v4_properties.py
 │       ├── dispersion_vel_LOS.py
@@ -49,8 +51,10 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 ├── scripts/                                   # STEPS 3-6: Production CLI scripts (72-core parallelized)
 │   ├── extract_observables.py                 # Parallel extraction of bound labels + Clean & Gaia DR3 Noisy observables
 │   ├── build_graph_dataset.py                 # Parallel O(N log N) cKDTree k-NN graph builder (5D or 4D ablation subsets)
-│   ├── train_gcn.py                           # 3-layer GCN trainer (--split_mode ic, Stage 1 Clean & Stage 2 Noisy)
-│   ├── train_gat.py                           # 3-layer GAT trainer (--split_mode ic, Stage 1 Clean & Stage 2 Noisy)
+│   ├── train_gcn.py                           # 3-layer Residual GCN trainer (--split_mode ic, Stage 1 Clean & Stage 2 Noisy)
+│   ├── train_gat.py                           # 3-layer Multi-Head Residual GAT trainer (--split_mode ic, Clean & Noisy)
+│   ├── live_plot_utils.py                     # Real-time epoch-by-epoch live learning curve generator (.png)
+│   ├── live_monitor.py                        # Live SLURM self-healing daemon & ntfy.sh / GitHub telemetry publisher
 │   └── generate_study2_figures.py             # Automated generator for all report/README plots (.png + interactive .html)
 │
 ├── slurm/                                     # SLURM batch scripts for EPFL Jed HPC (72 CPUs/node, academic QOS)
