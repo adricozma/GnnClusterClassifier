@@ -1,28 +1,28 @@
 # Live Pipeline Status on Jed
 
 ```text
-[2026-11-07 13:15:00] Study 2 Pipeline Status on Jed
+[2026-11-07 13:15:41] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 75 / 81 completed (101 snapshots)
-- Step 3 (Observables): Labels=7/81 | Clean=7/81 | GaiaNoisy=7/81
+- Step 3 (Observables): Labels=8/81 | Clean=8/81 | GaiaNoisy=8/81
 - Step 4 (5D Graphs): Clean=0/81 | GaiaNoisy=0/81
 
 SLURM Queue:
 JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
-40984797_[0-4%   academic      Study2_Step6_4Obs   PD       0:00      1 (Dependency)
-      40984796   academic  Study2_Step5B_Train81   PD       0:00      1 (Dependency)
-      40984795   academic Study2_Step4B_Graphs81   PD       0:00      1 (Dependency)
-      40984784   academic  Study2_Step5A_Train75   PD       0:00      1 (Dependency)
-      40984783   academic Study2_Step4A_Graphs75   PD       0:00      1 (Dependency)
-40984782_[13-2   academic       Study2_Step3_Obs   PD       0:00      1 (Resources)
-40984786_[1,8,   academic       Study2_Step3_Obs   PD       0:00      1 (Dependency)
-    40984785_1   academic     Study2_Step2_SWIFT    R       4:02      1 jst314
-    40984785_8   academic     Study2_Step2_SWIFT    R       4:02      1 jst316
-   40984785_25   academic     Study2_Step2_SWIFT    R       4:02      1 jst317
-   40984785_43   academic     Study2_Step2_SWIFT    R       4:02      1 jst319
-   40984785_47   academic     Study2_Step2_SWIFT    R       4:02      1 jst321
-   40984785_62   academic     Study2_Step2_SWIFT    R       4:02      1 jst322
-   40984782_11   academic       Study2_Step3_Obs    R       0:33      1 jst319
-   40984782_10   academic       Study2_Step3_Obs    R       1:16      1 jst277
-   40984782_12   academic       Study2_Step3_Obs    R       0:02      1 jst304
+40984797_[0-   academic      Study2_Step6_4Obs   PD       0:00      1 (Dependency)
+    40984796   academic  Study2_Step5B_Train81   PD       0:00      1 (Dependency)
+    40984795   academic Study2_Step4B_Graphs81   PD       0:00      1 (Dependency)
+    40984784   academic  Study2_Step5A_Train75   PD       0:00      1 (Dependency)
+    40984783   academic Study2_Step4A_Graphs75   PD       0:00      1 (Dependency)
+40984782_[15   academic       Study2_Step3_Obs   PD       0:00      1 (Resources)
+40984786_[1,   academic       Study2_Step3_Obs   PD       0:00      1 (Dependency)
+  40984785_1   academic     Study2_Step2_SWIFT    R       4:43      1 jst314
+  40984785_8   academic     Study2_Step2_SWIFT    R       4:43      1 jst316
+ 40984785_25   academic     Study2_Step2_SWIFT    R       4:43      1 jst317
+ 40984785_43   academic     Study2_Step2_SWIFT    R       4:43      1 jst319
+ 40984785_47   academic     Study2_Step2_SWIFT    R       4:43      1 jst321
+ 40984785_62   academic     Study2_Step2_SWIFT    R       4:43      1 jst322
+ 40984782_14   academic       Study2_Step3_Obs    R       0:08      1 jst319
+ 40984782_13   academic       Study2_Step3_Obs    R       0:33      1 jst277
+ 40984782_12   academic       Study2_Step3_Obs    R       0:43      1 jst304
 ```
