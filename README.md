@@ -2,7 +2,7 @@
 
 **Author:** Adrian Cozma ([@adricozma](https://github.com/adricozma))  
 **Affiliation:** Laboratory of Astrophysics (LASTRO), École Polytechnique Fédérale de Lausanne (EPFL)  
-**Supervisors:** Prof. Yves Revaz, Dr. Sruthi Nagesh  
+**Supervisors:** Prof. Yves Revaz, Dr. Srikanth Nagesh  
 
 ---
 
