@@ -17,7 +17,10 @@ This repository provides a complete numerical and deep-learning pipeline that:
 2. Evolves 75 self-consistent *N*-body Plummer globular clusters forward in time for $2.0\text{ Gyr}$ using the cosmological/astrophysical code `SWIFT` (Schaller et al. 2024) on the EPFL HPC cluster **Jed**.
 3. Computes exact physical boundness and potential escaper labels from 3D Jacobi energies and tidal radii following Küpper et al. (2010a,b), using a 3D *k*-nearest-neighbor local density estimator (Casertano & Hut 1985) and iterative shrinking spheres to track the surviving core accurately even in heavily stripped streams.
 4. Projects the simulations into synthetic 5D *Gaia*-like astrometric observables with data augmentation over random observer orientations and physical-scale standardization.
-5. Trains **Graph Convolutional Networks (GCN)** and **Graph Attention Networks (GAT)** on *k*-NN phase-space graphs $(k = 20)$ to recover node-level dynamical boundness directly from incomplete 5D kinematics, using strict stream-level (`IC_ID`) train/validation/test partitioning to evaluate generalization to unseen orbital families.
+5. Trains **Residual Graph Convolutional Networks (GCN)** and **Multi-Head Residual Graph Attention Networks (GAT)** with local phase-space relational encoding (`3d + 3` invariants) on *k*-NN graphs $(k = 20)$, using **Two-Stage Curriculum Learning** (noiseless pre-training $\to$ *Gaia* DR3 magnitude-dependent noisy fine-tuning), **subspace-aligned $5\mathrm{D} \to 4\mathrm{D}$ weight transfer** for systematic observable ablations, and multi-node distributed training with micro-batch gradient accumulation and automatic disk activation offloading on **Jed**.
+
+> **Live Training Dashboard & Real-Time Learning Curves:**  
+> Live epoch-by-epoch training metrics, SLURM queue status, and updated learning curve figures (`latest_live_training.png` & `live_plots_GNN_*.png`) are automatically committed to [**`LIVE_STATUS.md`**](LIVE_STATUS.md) and broadcast to `https://ntfy.sh/epfl-cozma-gnn-study2`.
 
 ---
 
@@ -129,11 +132,25 @@ In `src/observables_matrix.py`, features are centered on the robust stream media
 
 ---
 
-### 4. Graph Neural Network Architectures & Evaluation (`scripts/`, `notebooks/`)
+### 4. Graph Neural Network Architectures, Curriculum Learning & 5D $\to$ 4D Ablation Transfer (`src/`, `scripts/`, `slurm/`)
 
-We compare two message-passing architectures implemented in PyTorch Geometric:
-1. **Baseline GCN (`scripts/train_gcn.py`):** A 3-layer Graph Convolutional Network (`5 -> 16 -> 32 -> 1`, Kipf & Welling 2017) with isotropic neighborhood aggregation.
-2. **Multi-Head GAT (`scripts/train_gat.py`):** A 3-layer Graph Attention Network (Veličković et al. 2018) with multi-head attention (`GATConv(5, 16, heads=4)` to `GATConv(64, 32, heads=2)` to `GATConv(64, 1, heads=1, concat=False)`), Exponential Linear Unit (`ELU`) activations, feature dropout $(p = 0.2)$, and residual linear skip connections (`Linear(5, 64)`, `Linear(64, 64)`) to prevent over-smoothing and preserve each star's local kinematics relative to its neighbors.
+To overcome the scale blindness of constant-degree $k$-NN graphs ($k = 20$), [`src/gnn_models.py`](src/gnn_models.py) augments each star's standardized astrometric vector $\mathbf{x}_i \in \mathbb{R}^d$ ($d \in \{4, 5\}$) on the fly with local $k$-NN relational invariants:
+
+$$
+\mathbf{h}_i^{(0)} = \left[\mathbf{x}_i,\; \mathbf{x}_i - \langle\mathbf{x}\rangle_{\mathcal{N}(i)},\; \boldsymbol{\sigma}_{\mathcal{N}(i)},\; \bar{d}_i,\; \ln\hat{\rho}_{\mathrm{phase},i},\; \lVert\mathbf{x}_i\rVert_2\right] \in \mathbb{R}^{3d + 3}.
+$$
+
+We compare two residual architectures trained over **81 unbiased *Gaia* DR3 progenitor streams** ($N \in [20\,000, 50\,000]$ stars per cluster, partitioned strictly at the simulation level into 65 Train / 8 Validation / 8 Test streams):
+1. **3-Layer Residual GCN (`scripts/train_gcn.py`):** `(3d+3) -> 64 -> 128 -> 1` with `GCNConv`, linear residual skip projections, `LayerNorm`, `GELU` activations, and an ego-relational readout head `MLP([h2, h0])` (`--bs 256`, 50 epochs).
+2. **3-Layer Multi-Head Residual GAT (`scripts/train_gat.py`):** `GATConv(3d+3, 32, heads=4)` $\to$ `GATConv(128, 64, heads=4)` $\to$ `GATConv(256, 1, heads=1)` with `LayerNorm`, `ELU` activations, dropout $(p = 0.1)$, and ego-relational readout (`--bs 64`, 50 epochs).
+
+#### Two-Stage Curriculum & Subspace-Aligned $5\mathrm{D} \to 4\mathrm{D}$ Weight Transfer
+- **Step 5 — 5-Observable Curriculum (`slurm/step5_train_curriculum_and_plot.sh`):** Models are first pre-trained for 50 epochs on noiseless 5D astrometric graphs (`clean_5obs`, $\mathrm{lr} = 10^{-3}$) and then fine-tuned for 50 epochs on *Gaia* DR3 magnitude-dependent noisy graphs (`noisy_5obs`, $\mathrm{lr} = 5\times 10^{-4}$, Lindegren et al. 2021).
+- **Step 6 — 4-Observable Ablation Study (`slurm/step6_ablation_4obs.sh`):** To isolate the physical contribution of each astrometric coordinate (`no_RA`, `no_Dec`, `no_Parallax`, `no_pmRA`, `no_pmDec`), each 4D model ($3d+3 = 15$ input channels) is initialized directly from the converged 5D Clean weights ($18$ input channels) via `load_pretrained_with_channel_adaptation` (`src/gnn_models.py`). All internal message-passing and attention layers are copied identically ($100\%$ preservation), while first-layer projections (`conv1.lin.weight`, `skip1.weight`, and the `h0` slice of `ego_head.0.weight`) are sliced along the exact retained coordinate indices $\pi(\mathcal{I}) = \mathcal{I} \cup (5+\mathcal{I}) \cup (10+\mathcal{I}) \cup \{15,16,17\}$ and scaled by $\sqrt{18/15}$ to preserve activation variance prior to 4D Clean pre-training (50 epochs) and 4D *Gaia* DR3 noisy fine-tuning (50 epochs).
+
+#### Multi-Node Distributed Execution & OOM Protection (`scripts/distributed_trainer.py`, `src/oom_Pin_and_offload.py`)
+- **Multi-Node CPU DDP (`2 nodes x 36 cores = 72 CPUs`, `246 GB/node = 492 GB total RAM`):** Distributed data-parallel training across SLURM nodes with exact node-weighted gradient accumulation over micro-batches (`--micro_bs 16` for GCN, `--micro_bs 4` for GAT), preserving exact effective batch sizes (`256` and `64`) while keeping peak RAM below $28\text{ GB}$ per node.
+- **Disk Activation Offloading (`DiskActivationOffloader`):** Monitors Linux cgroup memory usage and automatically streams large intermediate autograd tensors to `/scratch` via `torch.autograd.graph.saved_tensors_hooks` if memory exceeds $70\%$ of the node limit.
 
 | Training & Validation Loss Convergence (GCN vs. GAT) | Weight Matrix Singular Value Spectrum (RMT) |
 | :---: | :---: |
