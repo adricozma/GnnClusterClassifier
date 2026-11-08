@@ -71,11 +71,11 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 │   │   ├── GCN-01/                            # [Study 1 - Untouched] Baseline GCN weights and logs
 │   │   ├── GCN-02/                            # [Study 1 - Untouched] Baseline GAT weights and logs
 │   │   └── study2/                            # [Study 2] Clean & Gaia DR3 Noisy checkpoints, logs, PNG & HTML figures
-│   ├── obs_all_stars/                         # [Study 1 - Untouched] 115 GB original observable matrices
+│   ├── obs_all_stars -> /scratch/cozma/study1/obs_all_stars   # [Study 1 - Content untouched] 58 GB original observable matrices (symlink)
 │   ├── labels_bound_stars/                    # [Study 1 - Untouched] 586 MB original bound labels
-│   ├── labels_clean/                          # [Study 2 - Git-ignored] Exact bound labels B_L_snapshot_*.npy
-│   ├── obs_clean/                             # [Study 2 - Git-ignored] Noiseless standardized observable matrices
-│   └── obs_gaia_noisy/                        # [Study 2 - Git-ignored] Gaia DR3 noisy standardized observable matrices
+│   ├── labels_clean -> /scratch/cozma/study2/labels_clean     # [Study 2 - Git-ignored] Exact bound labels B_L_snapshot_*.npy (symlink)
+│   ├── obs_clean -> /scratch/cozma/study2/obs_clean           # [Study 2 - Git-ignored] Noiseless standardized observable matrices (symlink)
+│   └── obs_gaia_noisy -> /scratch/cozma/study2/obs_gaia_noisy # [Study 2 - Git-ignored] Gaia DR3 noisy standardized observable matrices (symlink)
 │
 ├── visualization/                             # Plotting utilities and analysis notebooks
 │   ├── plot_swift_output.py                   # HDF5 snapshot reader (load_snapshot)
@@ -103,6 +103,7 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 | **SWIFT Binary** | `/home/cozma/swift_sims/swift` | Compiled `SWIFT v2026.04` with `--with-ext-potential=MWPotential2014` |
 | **Study 1 SWIFT ICs** | `/home/cozma/swift_sims/ICs/` | 75 HDF5 initial conditions from Study 1 (untouched) |
 | **Study 1 SWIFT Outputs** | `/home/cozma/swift_sims/outputs/` | 75 directories $\times$ 101 HDF5 snapshots from Study 1 (untouched) |
+| **Study 1 Observables** | `/scratch/cozma/study1/obs_all_stars/` | 75 $\times$ 101 original observable matrices (58 GB, content untouched), symlinked from `GNN-jed/obs_all_stars` |
 | **Study 2 SWIFT Outputs** | `/scratch/cozma/study2/outputs_unbiased/` | Unbiased $N$-body simulation outputs ($R_p \ge 5\text{ kpc}$), symlinked from `/home/cozma/swift_sims/outputs_unbiased` |
 | **Study 2 Bound Labels** | `/scratch/cozma/study2/labels_clean/` | Exact bound labels `B_L_snapshot_*.npy`, symlinked from `GNN-jed/labels_clean` |
 | **Study 2 Clean Observables** | `/scratch/cozma/study2/obs_clean/` | Standardized noiseless observable matrices, symlinked from `GNN-jed/obs_clean` |
@@ -110,3 +111,5 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 | **Study 2 Clean Graphs** | `/scratch/cozma/graph_data_clean/` | PyTorch Geometric `.pt` 5D $k$-NN graphs (noiseless) |
 | **Study 2 Noisy Graphs** | `/scratch/cozma/graph_data_noisy/` | PyTorch Geometric `.pt` 5D $k$-NN graphs (with Gaia DR3 noise) |
 | **Study 2 4D Ablation Graphs** | `/scratch/cozma/graph_data_4obs_<tag>/` | 4-observable $k$-NN graphs for feature-ablation experiments |
+
+> **Note:** `/scratch` is not backed up and may be purged. Copy final Study 2 results (checkpoints, figures, key matrices) to `/home` or another persistent location.
