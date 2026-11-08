@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=Study2_Step5_Train81
-#SBATCH --nodes=8
+#SBATCH --nodes=2
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=72
-#SBATCH --mem=492G
+#SBATCH --cpus-per-task=36
+#SBATCH --mem=246G
 #SBATCH --account=master
 #SBATCH --qos=academic
 #SBATCH --partition=academic
@@ -23,7 +23,7 @@ source env_astro/bin/activate
 
 SIM_DIR="${SIM_DIR:-/scratch/cozma/study2/outputs_unbiased}"
 NNODES="${SLURM_NNODES:-1}"
-CPUS_PER_NODE="${SLURM_CPUS_PER_TASK:-72}"
+CPUS_PER_NODE="${SLURM_CPUS_PER_TASK:-36}"
 export OMP_NUM_THREADS="$CPUS_PER_NODE"
 export MKL_NUM_THREADS="$CPUS_PER_NODE"
 

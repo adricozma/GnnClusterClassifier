@@ -83,7 +83,7 @@ def run_training(arch: str, args):
     cpus_per_task = int(
         os.environ.get(
             "SLURM_CPUS_PER_TASK",
-            os.environ.get("OMP_NUM_THREADS", os.cpu_count() or 72),
+            os.environ.get("OMP_NUM_THREADS", os.environ.get("SLURM_NTASKS", os.cpu_count() or 36)),
         )
     )
     math_threads = min(max(1, cpus_per_task), 72)
@@ -92,7 +92,7 @@ def run_training(arch: str, args):
 
     per_rank_bs = max(1, effective_bs // world_size)
     micro_bs = min(micro_bs, per_rank_bs)
-    mem_limit_gb = get_memory_limit_gb(492.0)
+    mem_limit_gb = get_memory_limit_gb(246.0)
 
     if is_main:
         print(

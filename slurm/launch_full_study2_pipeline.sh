@@ -1,9 +1,11 @@
 #!/bin/bash
 # Master SLURM pipeline launcher for Study 2 on EPFL Jed HPC.
-# Since Steps 1-4 (all 81 Plummer ICs, SWIFT simulations, Clean/Gaia observables, and 5D/4D k-NN graphs)
-# are 81/81 ready on /scratch/cozma, this script launches:
-#   - Step 5 (8 nodes x 72 CPUs, 492G/node): Full 81-Cluster 5-Observable 2-Stage Curriculum Training (GCN & GAT)
-#   - Step 6 (5 array tasks x 3 nodes x 72 CPUs, 492G/node, dependent on Step 5):
+# Respects the user's strict 72-task / 72-CPU total budget and 7000 MB/CPU SLURM limit:
+#   - 2 nodes x 36 CPUs/node = 72 CPUs total per active job
+#   - 246 GB RAM per node (36 * 6.83 GB <= 7000 MB/CPU) = 492 GB total RAM across the 2 nodes!
+#   - Starts IMMEDIATELY (0 queue wait) on the 15+ half-free `mix` nodes (36/36 cores free) on `academic`.
+#   - Step 5 (2 nodes x 36 CPUs, 246G/node = 72 CPUs, 492G total): Full 81-Cluster 5-Observable Curriculum Training
+#   - Step 6 (Array 0-4%1, 2 nodes x 36 CPUs, 246G/node = 72 CPUs, 492G total, after Step 5):
 #       4-Observable Ablations initialized from the trained 5-Observable Clean weights -> 4D Clean -> 4D Gaia Noisy.
 
 set -euo pipefail
@@ -54,24 +56,25 @@ if [ -n "$STALE_JOBS" ]; then
     echo "  -> Canceled stale jobs: $STALE_JOBS"
 fi
 
-echo "=== STEP 5: FULL 81-CLUSTER 5-OBSERVABLE CURRICULUM TRAINING (8 NODES x 72 CORES, 492G/NODE) ==="
+echo "=== STEP 5: FULL 81-CLUSTER 5-OBSERVABLE CURRICULUM TRAINING (2 NODES x 36 CORES = 72 CPUS TOTAL, 246G/NODE = 492G TOTAL) ==="
 JOB5=$(submit_multinode_with_fallback "slurm/step5_train_curriculum_and_plot.sh" "" "--job-name=Study2_Step5_Train81" \
-    "8 72 492G 168:00:00" \
-    "4 72 492G 168:00:00" \
-    "2 72 492G 168:00:00" \
-    "1 72 492G 168:00:00")
+    "2 36 246G 168:00:00" \
+    "3 24 164G 168:00:00" \
+    "4 18 123G 168:00:00" \
+    "1 36 246G 168:00:00")
 echo "  -> Step 5 (5-Obs Clean -> Gaia Noisy, 81 streams) Job ID: $JOB5"
 
-echo "=== STEP 6: 4-OBSERVABLE ABLATION ARRAY (5 COMBINATIONS x 3 NODES x 72 CORES, 492G/NODE, DEPENDS ON STEP 5) ==="
-JOB6=$(submit_multinode_with_fallback "slurm/step6_ablation_4obs.sh" "afterok:$JOB5" "--array=0-4%5" \
-    "3 72 492G 168:00:00" \
-    "2 72 492G 168:00:00" \
-    "1 72 492G 168:00:00")
+echo "=== STEP 6: 4-OBSERVABLE ABLATION ARRAY (2 NODES x 36 CORES = 72 CPUS TOTAL, 246G/NODE = 492G TOTAL, DEPENDS ON STEP 5) ==="
+JOB6=$(submit_multinode_with_fallback "slurm/step6_ablation_4obs.sh" "afterok:$JOB5" "--array=0-4%1" \
+    "2 36 246G 168:00:00" \
+    "3 24 164G 168:00:00" \
+    "4 18 123G 168:00:00" \
+    "1 36 246G 168:00:00")
 echo "  -> Step 6 (4-Obs Ablation initialized from 5-Obs weights) Job ID: $JOB6 (depends on $JOB5)"
 
 echo ""
 echo "================================================================================"
-echo "STUDY 2 MULTI-NODE DDP + OOM-SAFE PIPELINE SUBMITTED SUCCESSFULLY!"
-echo "  * Step 5 (5-Obs Clean -> Noisy, 81 clusters, 8 nodes x 492G): $JOB5"
-echo "  * Step 6 (4-Obs Ablations x5, 3 nodes x 492G each, after $JOB5): $JOB6"
+echo "STUDY 2 72-TASK BUDGET (2 NODES x 36 CORES = 72 CPUS, 492G TOTAL) SUBMITTED!"
+echo "  * Step 5 (5-Obs Clean -> Noisy, 81 clusters, 2 nodes x 36 CPUs / 246G): $JOB5"
+echo "  * Step 6 (4-Obs Ablations x5, 2 nodes x 36 CPUs / 246G, after $JOB5): $JOB6"
 echo "================================================================================"

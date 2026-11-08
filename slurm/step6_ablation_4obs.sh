@@ -1,14 +1,14 @@
 #!/bin/bash
 #SBATCH --job-name=Study2_Step6_4Obs
-#SBATCH --nodes=3
+#SBATCH --nodes=2
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=72
-#SBATCH --mem=492G
+#SBATCH --cpus-per-task=36
+#SBATCH --mem=246G
 #SBATCH --account=master
 #SBATCH --qos=academic
 #SBATCH --partition=academic
 #SBATCH --time=168:00:00
-#SBATCH --array=0-4%5
+#SBATCH --array=0-4%1
 #SBATCH --output=slurm_logs/step6_ablation4obs_%A_%a.out
 
 set -euo pipefail
@@ -29,7 +29,7 @@ OUT_DIR_NOISY="GNN-jed/trained_models/study2/${TAG}_noisy"
 SIM_DIR="${SIM_DIR:-/scratch/cozma/study2/outputs_unbiased}"
 
 NNODES="${SLURM_NNODES:-1}"
-CPUS_PER_NODE="${SLURM_CPUS_PER_TASK:-72}"
+CPUS_PER_NODE="${SLURM_CPUS_PER_TASK:-36}"
 export OMP_NUM_THREADS="$CPUS_PER_NODE"
 export MKL_NUM_THREADS="$CPUS_PER_NODE"
 
