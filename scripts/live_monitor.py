@@ -119,10 +119,69 @@ def get_slurm_queue():
 def collect_pipeline_progress():
     """Count completed files across each stage of Study 2 and refresh live training plots."""
     n_ics = len(glob.glob(os.path.join(ROOT_DIR, "make_ICs", "initial_conditions_unbiased", "IC_*.hdf5")))
-    n_swift_done = len(glob.glob("/home/cozma/swift_sims/outputs_unbiased/IC_*/snapshot_0100.hdf5"))
-    n_labels = len(glob.glob(os.path.join(ROOT_DIR, "GNN-jed", "labels_clean", "IC_*", "B_L_snapshot_0100.npy")))
-    n_obs_clean = len(glob.glob(os.path.join(ROOT_DIR, "GNN-jed", "obs_clean", "IC_*", "obs_matrices_snapshot_0100.npy")))
-    n_obs_noisy = len(glob.glob(os.path.join(ROOT_DIR, "GNN-jed", "obs_gaia_noisy", "IC_*", "obs_matrices_snapshot_0100.npy")))
+
+    # Check SWIFT completion: /scratch/cozma/study2/outputs_unbiased (falling back to /home/cozma/swift_sims/outputs_unbiased)
+    # Only count an IC_* folder as completed if all 101 snapshot_*.hdf5 files exist and have os.path.getsize > 50000
+    swift_dirs = ["/scratch/cozma/study2/outputs_unbiased", "/home/cozma/swift_sims/outputs_unbiased"]
+    all_ic_folders = set()
+    for base in swift_dirs:
+        if os.path.exists(base):
+            for p in glob.glob(os.path.join(base, "IC_*")):
+                if os.path.isdir(p):
+                    all_ic_folders.add(os.path.basename(p))
+
+    n_swift_done = 0
+    for ic_name in sorted(all_ic_folders):
+        chosen_dir = None
+        for base in swift_dirs:
+            cand = os.path.join(base, ic_name)
+            if os.path.isdir(cand):
+                chosen_dir = cand
+                break
+        if not chosen_dir:
+            continue
+        all_valid = True
+        for i in range(101):
+            snap_path = os.path.join(chosen_dir, f"snapshot_{i:04d}.hdf5")
+            try:
+                if not (os.path.isfile(snap_path) and os.path.getsize(snap_path) > 50000):
+                    all_valid = False
+                    break
+            except OSError:
+                all_valid = False
+                break
+        if all_valid:
+            n_swift_done += 1
+
+    # Check labels and observables: /scratch/cozma/study2/... (falling back to GNN-jed/...)
+    def count_stage_done(scratch_path, fallback_path, prefix):
+        ics = set()
+        for base in (scratch_path, fallback_path):
+            if not os.path.exists(base):
+                continue
+            for ic_dir in glob.glob(os.path.join(base, "IC_*")):
+                if not os.path.isdir(ic_dir):
+                    continue
+                files = glob.glob(os.path.join(ic_dir, f"{prefix}_snapshot_*.npy"))
+                if len(files) == 101 and all(os.path.getsize(f) > 512 for f in files):
+                    ics.add(os.path.basename(ic_dir))
+        return len(ics)
+
+    n_labels = count_stage_done(
+        "/scratch/cozma/study2/labels_clean",
+        os.path.join(ROOT_DIR, "GNN-jed", "labels_clean"),
+        "B_L",
+    )
+    n_obs_clean = count_stage_done(
+        "/scratch/cozma/study2/obs_clean",
+        os.path.join(ROOT_DIR, "GNN-jed", "obs_clean"),
+        "obs_matrices",
+    )
+    n_obs_noisy = count_stage_done(
+        "/scratch/cozma/study2/obs_gaia_noisy",
+        os.path.join(ROOT_DIR, "GNN-jed", "obs_gaia_noisy"),
+        "obs_matrices",
+    )
     n_graphs_clean = len(glob.glob("/scratch/cozma/graph_data_clean/IC_*/graph_data_output_100_rotation_0.pt"))
     n_graphs_noisy = len(glob.glob("/scratch/cozma/graph_data_noisy/IC_*/graph_data_output_100_rotation_0.pt"))
 

@@ -18,10 +18,14 @@ make_ICs/initial_conditions_unbiased/
 *.hdf5
 
 # Large intermediate GNN tensors & matrices (57+ GB)
+GNN-jed/obs_all_stars
 GNN-jed/obs_all_stars/
+GNN-jed/obs_clean
 GNN-jed/obs_clean/
+GNN-jed/obs_gaia_noisy
 GNN-jed/obs_gaia_noisy/
 GNN-jed/labels_bound_stars/
+GNN-jed/labels_clean
 GNN-jed/labels_clean/
 GNN-jed/graph_data/
 GNN-jed/graph_data_clean/

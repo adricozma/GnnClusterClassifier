@@ -23,8 +23,8 @@ N_WORKERS="${SLURM_NTASKS:-36}"
 
 echo "=== Building 5D Clean k-NN Graphs (k=20, cKDTree) in /scratch/cozma/graph_data_clean ($N_WORKERS workers) ==="
 python3 scripts/build_graph_dataset.py \
-    --obs_dir "GNN-jed/obs_clean" \
-    --labels_dir "GNN-jed/labels_clean" \
+    --obs_dir "/scratch/cozma/study2/obs_clean" \
+    --labels_dir "/scratch/cozma/study2/labels_clean" \
     --output_dir "/scratch/cozma/graph_data_clean" \
     --rotations 5 \
     --k_neighbors 20 \
@@ -33,8 +33,8 @@ python3 scripts/build_graph_dataset.py \
 
 echo "=== Building 5D Gaia DR3 Noisy k-NN Graphs (k=20, cKDTree) in /scratch/cozma/graph_data_noisy ($N_WORKERS workers) ==="
 python3 scripts/build_graph_dataset.py \
-    --obs_dir "GNN-jed/obs_gaia_noisy" \
-    --labels_dir "GNN-jed/labels_clean" \
+    --obs_dir "/scratch/cozma/study2/obs_gaia_noisy" \
+    --labels_dir "/scratch/cozma/study2/labels_clean" \
     --output_dir "/scratch/cozma/graph_data_noisy" \
     --rotations 5 \
     --k_neighbors 20 \

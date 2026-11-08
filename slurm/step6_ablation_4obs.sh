@@ -24,7 +24,7 @@ GRAPH_DIR_CLEAN="/scratch/cozma/graph_data_${TAG}_clean"
 GRAPH_DIR_NOISY="/scratch/cozma/graph_data_${TAG}_noisy"
 OUT_DIR_CLEAN="GNN-jed/trained_models/study2/${TAG}_clean"
 OUT_DIR_NOISY="GNN-jed/trained_models/study2/${TAG}_noisy"
-SIM_DIR="${SIM_DIR:-/home/cozma/swift_sims/outputs_unbiased}"
+SIM_DIR="${SIM_DIR:-/scratch/cozma/study2/outputs_unbiased}"
 N_WORKERS="${SLURM_NTASKS:-36}"
 
 mkdir -p slurm_logs "$GRAPH_DIR_CLEAN" "$GRAPH_DIR_NOISY" "$OUT_DIR_CLEAN" "$OUT_DIR_NOISY"
@@ -37,8 +37,8 @@ source env_astro/bin/activate
 
 echo "=== [1/4] Building 4D Clean k-NN Graphs for $TAG (features=$FEAT) ==="
 python3 scripts/build_graph_dataset.py \
-    --obs_dir "GNN-jed/obs_clean" \
-    --labels_dir "GNN-jed/labels_clean" \
+    --obs_dir "/scratch/cozma/study2/obs_clean" \
+    --labels_dir "/scratch/cozma/study2/labels_clean" \
     --output_dir "$GRAPH_DIR_CLEAN" \
     --rotations 5 \
     --k_neighbors 20 \
@@ -47,8 +47,8 @@ python3 scripts/build_graph_dataset.py \
 
 echo "=== [2/4] Building 4D Gaia DR3 Noisy k-NN Graphs for $TAG (features=$FEAT) ==="
 python3 scripts/build_graph_dataset.py \
-    --obs_dir "GNN-jed/obs_gaia_noisy" \
-    --labels_dir "GNN-jed/labels_clean" \
+    --obs_dir "/scratch/cozma/study2/obs_gaia_noisy" \
+    --labels_dir "/scratch/cozma/study2/labels_clean" \
     --output_dir "$GRAPH_DIR_NOISY" \
     --rotations 5 \
     --k_neighbors 20 \
@@ -86,7 +86,7 @@ python3 scripts/generate_study2_figures.py \
     --gat_weights "$OUT_DIR_CLEAN/best_gat_${TAG}_clean.pth" \
     --graph_dir "$GRAPH_DIR_CLEAN" \
     --sim_dir "$SIM_DIR" \
-    --labels_dir "GNN-jed/labels_clean"
+    --labels_dir "/scratch/cozma/study2/labels_clean"
 
 echo "=== [4/4] Stage 2: Gaia DR3 Noisy Fine-Tuning on 4 Observables ($TAG) ==="
 python3 scripts/train_gcn.py \
@@ -121,7 +121,7 @@ python3 scripts/generate_study2_figures.py \
     --gat_weights "$OUT_DIR_NOISY/best_gat_${TAG}_noisy.pth" \
     --graph_dir "$GRAPH_DIR_NOISY" \
     --sim_dir "$SIM_DIR" \
-    --labels_dir "GNN-jed/labels_clean"
+    --labels_dir "/scratch/cozma/study2/labels_clean"
 
 echo "=== COMPLETED 4-OBSERVABLE CLEAN + GAIA NOISY ABLATION FOR $TAG ==="
 python3 scripts/live_monitor.py --once || true

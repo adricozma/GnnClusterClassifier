@@ -50,11 +50,14 @@ def _process_single_snapshot(task):
         else None
     )
 
-    if (
-        os.path.exists(label_path)
-        and os.path.exists(obs_path)
-        and (obs_noisy_path is None or os.path.exists(obs_noisy_path))
-    ):
+    def _is_valid_file(p, min_bytes=512):
+        return bool(p and os.path.isfile(p) and os.path.getsize(p) > min_bytes)
+
+    skip = _is_valid_file(label_path, 512) and _is_valid_file(obs_path, 10000)
+    if obs_noisy_path is not None:
+        skip = skip and _is_valid_file(obs_noisy_path, 10000)
+
+    if skip:
         return snap_stem, True
 
     rng = np.random.default_rng(seed)
@@ -116,19 +119,19 @@ def main():
     parser.add_argument(
         "--sim_dir",
         type=str,
-        default="/home/cozma/swift_sims/outputs_unbiased",
+        default="/scratch/cozma/study2/outputs_unbiased",
         help="Directory containing IC_* simulation folders with snapshot_*.hdf5 files.",
     )
     parser.add_argument(
         "--labels_dir",
         type=str,
-        default=os.path.join(ROOT_DIR, "GNN-jed", "labels_clean"),
+        default="/scratch/cozma/study2/labels_clean",
         help="Output directory for bound star boolean labels (B_L_snapshot_*.npy).",
     )
     parser.add_argument(
         "--obs_dir",
         type=str,
-        default=os.path.join(ROOT_DIR, "GNN-jed", "obs_clean"),
+        default="/scratch/cozma/study2/obs_clean",
         help="Output directory for standardized observable matrices (obs_matrices_snapshot_*.npy).",
     )
     parser.add_argument(
@@ -185,24 +188,35 @@ def main():
     )
     args = parser.parse_args()
 
-    if not os.path.exists(args.sim_dir):
-        raise FileNotFoundError(f"Simulation directory not found: {args.sim_dir}")
-
-    ic_folders = sorted(
+    ics_dir = os.path.join(ROOT_DIR, "make_ICs", "initial_conditions_unbiased")
+    canonical_ic_files = sorted(
         [
             f
-            for f in os.listdir(args.sim_dir)
-            if f.startswith("IC_") and os.path.isdir(os.path.join(args.sim_dir, f))
+            for f in os.listdir(ics_dir)
+            if f.startswith("IC_") and f.endswith(".hdf5")
         ],
-        key=lambda x: int(x.split("_")[1]) if x.split("_")[1].isdigit() else x,
+        key=lambda x: int(x.split("_")[1].split(".")[0]),
     )
+
     if args.ic_index >= 0:
-        if args.ic_index >= len(ic_folders):
+        if args.ic_index >= len(canonical_ic_files):
             print(
-                f"IC index {args.ic_index} out of range (total {len(ic_folders)}). Exiting cleanly."
+                f"IC index {args.ic_index} out of range (total {len(canonical_ic_files)}). Exiting cleanly."
             )
             return
-        ic_folders = [ic_folders[args.ic_index]]
+        target_ic_name = os.path.splitext(canonical_ic_files[args.ic_index])[0]
+        ic_folders = [target_ic_name]
+    else:
+        if not os.path.exists(args.sim_dir):
+            raise FileNotFoundError(f"Simulation directory not found: {args.sim_dir}")
+        ic_folders = sorted(
+            [
+                f
+                for f in os.listdir(args.sim_dir)
+                if f.startswith("IC_") and os.path.isdir(os.path.join(args.sim_dir, f))
+            ],
+            key=lambda x: int(x.split("_")[1]) if x.split("_")[1].isdigit() else x,
+        )
 
     print(
         f"Processing {len(ic_folders)} IC folder(s) from '{args.sim_dir}' using {args.num_workers} CPU workers."
@@ -211,6 +225,8 @@ def main():
     tasks = []
     for ic_name in ic_folders:
         ic_path = os.path.join(args.sim_dir, ic_name)
+        if not os.path.isdir(ic_path):
+            raise FileNotFoundError(f"Simulation folder not found: {ic_path}")
         snapshots = sorted(
             [
                 f

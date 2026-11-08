@@ -1,8 +1,8 @@
 #!/bin/bash
 # Master SLURM pipeline launcher for Study 2 on EPFL Jed HPC.
 # Parallelizes:
-#   - Branch A (Immediate, 0 wait): Step 3 (75 ready clusters) -> Step 4A (5D Graphs) -> Step 5A (Live GNN Training & Plots)
-#   - Branch B (Parallel N-body):   Step 2 (6 new outer-halo SWIFT runs) -> Step 3B (6 clusters) -> Step 4B/5B/6 (Full 81-stream completion & 4D ablations)
+#   - Branch A (Immediate, 0 wait): Step 3 (70 ready clusters) -> Step 4A (5D Graphs) -> Step 5A (Live GNN Training & Plots)
+#   - Branch B (Parallel N-body):   Step 2 (11 new/corrupted SWIFT runs) -> Step 3B (11 clusters) -> Step 4B/5B/6 (Full 81-stream completion & 4D ablations)
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -44,29 +44,29 @@ if [ -n "$STALE_JOBS" ]; then
     echo "  -> Canceled stale jobs: $STALE_JOBS"
 fi
 
-ARRAY_75="--array=0,2-7,9-24,26-42,44-46,48-61,63-80%8"
-ARRAY_6_SWIFT="--array=1,8,25,43,47,62%6"
-ARRAY_6_OBS="--array=1,8,25,43,47,62"
+ARRAY_70="--array=0,2-6,10-24,26-29,31,33-42,44-46,48-56,58-61,63-80%8"
+ARRAY_11_SWIFT="--array=1,7,8,9,25,30,32,43,47,57,62%6"
+ARRAY_11_OBS="--array=1,7,8,9,25,30,32,43,47,57,62"
 
-echo "=== BRANCH A (IMMEDIATE START ON 75 COMPLETED CLUSTERS) ==="
-echo "Submitting Step 3A: Bound Labels + Clean & Gaia DR3 Noisy Observables (75 ready clusters, starts immediately)..."
-JOB3A=$(submit_with_fallback "slurm/step3_extract_observables.sh" "" "$ARRAY_75" \
+echo "=== BRANCH A (IMMEDIATE START ON 70 COMPLETED CLUSTERS) ==="
+echo "Submitting Step 3A: Bound Labels + Clean & Gaia DR3 Noisy Observables (70 ready clusters, starts immediately)..."
+JOB3A=$(submit_with_fallback "slurm/step3_extract_observables.sh" "" "$ARRAY_70" \
     "18 96G 24:00:00" \
     "12 64G 36:00:00" \
     "8 48G 48:00:00" \
     "4 24G 72:00:00")
 echo "  -> Step 3A Job ID: $JOB3A (no dependency — starts immediately)"
 
-echo "Submitting Step 4A: 5D k-NN Graph Construction for 75 clusters in /scratch/cozma..."
-JOB4A=$(submit_with_fallback "slurm/step4_build_graphs.sh" "afterok:$JOB3A" "--job-name=Study2_Step4A_Graphs75" \
+echo "Submitting Step 4A: 5D k-NN Graph Construction for 70 clusters in /scratch/cozma..."
+JOB4A=$(submit_with_fallback "slurm/step4_build_graphs.sh" "afterok:$JOB3A" "--job-name=Study2_Step4A_Graphs70" \
     "36 180G 24:00:00" \
     "24 120G 36:00:00" \
     "16 80G 48:00:00" \
     "8 48G 72:00:00")
 echo "  -> Step 4A Job ID: $JOB4A (depends on $JOB3A)"
 
-echo "Submitting Step 5A: 5D 2-Stage Curriculum Training (GCN & GAT) + Real-Time Live Plots on 75 clusters..."
-JOB5A=$(submit_with_fallback "slurm/step5_train_curriculum_and_plot.sh" "afterok:$JOB4A" "--job-name=Study2_Step5A_Train75" \
+echo "Submitting Step 5A: 5D 2-Stage Curriculum Training (GCN & GAT) + Real-Time Live Plots on 70 clusters..."
+JOB5A=$(submit_with_fallback "slurm/step5_train_curriculum_and_plot.sh" "afterok:$JOB4A" "--job-name=Study2_Step5A_Train70" \
     "36 220G 168:00:00" \
     "24 160G 168:00:00" \
     "16 110G 168:00:00" \
@@ -74,17 +74,17 @@ JOB5A=$(submit_with_fallback "slurm/step5_train_curriculum_and_plot.sh" "afterok
 echo "  -> Step 5A Job ID: $JOB5A (depends on $JOB4A)"
 
 echo ""
-echo "=== BRANCH B (PARALLEL SWIFT SIMULATION OF 6 OUTER-HALO CLUSTERS + 81-STREAM COMPLETION) ==="
-echo "Submitting Step 2B: SWIFT N-body Simulations for 6 outer-halo clusters (IC_2,10,27,45,49,67, starts immediately)..."
-JOB2B=$(submit_with_fallback "slurm/step2_run_swift_array.sh" "" "$ARRAY_6_SWIFT" \
+echo "=== BRANCH B (PARALLEL SWIFT SIMULATION OF 11 CLUSTERS + 81-STREAM COMPLETION) ==="
+echo "Submitting Step 2B: SWIFT N-body Simulations for 11 clusters (IC_2,9,10,11,27,32,34,45,49,62,67, starts immediately)..."
+JOB2B=$(submit_with_fallback "slurm/step2_run_swift_array.sh" "" "$ARRAY_11_SWIFT" \
     "36 180G 120:00:00" \
     "24 120G 144:00:00" \
     "16 80G 168:00:00" \
     "8 48G 168:00:00")
 echo "  -> Step 2B Job ID: $JOB2B (no dependency — starts immediately)"
 
-echo "Submitting Step 3B: Bound Labels + Clean & Gaia DR3 Noisy Observables for the 6 outer-halo clusters..."
-JOB3B=$(submit_with_fallback "slurm/step3_extract_observables.sh" "afterok:$JOB2B" "$ARRAY_6_OBS" \
+echo "Submitting Step 3B: Bound Labels + Clean & Gaia DR3 Noisy Observables for the 11 clusters..."
+JOB3B=$(submit_with_fallback "slurm/step3_extract_observables.sh" "afterok:$JOB2B" "$ARRAY_11_OBS" \
     "18 96G 24:00:00" \
     "12 64G 36:00:00" \
     "8 48G 48:00:00" \
@@ -117,5 +117,5 @@ echo "  -> Step 6 Job ID: $JOB6 (depends on $JOB3A, $JOB3B)"
 
 echo ""
 echo "Full parallel Study 2 pipeline submitted to SLURM!"
-echo "  * Immediate Fast-Track (75 clusters): $JOB3A (Obs) -> $JOB4A (5D Graphs) -> $JOB5A (5D Train + Live Plots)"
-echo "  * Parallel Outer-Halo (6 clusters)  : $JOB2B (SWIFT) -> $JOB3B (Obs) -> $JOB4B (81 Graphs) -> $JOB5B (81 Train) + $JOB6 (4D Ablation)"
+echo "  * Immediate Fast-Track (70 clusters): $JOB3A (Obs) -> $JOB4A (5D Graphs) -> $JOB5A (5D Train + Live Plots)"
+echo "  * Parallel SWIFT (11 clusters)      : $JOB2B (SWIFT) -> $JOB3B (Obs) -> $JOB4B (81 Graphs) -> $JOB5B (81 Train) + $JOB6 (4D Ablation)"

@@ -103,7 +103,10 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 | **SWIFT Binary** | `/home/cozma/swift_sims/swift` | Compiled `SWIFT v2026.04` with `--with-ext-potential=MWPotential2014` |
 | **Study 1 SWIFT ICs** | `/home/cozma/swift_sims/ICs/` | 75 HDF5 initial conditions from Study 1 (untouched) |
 | **Study 1 SWIFT Outputs** | `/home/cozma/swift_sims/outputs/` | 75 directories $\times$ 101 HDF5 snapshots from Study 1 (untouched) |
-| **Study 2 SWIFT Outputs** | `/home/cozma/swift_sims/outputs_unbiased/` | Unbiased $N$-body simulation outputs ($R_p \ge 5\text{ kpc}$) |
+| **Study 2 SWIFT Outputs** | `/scratch/cozma/study2/outputs_unbiased/` | Unbiased $N$-body simulation outputs ($R_p \ge 5\text{ kpc}$), symlinked from `/home/cozma/swift_sims/outputs_unbiased` |
+| **Study 2 Bound Labels** | `/scratch/cozma/study2/labels_clean/` | Exact bound labels `B_L_snapshot_*.npy`, symlinked from `GNN-jed/labels_clean` |
+| **Study 2 Clean Observables** | `/scratch/cozma/study2/obs_clean/` | Standardized noiseless observable matrices, symlinked from `GNN-jed/obs_clean` |
+| **Study 2 Gaia Noisy Observables** | `/scratch/cozma/study2/obs_gaia_noisy/` | Standardized Gaia DR3 noisy observable matrices, symlinked from `GNN-jed/obs_gaia_noisy` |
 | **Study 2 Clean Graphs** | `/scratch/cozma/graph_data_clean/` | PyTorch Geometric `.pt` 5D $k$-NN graphs (noiseless) |
 | **Study 2 Noisy Graphs** | `/scratch/cozma/graph_data_noisy/` | PyTorch Geometric `.pt` 5D $k$-NN graphs (with Gaia DR3 noise) |
 | **Study 2 4D Ablation Graphs** | `/scratch/cozma/graph_data_4obs_<tag>/` | 4-observable $k$-NN graphs for feature-ablation experiments |

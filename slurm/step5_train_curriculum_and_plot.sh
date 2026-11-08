@@ -20,7 +20,7 @@ module load python/3.11.7
 export MPLBACKEND=Agg
 source env_astro/bin/activate
 
-SIM_DIR="${SIM_DIR:-/home/cozma/swift_sims/outputs_unbiased}"
+SIM_DIR="${SIM_DIR:-/scratch/cozma/study2/outputs_unbiased}"
 
 echo "=================================================================="
 echo "STAGE 1: CLEAN PRE-TRAINING (Noiseless 5D Astrometric Graphs)"
@@ -56,7 +56,7 @@ python3 scripts/generate_study2_figures.py \
     --gat_weights "$OUT_DIR/clean_5obs/best_gat_clean.pth" \
     --graph_dir "/scratch/cozma/graph_data_clean" \
     --sim_dir "$SIM_DIR" \
-    --labels_dir "GNN-jed/labels_clean"
+    --labels_dir "/scratch/cozma/study2/labels_clean"
 python3 scripts/live_monitor.py --once || true
 
 echo "=================================================================="
@@ -95,7 +95,7 @@ python3 scripts/generate_study2_figures.py \
     --gat_weights "$OUT_DIR/noisy_5obs/best_gat_noisy.pth" \
     --graph_dir "/scratch/cozma/graph_data_noisy" \
     --sim_dir "$SIM_DIR" \
-    --labels_dir "GNN-jed/labels_clean"
+    --labels_dir "/scratch/cozma/study2/labels_clean"
 
 echo "=== STEP 5 CURRICULUM TRAINING & FIGURE GENERATION COMPLETED ==="
 python3 scripts/live_monitor.py --once || true

@@ -16,9 +16,27 @@ SWIFT_BIN="/home/cozma/swift_sims/swift"
 PARAMS_TEMPLATE="$REPO_DIR/configs/params.yml"
 ICS_DIR="$REPO_DIR/make_ICs/initial_conditions_unbiased"
 STUDY1_OUTPUT_BASE="/home/cozma/swift_sims/outputs"
-OUTPUT_BASE="/home/cozma/swift_sims/outputs_unbiased"
+OUTPUT_BASE="/scratch/cozma/study2/outputs_unbiased"
 REUSE_EXISTING_SWIFT="${REUSE_EXISTING_SWIFT:-1}"
 N_THREADS="${SLURM_NTASKS:-36}"
+
+validate_sim() {
+    local target_dir="$1"
+    [ -d "$target_dir" ] || return 1
+    python3 -c "
+import sys, os
+d = sys.argv[1]
+magic = b'\x89HDF\r\n\x1a\n'
+for i in range(101):
+    p = os.path.join(d, f'snapshot_{i:04d}.hdf5')
+    if not (os.path.isfile(p) and os.path.getsize(p) > 50000):
+        sys.exit(1)
+    with open(p, 'rb') as f:
+        if f.read(8) != magic:
+            sys.exit(1)
+sys.exit(0)
+" "$target_dir" 2>/dev/null
+}
 
 mkdir -p "$REPO_DIR/slurm_logs" "$OUTPUT_BASE"
 
@@ -32,24 +50,29 @@ CURRENT_FILE_IC="${FILES_IC[$SLURM_ARRAY_TASK_ID]}"
 BASENAME_EXT="${CURRENT_FILE_IC##*/}"
 BASENAME="${BASENAME_EXT%.*}"
 
+STUDY1_FOLDER="$STUDY1_OUTPUT_BASE/${BASENAME}"
 OUTPUT_FOLDER="$OUTPUT_BASE/${BASENAME}"
 
-if [ "$REUSE_EXISTING_SWIFT" = "1" ] && [ -f "$STUDY1_OUTPUT_BASE/${BASENAME}/snapshot_0100.hdf5" ]; then
-    if [ ! -e "$OUTPUT_FOLDER" ]; then
-        ln -s "$STUDY1_OUTPUT_BASE/${BASENAME}" "$OUTPUT_FOLDER"
-        echo "Linked existing completed SWIFT run from $STUDY1_OUTPUT_BASE/${BASENAME} -> $OUTPUT_FOLDER"
+# Check existing OUTPUT_FOLDER: validate with Python (all 101 snapshots exist, >50KB, HDF5 magic)
+# If invalid symlink or incomplete/corrupted, remove it and run fresh.
+if [ -e "$OUTPUT_FOLDER" ] || [ -L "$OUTPUT_FOLDER" ]; then
+    if validate_sim "$OUTPUT_FOLDER"; then
+        echo "Simulation $BASENAME already valid at $OUTPUT_FOLDER. Skipping."
+        exit 0
     else
-        echo "Simulation $BASENAME already present at $OUTPUT_FOLDER. Skipping."
+        echo "Simulation $OUTPUT_FOLDER is an invalid symlink or incomplete/corrupted. Removing..."
+        rm -rf "$OUTPUT_FOLDER"
     fi
+fi
+
+# If Study 1 folder is valid, symlink it to OUTPUT_FOLDER
+if [ "$REUSE_EXISTING_SWIFT" = "1" ] && validate_sim "$STUDY1_FOLDER"; then
+    ln -s "$STUDY1_FOLDER" "$OUTPUT_FOLDER"
+    echo "Linked verified Study 1 SWIFT run from $STUDY1_FOLDER -> $OUTPUT_FOLDER"
     exit 0
 fi
 
 mkdir -p "$OUTPUT_FOLDER"
-
-if [ -f "$OUTPUT_FOLDER/snapshot_0100.hdf5" ]; then
-    echo "Simulation $BASENAME already completed (snapshot_0100.hdf5 exists). Skipping."
-    exit 0
-fi
 
 # Clean any incomplete artifacts before starting fresh SWIFT integration
 rm -rf "$OUTPUT_FOLDER/restart" "$OUTPUT_FOLDER"/snapshot_*.hdf5 "$OUTPUT_FOLDER"/statistics.txt
@@ -71,6 +94,13 @@ echo "Running SWIFT on $BASENAME (task $SLURM_ARRAY_TASK_ID) with $N_THREADS thr
     "$CONFIG_FILE"
 
 echo "Finished SWIFT simulation for $BASENAME."
+
+FINAL_SNAP="$OUTPUT_FOLDER/snapshot_0100.hdf5"
+if ! python3 -c "import os, sys; p = sys.argv[1]; sys.exit(0 if (os.path.isfile(p) and os.path.getsize(p) > 50000) else 1)" "$FINAL_SNAP"; then
+    echo "ERROR: Final snapshot $FINAL_SNAP missing or size <= 50000 bytes after SWIFT run!" >&2
+    exit 1
+fi
+
 cd "$REPO_DIR"
 module load python/3.11.7
 source env_astro/bin/activate
