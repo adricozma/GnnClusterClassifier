@@ -1,7 +1,7 @@
 # Live Pipeline Status on Jed
 
 ```text
-[2026-11-08 11:50:18] Study 2 Pipeline Status on Jed
+[2026-11-08 11:50:41] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 76 / 81 completed (101 snapshots)
 - Step 3 (Observables): Labels=70/81 | Clean=70/81 | GaiaNoisy=70/81
@@ -13,10 +13,10 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
       40994878   academic  Study2_Step5B_Train81   PD       0:00      1 (DependencyNeverSatisfied)
       40994877   academic Study2_Step4B_Graphs81   PD       0:00      1 (Dependency)
 40994876_[1,7-   academic       Study2_Step3_Obs   PD       0:00      1 (Dependency)
-   40994875_57   academic     Study2_Step2_SWIFT    R      27:00      1 jst306
-   40994875_62   academic     Study2_Step2_SWIFT    R      18:00      1 jst285
-   40994875_47   academic     Study2_Step2_SWIFT    R      40:01      1 jst288
-   40994875_43   academic     Study2_Step2_SWIFT    R      56:01      1 jst315
-   40994875_30   academic     Study2_Step2_SWIFT    R    1:23:03      1 jst277
-    40994875_8   academic     Study2_Step2_SWIFT    R    1:45:05      1 jst293
+   40994875_57   academic     Study2_Step2_SWIFT    R      25:10      1 jst306
+   40994875_62   academic     Study2_Step2_SWIFT    R      16:10      1 jst285
+   40994875_47   academic     Study2_Step2_SWIFT    R      38:11      1 jst288
+   40994875_43   academic     Study2_Step2_SWIFT    R      54:11      1 jst315
+   40994875_30   academic     Study2_Step2_SWIFT    R    1:21:13      1 jst277
+    40994875_8   academic     Study2_Step2_SWIFT    R    1:43:15      1 jst293
 ```
