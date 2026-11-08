@@ -1,0 +1,4 @@
+=== START of training (split_mode=ic, in_channels=5, pos_weight=1.0) ===
+Val ICs : ['IC_60', 'IC_3', 'IC_44', 'IC_6', 'IC_51', 'IC_17', 'IC_14']
+Test ICs: ['IC_55', 'IC_43', 'IC_68', 'IC_28', 'IC_63', 'IC_69', 'IC_83']
+Epoch | Train Loss | Train Acc | Val Loss | Val Acc | LR
