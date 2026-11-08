@@ -41,16 +41,10 @@ run_ddp_with_oom_fallback() {
         if [ "$micro" -lt 1 ]; then
             micro=1
         fi
-        echo "  [Launcher] Running $script across $NNODES node(s) (72 cores, 492G/node) with --micro_bs $micro..."
+        echo "  [Launcher] Running $script across $NNODES node(s) ($CPUS_PER_NODE cores, 246G/node) with --micro_bs $micro..."
         if [ "$NNODES" -gt 1 ]; then
             if srun --nodes="$NNODES" --ntasks="$NNODES" --ntasks-per-node=1 --cpus-per-task="$CPUS_PER_NODE" \
-                torchrun \
-                --nnodes="$NNODES" \
-                --nproc_per_node=1 \
-                --rdzv_id="${SLURM_JOB_ID}_${RANDOM}" \
-                --rdzv_backend=c10d \
-                --rdzv_endpoint="${MASTER_ADDR}:${MASTER_PORT}" \
-                "$script" --micro_bs "$micro" "${extra_args[@]}"; then
+                python3 "$script" --micro_bs "$micro" "${extra_args[@]}"; then
                 return 0
             fi
         else
