@@ -136,3 +136,76 @@ class GAT(nn.Module):
         out_graph = self.conv3(h2, edge_index)
         out_ego = self.ego_head(torch.cat([h2, h0], dim=-1))
         return out_graph + out_ego
+
+
+def load_pretrained_with_channel_adaptation(
+    model: nn.Module,
+    state_dict: dict,
+    selected_features: list[int] | None = None,
+) -> None:
+    """Load pre-trained weights into `model`, adapting relational input channels (e.g., 5D -> 4D) if needed.
+
+    In `compute_node_relational_features(x, edge_index)` with `d_src` input features, the output `h0`
+    has dimension `3 * d_src + 3` ordered as:
+      - `[0 : d_src]`             : raw features `x`
+      - `[d_src : 2*d_src]`       : ego-relative residual `dx_ego`
+      - `[2*d_src : 3*d_src]`     : local neighborhood std `neigh_std`
+      - `[3*d_src : 3*d_src + 3]` : `mean_dist`, `log_density`, `radial_norm`
+
+    When transferring from a `d_src`-channel checkpoint (e.g. 5 observables, `in_rel=18`) to a
+    `d_dst`-channel model (e.g. 4 observables, `in_rel=15`), the exact corresponding 15 columns
+    of `conv1.lin.weight`, `skip1.weight`, and the trailing `h0` slice of `ego_head.0.weight`
+    are extracted and scaled by `sqrt(in_rel_src / in_rel_dst)` to preserve activation variance.
+    """
+    clean_sd = {}
+    for k, v in state_dict.items():
+        clean_k = k[7:] if k.startswith("module.") else k
+        clean_sd[clean_k] = v
+
+    model_sd = model.state_dict()
+    dst_in_rel = model_sd["skip1.weight"].shape[1]
+    src_in_rel = clean_sd["skip1.weight"].shape[1]
+
+    if src_in_rel == dst_in_rel:
+        model.load_state_dict(clean_sd)
+        return
+
+    d_src = (src_in_rel - 3) // 3
+    d_dst = (dst_in_rel - 3) // 3
+
+    if selected_features is not None and len(selected_features) == d_dst:
+        feat_idx = list(selected_features)
+    else:
+        feat_idx = list(range(d_dst))
+
+    rel_indices = (
+        [i for i in feat_idx]
+        + [d_src + i for i in feat_idx]
+        + [2 * d_src + i for i in feat_idx]
+        + [3 * d_src, 3 * d_src + 1, 3 * d_src + 2]
+    )
+    idx_tensor = torch.tensor(rel_indices, dtype=torch.long)
+    scale = (float(src_in_rel) / float(dst_in_rel)) ** 0.5
+
+    adapted_sd = {}
+    for k, target_param in model_sd.items():
+        if k not in clean_sd:
+            adapted_sd[k] = target_param
+            continue
+        src_param = clean_sd[k]
+        if src_param.shape == target_param.shape:
+            adapted_sd[k] = src_param
+        elif k in ("conv1.lin.weight", "skip1.weight") and src_param.shape[1] == src_in_rel:
+            adapted_sd[k] = src_param[:, idx_tensor.to(src_param.device)] * scale
+        elif k == "ego_head.0.weight" and src_param.shape[1] - src_in_rel == target_param.shape[1] - dst_in_rel:
+            h2_dim = target_param.shape[1] - dst_in_rel
+            h2_part = src_param[:, :h2_dim]
+            h0_part = src_param[:, h2_dim:][:, idx_tensor.to(src_param.device)] * scale
+            adapted_sd[k] = torch.cat([h2_part, h0_part], dim=1)
+        else:
+            raise RuntimeError(
+                f"Cannot adapt parameter '{k}' from shape {tuple(src_param.shape)} to {tuple(target_param.shape)}"
+            )
+
+    model.load_state_dict(adapted_sd)
+

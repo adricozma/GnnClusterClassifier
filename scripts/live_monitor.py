@@ -47,59 +47,9 @@ def send_ntfy_message(topic, message, title="EPFL Jed - GNN Study 2", priority="
 
 
 def auto_heal_slurm_jobs(topic=DEFAULT_TOPIC):
-    """Downscale CPU/RAM and extend walltime for pending jobs blocked on QOS/resource limits."""
-    try:
-        res = subprocess.run(
-            ["squeue", "-u", "cozma", "-h", "-o", "%i|%t|%C|%m|%R"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        throttled_reasons = (
-            "QOSGrpCpuLimit",
-            "QOSMaxCpuPerUserLimit",
-            "QOSGrpMemLimit",
-            "QOSMaxMemoryPerUser",
-            "QOSMaxMemoryPerJob",
-            "AssocMaxCpuPerJobLimit",
-            "ReqNodeNotAvail",
-            "Resources",
-        )
-        for line in res.stdout.strip().splitlines():
-            parts = line.strip().split("|")
-            if len(parts) < 5:
-                continue
-            job_id, state, cpus_str, mem_str, reason = parts[0], parts[1], parts[2], parts[3], parts[4]
-            base_jid = job_id.split("_")[0]
-            if state == "PD" and any(r in reason for r in throttled_reasons):
-                try:
-                    cur_cpus = int(cpus_str)
-                except ValueError:
-                    cur_cpus = 36
-                if cur_cpus > 4:
-                    new_cpus = max(4, cur_cpus // 2)
-                    new_mem_gb = max(24, new_cpus * 4)
-                    upd = subprocess.run(
-                        [
-                            "scontrol",
-                            "update",
-                            f"JobId={base_jid}",
-                            f"NumTasks={new_cpus}",
-                            f"MinMemoryNode={new_mem_gb}G",
-                            "TimeLimit=168:00:00",
-                        ],
-                        capture_output=True,
-                        text=True,
-                        timeout=10,
-                    )
-                    if upd.returncode == 0:
-                        send_ntfy_message(
-                            topic,
-                            f"Auto-scaled Job {base_jid} ({reason}): {cur_cpus} -> {new_cpus} CPUs, {new_mem_gb}G RAM, TimeLimit=168:00:00",
-                            title="EPFL Jed - Auto Resource Fallback",
-                        )
-    except Exception:
-        pass
+    """Disabled automatic CPU/RAM downscaling to preserve full-node 492G allocations for GNN training."""
+    return
+
 
 
 def get_slurm_queue():
@@ -285,7 +235,7 @@ def write_live_status_markdown(report, prog):
 
 
 def auto_push_to_github():
-    """Stage LIVE_STATUS.md and any new Study 2 figures/logs, commit, and push to origin/main."""
+    """Stage LIVE_STATUS.md and any new Study 2 figures/logs, commit, pull --rebase, and push to origin/main."""
     try:
         subprocess.run(
             ["git", "add", "LIVE_STATUS.md", "GNN-jed/trained_models/study2/"],
@@ -308,11 +258,41 @@ def auto_push_to_github():
                 timeout=15,
             )
             subprocess.run(
+                ["git", "pull", "--rebase", "-X", "ours", "origin", "main"],
+                cwd=ROOT_DIR,
+                check=False,
+                timeout=25,
+            )
+            subprocess.run(
                 ["git", "push", "origin", "main"],
                 cwd=ROOT_DIR,
                 check=False,
                 timeout=30,
             )
+    except Exception:
+        pass
+
+
+UPLOADED_CACHE_FILE = os.path.join(ROOT_DIR, "slurm_logs", "ntfy_uploaded_plots.json")
+
+
+def _load_uploaded_plots() -> dict:
+    import json
+    if os.path.exists(UPLOADED_CACHE_FILE):
+        try:
+            with open(UPLOADED_CACHE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+def _save_uploaded_plots(cache: dict) -> None:
+    import json
+    try:
+        os.makedirs(os.path.dirname(UPLOADED_CACHE_FILE), exist_ok=True)
+        with open(UPLOADED_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(cache, f)
     except Exception:
         pass
 
@@ -348,7 +328,7 @@ def main():
         daemonize()
 
     last_sent_report = None
-    uploaded_plots = set()
+    uploaded_plots = _load_uploaded_plots()
 
     while True:
         auto_heal_slurm_jobs(args.topic)
@@ -376,18 +356,21 @@ def main():
             os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2", "**", "*.*"),
             recursive=True,
         )
+        cache_dirty = False
         for fpath in sorted(new_files):
             if fpath.endswith((".png", ".html")):
                 mtime = int(os.path.getmtime(fpath))
-                key = (fpath, mtime)
-                if key not in uploaded_plots:
+                if uploaded_plots.get(fpath) != mtime:
                     send_ntfy_message(
                         args.topic,
                         f"Updated figure: {os.path.basename(fpath)}",
                         title="EPFL Jed - Live Study 2 Figure",
                         attachment_path=fpath,
                     )
-                    uploaded_plots.add(key)
+                    uploaded_plots[fpath] = mtime
+                    cache_dirty = True
+        if cache_dirty:
+            _save_uploaded_plots(uploaded_plots)
 
         if args.once:
             break
