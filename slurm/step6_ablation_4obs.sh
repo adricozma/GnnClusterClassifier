@@ -92,29 +92,13 @@ python3 scripts/build_graph_dataset.py \
     --feature_indices "$FEAT" \
     --num_workers "$CPUS_PER_NODE"
 
-PRETRAIN_GCN_5D=""
-if [ -f "$OUT_DIR_5OBS_CLEAN/best_gcn_clean.pth" ]; then
-    PRETRAIN_GCN_5D="$OUT_DIR_5OBS_CLEAN/best_gcn_clean.pth"
-fi
-
 PRETRAIN_GAT_5D=""
 if [ -f "$OUT_DIR_5OBS_CLEAN/best_gat_clean.pth" ]; then
     PRETRAIN_GAT_5D="$OUT_DIR_5OBS_CLEAN/best_gat_clean.pth"
 fi
 
-echo "=== [3/4] Stage 1: Clean Pre-Training on 4 Observables ($TAG, initialized from 5D Clean weights) ==="
-run_ddp_with_oom_fallback "scripts/train_gcn.py" 16 \
-    --data_folder "$GRAPH_DIR_CLEAN" \
-    --n 5 \
-    --lr 0.001 \
-    --bs 256 \
-    --epochs 50 \
-    --split_mode ic \
-    --pretrained_weights "$PRETRAIN_GCN_5D" \
-    --save_model "$OUT_DIR_CLEAN/best_gcn_${TAG}_clean.pth" \
-    --log_file "$OUT_DIR_CLEAN/training_metrics_gcn_${TAG}_clean.log"
-
-run_ddp_with_oom_fallback "scripts/train_gat.py" 4 \
+echo "=== [3/4] Stage 1: Clean GAT Pre-Training on 4 Observables ($TAG, initialized from 5D Clean GAT weights) ==="
+run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
     --data_folder "$GRAPH_DIR_CLEAN" \
     --n 5 \
     --lr 0.001 \
@@ -129,27 +113,14 @@ python3 scripts/generate_study2_figures.py \
     --output_dir "$OUT_DIR_CLEAN" \
     --tag "${TAG}_clean" \
     --in_channels 4 \
-    --gcn_log "$OUT_DIR_CLEAN/training_metrics_gcn_${TAG}_clean.log" \
     --gat_log "$OUT_DIR_CLEAN/training_metrics_gat_${TAG}_clean.log" \
-    --gcn_weights "$OUT_DIR_CLEAN/best_gcn_${TAG}_clean.pth" \
     --gat_weights "$OUT_DIR_CLEAN/best_gat_${TAG}_clean.pth" \
     --graph_dir "$GRAPH_DIR_CLEAN" \
     --sim_dir "$SIM_DIR" \
     --labels_dir "/scratch/cozma/study2/labels_clean"
 
-echo "=== [4/4] Stage 2: Gaia DR3 Noisy Fine-Tuning on 4 Observables ($TAG) ==="
-run_ddp_with_oom_fallback "scripts/train_gcn.py" 16 \
-    --data_folder "$GRAPH_DIR_NOISY" \
-    --n 5 \
-    --lr 0.0005 \
-    --bs 256 \
-    --epochs 50 \
-    --split_mode ic \
-    --pretrained_weights "$OUT_DIR_CLEAN/best_gcn_${TAG}_clean.pth" \
-    --save_model "$OUT_DIR_NOISY/best_gcn_${TAG}_noisy.pth" \
-    --log_file "$OUT_DIR_NOISY/training_metrics_gcn_${TAG}_noisy.log"
-
-run_ddp_with_oom_fallback "scripts/train_gat.py" 4 \
+echo "=== [4/4] Stage 2: Gaia DR3 Noisy GAT Fine-Tuning on 4 Observables ($TAG) ==="
+run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
     --data_folder "$GRAPH_DIR_NOISY" \
     --n 5 \
     --lr 0.0005 \
@@ -164,13 +135,11 @@ python3 scripts/generate_study2_figures.py \
     --output_dir "$OUT_DIR_NOISY" \
     --tag "${TAG}_noisy" \
     --in_channels 4 \
-    --gcn_log "$OUT_DIR_NOISY/training_metrics_gcn_${TAG}_noisy.log" \
     --gat_log "$OUT_DIR_NOISY/training_metrics_gat_${TAG}_noisy.log" \
-    --gcn_weights "$OUT_DIR_NOISY/best_gcn_${TAG}_noisy.pth" \
     --gat_weights "$OUT_DIR_NOISY/best_gat_${TAG}_noisy.pth" \
     --graph_dir "$GRAPH_DIR_NOISY" \
     --sim_dir "$SIM_DIR" \
     --labels_dir "/scratch/cozma/study2/labels_clean"
 
-echo "=== COMPLETED 4-OBSERVABLE CLEAN + GAIA NOISY ABLATION FOR $TAG ==="
+echo "=== COMPLETED 4-OBSERVABLE CLEAN + GAIA NOISY GAT ABLATION FOR $TAG ==="
 python3 scripts/live_monitor.py --once || true

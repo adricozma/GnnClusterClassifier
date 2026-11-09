@@ -90,7 +90,9 @@ class GCN(nn.Module):
 
     def forward(self, data) -> torch.Tensor:
         x, edge_index = data.x, data.edge_index
-        h0 = compute_node_relational_features(x, edge_index)
+        h0 = getattr(data, "h0", None)
+        if h0 is None or h0.shape[0] != x.shape[0]:
+            h0 = compute_node_relational_features(x, edge_index)
 
         h1 = F.gelu(self.norm1(self.conv1(h0, edge_index) + self.skip1(h0)))
         h2 = F.gelu(self.norm2(self.conv2(h1, edge_index) + self.skip2(h1)))
@@ -125,7 +127,9 @@ class GAT(nn.Module):
 
     def forward(self, data) -> torch.Tensor:
         x, edge_index = data.x, data.edge_index
-        h0 = compute_node_relational_features(x, edge_index)
+        h0 = getattr(data, "h0", None)
+        if h0 is None or h0.shape[0] != x.shape[0]:
+            h0 = compute_node_relational_features(x, edge_index)
 
         h1 = F.elu(self.norm1(self.conv1(h0, edge_index) + self.skip1(h0)))
         h1 = F.dropout(h1, p=self.dropout, training=self.training)

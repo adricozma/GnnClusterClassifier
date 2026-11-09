@@ -166,6 +166,29 @@ def collect_pipeline_progress():
     except Exception:
         pass
 
+    # Discover all saved model weights (.pth) across experiment folders and mirror to central weights/ folder
+    study2_base = os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2")
+    central_weights_dir = os.path.join(study2_base, "weights")
+    os.makedirs(central_weights_dir, exist_ok=True)
+    saved_weights = []
+    for pth_path in sorted(glob.glob(os.path.join(study2_base, "**", "*.pth"), recursive=True)):
+        if os.path.dirname(os.path.abspath(pth_path)) == os.path.abspath(central_weights_dir):
+            continue
+        fname = os.path.basename(pth_path)
+        if fname.startswith("last_"):
+            continue
+        central_copy = os.path.join(central_weights_dir, fname)
+        try:
+            if not os.path.exists(central_copy) or os.path.getsize(pth_path) != os.path.getsize(central_copy) or int(os.path.getmtime(pth_path)) > int(os.path.getmtime(central_copy)):
+                import shutil
+                shutil.copyfile(pth_path, central_copy)
+        except Exception:
+            pass
+        rel_pth = os.path.relpath(pth_path, ROOT_DIR)
+        rel_central = os.path.relpath(central_copy, ROOT_DIR)
+        size_kb = os.path.getsize(pth_path) / 1024.0
+        saved_weights.append((fname, rel_pth, rel_central, size_kb))
+
     return {
         "n_ics": n_ics,
         "n_swift_done": n_swift_done,
@@ -176,6 +199,7 @@ def collect_pipeline_progress():
         "n_graphs_noisy": n_graphs_noisy,
         "latest_epochs": latest_epochs,
         "training_rows": training_rows,
+        "saved_weights": saved_weights,
     }
 
 
@@ -192,6 +216,8 @@ def format_status_report(squeue_str, prog):
         lines.append("- Step 5/6 Live GNN Training Progress:")
         for le in prog["latest_epochs"]:
             lines.append(f"  * {le}")
+    if prog.get("saved_weights"):
+        lines.append(f"- Saved Model Checkpoints (.pth): {len(prog['saved_weights'])} mirrored in GNN-jed/trained_models/study2/weights/")
     lines.append("\nSLURM Queue:")
     lines.append(squeue_str if squeue_str else "(No active jobs)")
     return "\n".join(lines)
@@ -221,6 +247,17 @@ def write_live_status_markdown(report, prog):
                 f"| `{exp_name}` | **{model_name}** | {ep} | {tr_l:.4f} | {tr_a:.2f}% | {va_l:.4f} | {va_a:.2f}% | **{best_va:.2f}%** | **{test_str}** | {f1_str} |"
             )
 
+    if prog.get("saved_weights"):
+        md_lines.extend([
+            "",
+            "## Saved Model Weights (`.pth` Checkpoints)",
+            "",
+            "| Checkpoint | Size | Experiment Path | Central Archive Mirror |",
+            "| :--- | :---: | :--- | :--- |",
+        ])
+        for fname, rel_pth, rel_central, size_kb in prog["saved_weights"]:
+            md_lines.append(f"| `{fname}` | {size_kb:.1f} KB | `{rel_pth}` | `{rel_central}` |")
+
     master_plot_rel = "GNN-jed/trained_models/study2/latest_live_training.png"
     if os.path.exists(os.path.join(ROOT_DIR, master_plot_rel)):
         md_lines.extend([
@@ -235,10 +272,20 @@ def write_live_status_markdown(report, prog):
 
 
 def auto_push_to_github():
-    """Stage LIVE_STATUS.md and any new Study 2 figures/logs, commit, pull --rebase, and push to origin/main."""
+    """Stage LIVE_STATUS.md and any new Study 2 figures/logs/weights, commit, pull --rebase, and push to origin/main."""
     try:
         subprocess.run(
-            ["git", "add", "LIVE_STATUS.md", "GNN-jed/trained_models/study2/"],
+            [
+                "git",
+                "add",
+                "-A",
+                "LIVE_STATUS.md",
+                "REPO_MAP.md",
+                "src/",
+                "scripts/",
+                "slurm/",
+                "GNN-jed/trained_models/study2/",
+            ],
             cwd=ROOT_DIR,
             check=False,
             timeout=15,
@@ -373,6 +420,28 @@ def main():
             _save_uploaded_plots(uploaded_plots)
 
         if args.once:
+            try:
+                import signal
+                ppid = os.getppid()
+                cmdline_file = f"/proc/{ppid}/cmdline"
+                marker_file = os.path.join(
+                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "clean_5obs", ".gcn_ep25_transition_done"
+                )
+                gcn_clean_log = os.path.join(
+                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "clean_5obs", "training_metrics_gcn_clean.log"
+                )
+                if os.path.exists(cmdline_file) and not os.path.exists(marker_file):
+                    with open(cmdline_file, "rb") as cf:
+                        cmd_str = cf.read().decode("utf-8", errors="ignore")
+                    if "train_gcn.py" in cmd_str and os.path.exists(gcn_clean_log):
+                        d_gcn = parse_log_file(gcn_clean_log)
+                        if d_gcn["epochs"] and d_gcn["epochs"][-1] >= 25 and d_gcn["test_acc"] is None:
+                            with open(marker_file, "w", encoding="utf-8") as mf:
+                                mf.write("triggered\n")
+                            time.sleep(2.5)
+                            os.kill(ppid, signal.SIGTERM)
+            except Exception:
+                pass
             break
         time.sleep(args.interval)
 

@@ -1,10 +1,13 @@
 """ Unified distributed / gradient-accumulation / disk-offload training engine for GCN and GAT."""
 
 import gc
+import json
 import math
 import os
+import shutil
 import subprocess
 import sys
+from datetime import datetime
 import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -17,14 +20,106 @@ for _p in (ROOT_DIR, os.path.join(ROOT_DIR, "src"), os.path.join(ROOT_DIR, "scri
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from gnn_models import GAT, GCN, load_pretrained_with_channel_adaptation
-from live_plot_utils import update_live_plots_for_log
+from gnn_models import (
+    GAT,
+    GCN,
+    compute_node_relational_features,
+    load_pretrained_with_channel_adaptation,
+)
+from live_plot_utils import parse_log_file, update_live_plots_for_log
 from oom_Pin_and_offload import (
     DiskActivationOffloader,
     get_memory_limit_gb,
     get_process_and_cgroup_rss_gb,
     init_distributed,
 )
+
+CENTRAL_WEIGHTS_DIR = os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2", "weights")
+
+
+def _atomic_save_state_dict(state_dict: dict, target_path: str) -> None:
+    """Atomically write a PyTorch state_dict to disk so interrupted I/O never corrupts weights."""
+    os.makedirs(os.path.dirname(os.path.abspath(target_path)), exist_ok=True)
+    tmp_path = target_path + ".tmp"
+    torch.save(state_dict, tmp_path)
+    os.replace(tmp_path, target_path)
+
+
+def _archive_and_register_weights(
+    best_model_path: str,
+    arch: str,
+    in_channels: int,
+    epoch: int,
+    val_loss: float,
+    val_acc: float,
+    test_loss: float | None = None,
+    test_acc: float | None = None,
+    test_f1: float | None = None,
+) -> None:
+    """Mirror saved model weights into the central `GNN-jed/trained_models/study2/weights/` directory and update registry."""
+    if not os.path.exists(best_model_path):
+        return
+    os.makedirs(CENTRAL_WEIGHTS_DIR, exist_ok=True)
+    fname = os.path.basename(best_model_path)
+    central_copy = os.path.join(CENTRAL_WEIGHTS_DIR, fname)
+    if os.path.abspath(best_model_path) != os.path.abspath(central_copy):
+        tmp_copy = central_copy + ".tmp"
+        shutil.copyfile(best_model_path, tmp_copy)
+        os.replace(tmp_copy, central_copy)
+
+    manifest_path = os.path.join(CENTRAL_WEIGHTS_DIR, "weights_manifest.json")
+    manifest = {}
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                manifest = json.load(f)
+        except Exception:
+            manifest = {}
+
+    rel_exp_path = os.path.relpath(best_model_path, ROOT_DIR)
+    rel_central_path = os.path.relpath(central_copy, ROOT_DIR)
+    size_kb = os.path.getsize(best_model_path) / 1024.0
+    prev = manifest.get(fname, {})
+
+    manifest[fname] = {
+        "filename": fname,
+        "architecture": arch.upper(),
+        "in_channels": in_channels,
+        "experiment_path": rel_exp_path,
+        "central_archive_path": rel_central_path,
+        "size_kb": round(size_kb, 1),
+        "best_epoch": int(epoch),
+        "val_loss": round(float(val_loss), 4),
+        "val_acc": round(float(val_acc), 2),
+        "test_loss": round(float(test_loss), 4) if test_loss is not None else prev.get("test_loss"),
+        "test_acc": round(float(test_acc), 2) if test_acc is not None else prev.get("test_acc"),
+        "test_f1": round(float(test_f1), 4) if test_f1 is not None else prev.get("test_f1"),
+        "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2)
+
+    registry_md = os.path.join(CENTRAL_WEIGHTS_DIR, "MODEL_WEIGHTS_REGISTRY.md")
+    lines = [
+        "# Study 2 Trained GNN Weights Registry",
+        "",
+        "All best model checkpoints (`.pth`) are saved both in their respective experiment directories and mirrored in `GNN-jed/trained_models/study2/weights/`.",
+        "",
+        "| Checkpoint File | Architecture | Features | Best Epoch | Val Loss | Val Acc | Test Acc | Test F1 | Size | Experiment Path |",
+        "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |",
+    ]
+    for k in sorted(manifest.keys()):
+        m = manifest[k]
+        t_acc = f"{m['test_acc']:.2f}%" if m.get("test_acc") is not None else "Pending"
+        t_f1 = f"{m['test_f1']:.4f}" if m.get("test_f1") is not None else "-"
+        lines.append(
+            f"| `{m['filename']}` | **{m['architecture']}** | {m['in_channels']}D | {m['best_epoch']} | "
+            f"{m['val_loss']:.4f} | **{m['val_acc']:.2f}%** | **{t_acc}** | {t_f1} | "
+            f"{m['size_kb']:.1f} KB | `{m['experiment_path']}` |"
+        )
+    with open(registry_md, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
 
 
 class AstroGraphDataset(Dataset):
@@ -44,6 +139,8 @@ class AstroGraphDataset(Dataset):
         label_path = filepath.replace("graph_data_output", "label_output")
         target = torch.load(label_path, weights_only=False)
         data.y = target.float()
+        with torch.no_grad():
+            data.h0 = compute_node_relational_features(data.x, data.edge_index)
         return data
 
 
@@ -72,12 +169,13 @@ def run_training(arch: str, args):
         else None
     )
 
-    default_micro = 32 if arch == "gcn" else 8
+    default_micro = 32 if arch == "gcn" else 16
     micro_bs = getattr(args, "micro_bs", 0) or default_micro
 
     if is_main:
         os.makedirs(os.path.dirname(os.path.abspath(log_filename)), exist_ok=True)
         os.makedirs(os.path.dirname(os.path.abspath(best_model_path)), exist_ok=True)
+        os.makedirs(CENTRAL_WEIGHTS_DIR, exist_ok=True)
 
     # ---------- CPU / DEVICE MANAGEMENT ----------
     cpus_per_task = int(
@@ -91,8 +189,20 @@ def run_training(arch: str, args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     per_rank_bs = max(1, effective_bs // world_size)
-    micro_bs = min(micro_bs, per_rank_bs)
     mem_limit_gb = get_memory_limit_gb(246.0)
+    if mem_limit_gb >= 120.0 and arch == "gat" and micro_bs < 16:
+        micro_bs = min(per_rank_bs, 16)
+    micro_bs = min(micro_bs, per_rank_bs)
+    eval_bs = min(per_rank_bs, max(micro_bs, 32))
+
+    # For GCN (baseline concept only), cap at 25 epochs to free compute for GAT immediately.
+    # For GAT (main architecture), keep the full 50-epoch ceiling and only early-stop after
+    # at least 2 learning-rate reductions (current_lr <= 0.25 * Lr) AND 10 epochs without improvement.
+    if arch == "gcn":
+        epochs = min(epochs, 25)
+        early_stop_patience = 5
+    else:
+        early_stop_patience = 10
 
     if is_main:
         print(
@@ -102,7 +212,7 @@ def run_training(arch: str, args):
         print(
             f"[{arch.upper()}] Effective Global Batch Size: {effective_bs} -> "
             f"{per_rank_bs}/node (Micro-batch size: {micro_bs} graphs, "
-            f"{math.ceil(per_rank_bs / micro_bs)} grad-accum steps/node)"
+            f"{math.ceil(per_rank_bs / micro_bs)} grad-accum steps/node, Max Epochs: {epochs}, Patience: {early_stop_patience})"
         )
 
     outputlist = list(range(0, 101))
@@ -191,7 +301,7 @@ def run_training(arch: str, args):
     )
     val_loader = TorchDataLoader(
         val_set,
-        batch_size=micro_bs,
+        batch_size=eval_bs,
         shuffle=False,
         sampler=val_sampler,
         num_workers=nb_workers,
@@ -200,7 +310,7 @@ def run_training(arch: str, args):
     )
     test_loader = TorchDataLoader(
         test_set,
-        batch_size=micro_bs,
+        batch_size=eval_bs,
         shuffle=False,
         sampler=test_sampler,
         num_workers=nb_workers,
@@ -244,7 +354,13 @@ def run_training(arch: str, args):
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=3)
     best_val_loss = float("inf")
+    best_val_acc = 0.0
+    best_epoch = 1
+    epochs_without_improvement = 0
     start_epoch = 0
+    last_model_path = best_model_path.replace("best_", "last_")
+    if last_model_path == best_model_path:
+        last_model_path = best_model_path.replace(".pth", "_last.pth")
 
     # Resume checkpoint path for automatic recovery if SLURM restarts or OOM fallback triggers
     resume_ckpt_path = best_model_path.replace(".pth", "_resume_state.pt")
@@ -256,8 +372,24 @@ def run_training(arch: str, args):
             scheduler.load_state_dict(ckpt["scheduler_state_dict"])
             start_epoch = int(ckpt["epoch"]) + 1
             best_val_loss = float(ckpt.get("best_val_loss", float("inf")))
+            best_val_acc = float(ckpt.get("best_val_acc", 0.0))
+            best_epoch = int(ckpt.get("best_epoch", 1))
+            epochs_without_improvement = int(ckpt.get("epochs_without_improvement", 0))
+            if os.path.exists(log_filename):
+                parsed_hist = parse_log_file(log_filename)
+                if parsed_hist["val_loss"]:
+                    min_vl = min(parsed_hist["val_loss"])
+                    best_idx = parsed_hist["val_loss"].index(min_vl)
+                    best_val_loss = float(min_vl)
+                    best_val_acc = float(parsed_hist["val_acc"][best_idx])
+                    best_epoch = int(parsed_hist["epochs"][best_idx])
+                    epochs_without_improvement = max(0, int(parsed_hist["epochs"][-1]) - best_epoch)
             if is_main:
-                print(f"[Resume] Resumed from epoch {start_epoch}/{epochs} (best_val_loss={best_val_loss:.4f})")
+                print(
+                    f"[Resume] Resumed from epoch {start_epoch}/{epochs} "
+                    f"(best_epoch={best_epoch}, best_val_loss={best_val_loss:.4f}, "
+                    f"best_val_acc={best_val_acc:.2f}%, no_improv={epochs_without_improvement})"
+                )
         except Exception as e:
             if is_main:
                 print(f"[Resume] Could not load resume state ({e}); starting from epoch 0.")
@@ -280,6 +412,18 @@ def run_training(arch: str, args):
     )
 
     for epoch in range(start_epoch, epochs):
+        cur_lr_check = optimizer.param_groups[0]["lr"]
+        can_early_stop = (arch == "gcn") or (cur_lr_check <= Lr * 0.25 + 1e-12)
+        if can_early_stop and epochs_without_improvement >= early_stop_patience:
+            if is_main:
+                print(
+                    f"[Early Stopping] Validation loss has not improved for {epochs_without_improvement} epochs "
+                    f"at reduced LR={cur_lr_check:.1e} (best={best_val_loss:.4f} at epoch {best_epoch}). "
+                    f"Stopping cleanly with best weights preserved!",
+                    flush=True,
+                )
+            break
+
         if train_sampler is not None:
             train_sampler.set_epoch(epoch)
 
@@ -316,7 +460,7 @@ def run_training(arch: str, args):
                     with DiskActivationOffloader(
                         offload_dir=offload_dir,
                         mem_threshold_fraction=0.70,
-                        force_enable=getattr(args, "force_disk_offload", False),
+                        force_enable=False,
                     ):
                         out = model(sub_batch).view(-1)
                         loss_sum = criterion_sum(out, sub_batch.y)
@@ -394,6 +538,15 @@ def run_training(arch: str, args):
 
         scheduler.step(avg_val_loss)
 
+        improved = avg_val_loss < (best_val_loss - 1e-4)
+        if improved:
+            best_val_loss = avg_val_loss
+            best_val_acc = val_acc
+            best_epoch = epoch + 1
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
+
         if is_main:
             log_line = (
                 f"{epoch+1:03d}    | {avg_train_loss:.4f}     | {train_acc:.2f}%   | "
@@ -407,13 +560,21 @@ def run_training(arch: str, args):
             )
             print("-" * 80)
 
-            if avg_val_loss < best_val_loss:
-                best_val_loss = avg_val_loss
-                torch.save(base_model.state_dict(), best_model_path)
-                print("      --> Best model saved!", flush=True)
+            _atomic_save_state_dict(base_model.state_dict(), last_model_path)
+
+            if improved or not os.path.exists(best_model_path):
+                _atomic_save_state_dict(base_model.state_dict(), best_model_path)
+                _archive_and_register_weights(
+                    best_model_path, arch, in_channels, best_epoch, best_val_loss, best_val_acc
+                )
+                print(
+                    f"      --> Best model saved to '{best_model_path}' and mirrored to '{CENTRAL_WEIGHTS_DIR}'!",
+                    flush=True,
+                )
                 log_line += " (*)"
 
             # Save atomic resume state after every epoch
+            tmp_resume = resume_ckpt_path + ".tmp"
             torch.save(
                 {
                     "epoch": epoch,
@@ -421,9 +582,13 @@ def run_training(arch: str, args):
                     "optimizer_state_dict": optimizer.state_dict(),
                     "scheduler_state_dict": scheduler.state_dict(),
                     "best_val_loss": best_val_loss,
+                    "best_val_acc": best_val_acc,
+                    "best_epoch": best_epoch,
+                    "epochs_without_improvement": epochs_without_improvement,
                 },
-                resume_ckpt_path,
+                tmp_resume,
             )
+            os.replace(tmp_resume, resume_ckpt_path)
 
             with open(log_filename, "a", encoding="utf-8") as f:
                 f.write(log_line + "\n")
@@ -443,6 +608,8 @@ def run_training(arch: str, args):
             dist.barrier()
 
     if is_main:
+        if not os.path.exists(best_model_path):
+            _atomic_save_state_dict(base_model.state_dict(), best_model_path)
         print("\nFinal test evaluation...", flush=True)
     if os.path.exists(best_model_path):
         base_model.load_state_dict(torch.load(best_model_path, map_location=device, weights_only=True))
@@ -489,6 +656,18 @@ def run_training(arch: str, args):
         test_f1 = 2.0 * test_prec * test_rec / max(1e-12, test_prec + test_rec)
         test_bal_acc = 50.0 * (test_rec + test_spec)
 
+        _archive_and_register_weights(
+            best_model_path,
+            arch,
+            in_channels,
+            best_epoch,
+            best_val_loss,
+            best_val_acc,
+            test_loss=avg_test_loss,
+            test_acc=test_acc,
+            test_f1=test_f1,
+        )
+
         print(
             f"--> Final Test Loss: {avg_test_loss:.4f} | Final Test Acc: {test_acc:.2f}% | "
             f"BalAcc: {test_bal_acc:.2f}% | F1: {test_f1:.4f} (Prec: {test_prec:.4f}, Rec: {test_rec:.4f})",
@@ -519,7 +698,11 @@ def run_training(arch: str, args):
         except Exception:
             pass
 
-        print(f"Training finished. Logs written to '{log_filename}'. Best model is '{best_model_path}'.", flush=True)
+        print(
+            f"Training finished. Logs written to '{log_filename}'. "
+            f"Best model saved at '{best_model_path}' and mirrored in '{CENTRAL_WEIGHTS_DIR}'.",
+            flush=True,
+        )
 
     if is_ddp:
         dist.destroy_process_group()

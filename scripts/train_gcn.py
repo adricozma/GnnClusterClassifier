@@ -53,10 +53,18 @@ def build_parser():
     )
     parser.add_argument("--force_disk_offload", action="store_true", help="Force offloading intermediate autograd tensors to /scratch.")
     parser.add_argument("--no_resume", dest="resume", action="store_false", help="Disable automatic epoch checkpoint resume.")
+    parser.add_argument("--allow_non_baseline_gcn", action="store_true", help="Allow running GCN outside the 5D noiseless baseline (disabled by default to save compute time).")
     parser.set_defaults(resume=True)
     return parser
 
 
 if __name__ == "__main__":
     args = build_parser().parse_args()
+    save_basename = os.path.basename(args.save_model)
+    if not args.allow_non_baseline_gcn and save_basename not in ("best_gcn_clean.pth", "best_gcn_model.pth"):
+        print(
+            f"[SKIP] GCN training is restricted to the 5-observable noiseless baseline (clean_5obs) "
+            f"to demonstrate the architectural comparison. Skipping '{save_basename}' (GAT-only regime)."
+        )
+        sys.exit(0)
     run_training("gcn", args)

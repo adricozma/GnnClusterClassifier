@@ -68,12 +68,12 @@ run_ddp_with_oom_fallback "scripts/train_gcn.py" 16 \
     --n 5 \
     --lr 0.001 \
     --bs 256 \
-    --epochs 50 \
+    --epochs 25 \
     --split_mode ic \
     --save_model "$OUT_DIR/clean_5obs/best_gcn_clean.pth" \
     --log_file "$OUT_DIR/clean_5obs/training_metrics_gcn_clean.log"
 
-run_ddp_with_oom_fallback "scripts/train_gat.py" 4 \
+run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
     --data_folder "/scratch/cozma/graph_data_clean" \
     --n 5 \
     --lr 0.001 \
@@ -97,21 +97,10 @@ python3 scripts/generate_study2_figures.py \
 python3 scripts/live_monitor.py --once || true
 
 echo "=================================================================="
-echo "STAGE 2: CURRICULUM FINE-TUNING ON GAIA DR3 NOISY GRAPHS (81 Streams)"
+echo "STAGE 2: CURRICULUM FINE-TUNING ON GAIA DR3 NOISY GRAPHS (GAT ONLY, 81 Streams)"
 echo "=================================================================="
 
-run_ddp_with_oom_fallback "scripts/train_gcn.py" 16 \
-    --data_folder "/scratch/cozma/graph_data_noisy" \
-    --n 5 \
-    --lr 0.0005 \
-    --bs 256 \
-    --epochs 50 \
-    --split_mode ic \
-    --pretrained_weights "$OUT_DIR/clean_5obs/best_gcn_clean.pth" \
-    --save_model "$OUT_DIR/noisy_5obs/best_gcn_noisy.pth" \
-    --log_file "$OUT_DIR/noisy_5obs/training_metrics_gcn_noisy.log"
-
-run_ddp_with_oom_fallback "scripts/train_gat.py" 4 \
+run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
     --data_folder "/scratch/cozma/graph_data_noisy" \
     --n 5 \
     --lr 0.0005 \
@@ -126,9 +115,7 @@ echo "Generating Stage 2 PNG & Interactive HTML Figures..."
 python3 scripts/generate_study2_figures.py \
     --output_dir "$OUT_DIR/noisy_5obs" \
     --tag "noisy_5obs" \
-    --gcn_log "$OUT_DIR/noisy_5obs/training_metrics_gcn_noisy.log" \
     --gat_log "$OUT_DIR/noisy_5obs/training_metrics_gat_noisy.log" \
-    --gcn_weights "$OUT_DIR/noisy_5obs/best_gcn_noisy.pth" \
     --gat_weights "$OUT_DIR/noisy_5obs/best_gat_noisy.pth" \
     --graph_dir "/scratch/cozma/graph_data_noisy" \
     --sim_dir "$SIM_DIR" \

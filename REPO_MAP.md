@@ -62,8 +62,8 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 │   ├── step2_run_swift_array.sh               # Runs SWIFT N-body simulations as a SLURM job array
 │   ├── step3_extract_observables.sh           # Extracts exact bound labels + Clean & Gaia DR3 Noisy observables
 │   ├── step4_build_graphs.sh                  # Builds 5D (and optional 4D) k-NN graphs in /scratch/cozma/
-│   ├── step5_train_curriculum_and_plot.sh     # Runs Stage 1 (Clean) -> Stage 2 (Noisy) GCN/GAT + PNG/HTML figures
-│   ├── step6_ablation_4obs.sh                 # Runs 4-observable ablation study (dropping each observable in turn)
+│   ├── step5_train_curriculum_and_plot.sh     # Runs Stage 1 Clean (GCN + GAT) -> Stage 2 Noisy (GAT only) + figures
+│   ├── step6_ablation_4obs.sh                 # Runs 4-observable GAT-only ablation study (Clean -> Noisy)
 │   └── launch_full_study2_pipeline.sh         # Master script chaining Steps 1 -> 5 via SLURM afterok dependencies
 │
 ├── GNN-jed/                                   # Trained models & intermediate observable/label matrices
@@ -71,6 +71,7 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 │   │   ├── GCN-01/                            # [Study 1 - Untouched] Baseline GCN weights and logs
 │   │   ├── GCN-02/                            # [Study 1 - Untouched] Baseline GAT weights and logs
 │   │   └── study2/                            # [Study 2] Clean & Gaia DR3 Noisy checkpoints, logs, PNG & HTML figures
+│   │       └── weights/                       # [Study 2] Central archive of all best_*.pth checkpoints & registry
 │   ├── obs_all_stars -> /scratch/cozma/study1/obs_all_stars   # [Study 1 - Content untouched] 58 GB original observable matrices (symlink)
 │   ├── labels_bound_stars/                    # [Study 1 - Untouched] 586 MB original bound labels
 │   ├── labels_clean -> /scratch/cozma/study2/labels_clean     # [Study 2 - Git-ignored] Exact bound labels B_L_snapshot_*.npy (symlink)
