@@ -4,4 +4,4 @@ All best model checkpoints (`.pth`) are saved both in their respective experimen
 
 | Checkpoint File | Architecture | Features | Best Epoch | Val Loss | Val Acc | Test Acc | Test F1 | Size | Experiment Path |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| `best_gcn_clean.pth` | **GCN** | 5D | 23 | 0.1832 | **92.18%** | **Pending** | - | 120.0 KB | `GNN-jed/trained_models/study2/clean_5obs/best_gcn_clean.pth` |
+| `best_gcn_clean.pth` | **GCN** | 5D | 24 | 0.1817 | **92.32%** | **92.17%** | 0.8886 | 120.0 KB | `GNN-jed/trained_models/study2/clean_5obs/best_gcn_clean.pth` |
