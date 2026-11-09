@@ -279,6 +279,7 @@ def auto_push_to_github():
                 "git",
                 "add",
                 "-A",
+                "README.md",
                 "LIVE_STATUS.md",
                 "REPO_MAP.md",
                 "src/",

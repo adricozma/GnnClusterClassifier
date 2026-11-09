@@ -595,12 +595,11 @@ def run_training(arch: str, args):
 
             try:
                 update_live_plots_for_log(log_filename)
-                if epoch == 0 or (epoch + 1) % 5 == 0 or (epoch + 1) == epochs:
-                    subprocess.Popen(
-                        [sys.executable, os.path.join(ROOT_DIR, "scripts", "live_monitor.py"), "--once"],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
+                subprocess.Popen(
+                    [sys.executable, os.path.join(ROOT_DIR, "scripts", "live_monitor.py"), "--once"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
             except Exception:
                 pass
 

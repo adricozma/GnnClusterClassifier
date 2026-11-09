@@ -17,41 +17,60 @@ This repository provides a complete numerical and deep-learning pipeline that:
 2. Evolves 75 self-consistent *N*-body Plummer globular clusters forward in time for $2.0\text{ Gyr}$ using the cosmological/astrophysical code `SWIFT` (Schaller et al. 2024) on the EPFL HPC cluster **Jed**.
 3. Computes exact physical boundness and potential escaper labels from 3D Jacobi energies and tidal radii following Küpper et al. (2010a,b), using a 3D *k*-nearest-neighbor local density estimator (Casertano & Hut 1985) and iterative shrinking spheres to track the surviving core accurately even in heavily stripped streams.
 4. Projects the simulations into synthetic 5D *Gaia*-like astrometric observables with data augmentation over random observer orientations and physical-scale standardization.
-5. Trains **Residual Graph Convolutional Networks (GCN)** and **Multi-Head Residual Graph Attention Networks (GAT)** with local phase-space relational encoding (`3d + 3` invariants) on *k*-NN graphs $(k = 20)$, using **Two-Stage Curriculum Learning** (noiseless pre-training $\to$ *Gaia* DR3 magnitude-dependent noisy fine-tuning), **subspace-aligned $5\mathrm{D} \to 4\mathrm{D}$ weight transfer** for systematic observable ablations, and multi-node distributed training with micro-batch gradient accumulation and automatic disk activation offloading on **Jed**.
+5. Trains **Residual Graph Convolutional Networks (GCN)** and **Multi-Head Residual Graph Attention Networks (GAT)** with local phase-space relational encoding (`3d + 3` invariants) on *k*-NN graphs $(k = 20)$, using **Two-Stage Curriculum Learning** (noiseless pre-training $\to$ *Gaia* DR3 magnitude-dependent noisy fine-tuning), **subspace-aligned $5\mathrm{D} \to 4\mathrm{D}$ weight transfer** for systematic observable ablations, and multi-node distributed training with micro-batch gradient accumulation and automatic disk activation offloading.
 
-> **Live Training Dashboard & Real-Time Learning Curves:**  
-> Live epoch-by-epoch training metrics, SLURM queue status, and updated learning curve figures (`latest_live_training.png` & `live_plots_GNN_*.png`) are automatically committed to [**`LIVE_STATUS.md`**](LIVE_STATUS.md) and broadcast to `https://ntfy.sh/epfl-cozma-gnn-study2`.
+> **Live Training Progress:**  
+> Real-time training metrics and learning curve figures (`latest_live_training.png` & `live_plots_GNN_*.png`) are tracked in [**`LIVE_STATUS.md`**](LIVE_STATUS.md), and pre-trained model checkpoints (`.pth`) are indexed in [**`GNN-jed/trained_models/study2/weights/MODEL_WEIGHTS_REGISTRY.md`**](GNN-jed/trained_models/study2/weights/MODEL_WEIGHTS_REGISTRY.md).
 
 ---
 
 ## Repository Structure
 
-The repository is organized to separate core physical/feature-engineering modules (`src/`), executable production pipelines (`scripts/`), initial condition generation (`make_ICs/`), visualization utilities (`visualization/`), and interactive analysis notebooks (`notebooks/`):
+The repository is organized to separate core physical/feature-engineering modules (`src/`), executable production pipelines (`scripts/`), SLURM cluster templates (`slurm/`), initial condition generation (`make_ICs/`), visualization utilities (`visualization/`), and interactive analysis notebooks (`notebooks/`):
 
 ```text
 .
 ├── assets/
-│   └── figures/                         # Example figures from simulations, dynamics, and GNN evaluation
+│   └── figures/                         # Figures from simulations, orbital dynamics, and GNN evaluation
 ├── configs/
 │   ├── params.yml                       # SWIFT runtime configuration (MilkyWayPotential2014, leapfrog/gravity)
-│   └── dependency_graph_0.csv           # SWIFT task-level dependency graph from HPC execution
+│   └── dependency_graph_0.csv           # SWIFT task-level dependency graph
 ├── make_ICs/
 │   ├── Ibata_catalog.txt                # Gaia DR3 stellar stream catalog (Ibata et al. 2024)
 │   ├── stars_6D_ibata2024.csv           # Filtered 6D stream stars used to define progenitor orbits
+│   ├── select_unbiased_orbits.py        # Unbiased progenitor orbit selector (R_p >= 5 kpc, 81 streams)
+│   ├── generate_unbiased_ics.py         # Batch virialized Plummer sphere HDF5 generator for SWIFT
+│   ├── IC_plummer_swift.py              # Isotropic/anisotropic Plummer sphere HDF5 generator
 │   ├── OrbitIntegration_Ibata.ipynb     # Backward orbit integration (-2 Gyr) in galpy MWPotential2014
 │   ├── WorkflowIbata.ipynb              # Catalog processing and progenitor seed extraction workflow
-│   ├── SWIFT_seeds.npy                  # 6D phase-space seeds at t = -2 Gyr for the 75 stream progenitors
-│   ├── IC_plummer_swift.py              # Isotropic/anisotropic Plummer sphere HDF5 generator for SWIFT
-│   ├── auto_multiple_IC_swift.ipynb     # Batch generation of the 75 initial condition directories
-│   └── orbits/                          # Integrated 2 Gyr orbital trajectories (orbit_1.txt ... orbit_87.txt)
+│   ├── SWIFT_seeds.npy                  # Study 1 6D phase-space seeds at t = -2 Gyr (75 streams)
+│   ├── SWIFT_seeds_unbiased.npy         # Study 2 unbiased 6D phase-space seeds at t = -2 Gyr (81 streams)
+│   ├── unbiased_orbits_summary.csv      # Orbital parameters (R_p, R_a, eccentricity) across streams
+│   ├── orbits/                          # Integrated 2 Gyr orbital trajectories (Study 1)
+│   └── orbits_unbiased/                 # Integrated 2 Gyr unbiased orbital trajectories (Study 2)
 ├── src/
-│   ├── bound_labels.py                  # Core-density centering + Jacobi energy & tidal radius labeling
-│   ├── observables_matrix.py            # 3D rotation augmentation, Astropy ICRS projection, physical scaling
+│   ├── bound_labels.py                  # 3D k-NN density + shrinking-sphere centering & exact Jacobi/Roche solver
+│   ├── observables_matrix.py            # Haar-uniform SO(3) rotations, ICRS projection, Gaia DR3 noise & scaling
+│   ├── gnn_models.py                    # Local phase-space relational encoder, Residual GCN & Multi-Head GAT
+│   ├── oom_Pin_and_offload.py           # Distributed DDP initializer & cgroup-aware disk activation offloader
 │   └── Stellar_objects/                 # Utilities for King/Plummer cluster profiles and LOS dispersion
 ├── scripts/
-│   ├── extract_observables.py           # Batch extraction of 5D/6D observable matrices from SWIFT HDF5 outputs
-│   ├── train_gcn.py                     # Baseline 3-layer Graph Convolutional Network (GCN) training script
-│   └── train_gat.py                     # Multi-head Graph Attention Network (GAT) with stream-level IC split
+│   ├── extract_observables.py           # Parallel extraction of bound labels + Clean & Gaia DR3 Noisy observables
+│   ├── build_graph_dataset.py           # Parallel cKDTree k-NN graph builder (5D full & 4D ablation subsets)
+│   ├── distributed_trainer.py           # Unified DDP, micro-batch gradient accumulation & checkpoint engine
+│   ├── train_gcn.py                     # 3-layer Residual GCN classifier training CLI (clean_5obs baseline)
+│   ├── train_gat.py                     # 3-layer Multi-Head Residual GAT training & curriculum fine-tuning CLI
+│   ├── generate_study2_figures.py       # Automated evaluation & publication figure generator (.png & .html)
+│   ├── live_plot_utils.py               # Real-time learning curve plotter from training logs
+│   └── live_monitor.py                  # Automated training telemetry and status updater
+├── slurm/
+│   ├── step1_orbits_and_ics.sh          # Step 1: Orbit integration & Plummer HDF5 initial conditions
+│   ├── step2_run_swift_array.sh         # Step 2: SWIFT N-body simulation job array
+│   ├── step3_extract_observables.sh     # Step 3: Bound label & Clean/Noisy observable extraction
+│   ├── step4_build_graphs.sh            # Step 4: 5D k-NN PyTorch Geometric graph construction
+│   ├── step5_train_curriculum_and_plot.sh # Step 5: 5-Observable Clean -> Gaia DR3 Noisy curriculum training
+│   ├── step6_ablation_4obs.sh           # Step 6: 4-Observable ablation study (5D -> 4D weight transfer)
+│   └── launch_full_study2_pipeline.sh   # Master SLURM pipeline launcher chaining Steps 5 and 6
 ├── visualization/
 │   ├── plot_swift_output.py             # HDF5 snapshot loader (DMParticles coordinates, velocities, masses, time)
 │   ├── visu_stream_outputs.py           # 3D Galactocentric stream rendering and projection animations
@@ -64,11 +83,13 @@ The repository is organized to separate core physical/feature-engineering module
 │   └── test-model-GCN.ipynb             # Model inference, perigalacticon error analysis, and RMT SVD diagnostics
 └── GNN-jed/
     └── trained_models/
-        ├── GCN-01/                      # Trained baseline GCN weights (best_gnn_model_01.pth) & logs
-        └── GCN-02/                      # Trained multi-head GAT weights (best_gnn_model_02.pth), script & logs
+        ├── GCN-01/                      # Study 1 baseline GCN weights (best_gnn_model_01.pth) & logs
+        ├── GCN-02/                      # Study 1 multi-head GAT weights (best_gnn_model_02.pth) & logs
+        └── study2/                      # Study 2 curriculum & ablation logs, figures, and checkpoints
+            └── weights/                 # Central archive of best_*.pth checkpoints & MODEL_WEIGHTS_REGISTRY.md
 ```
 
-*Note:* Bulk simulation snapshots (`outputs_SWIFT_jed/`, ~35 GB), raw pre-computed `.npy` observable/label arrays (`GNN-jed/obs_all_stars/`, `GNN-jed/labels_bound_stars/`), and serialized `.pt` graph datasets (`GNN-jed/graph_data/`, ~23 GB) are excluded from version control via `.gitignore`.
+*Note:* Bulk `SWIFT` simulation snapshots, intermediate `.npy` observable/label arrays, and serialized `.pt` graph datasets are excluded from version control via `.gitignore` and can be generated in any user-specified local or scratch directory (`$DATA_DIR`).
 
 ---
 
@@ -140,17 +161,17 @@ $$
 \mathbf{h}_i^{(0)} = \left[\mathbf{x}_i,\; \mathbf{x}_i - \langle\mathbf{x}\rangle_{\mathcal{N}(i)},\; \boldsymbol{\sigma}_{\mathcal{N}(i)},\; \bar{d}_i,\; \ln\hat{\rho}_{\mathrm{phase},i},\; \lVert\mathbf{x}_i\rVert_2\right] \in \mathbb{R}^{3d + 3}.
 $$
 
-We compare two residual architectures trained over **81 unbiased *Gaia* DR3 progenitor streams** ($N \in [20\,000, 50\,000]$ stars per cluster, partitioned strictly at the simulation level into 65 Train / 8 Validation / 8 Test streams):
-1. **3-Layer Residual GCN (`scripts/train_gcn.py`):** `(3d+3) -> 64 -> 128 -> 1` with `GCNConv`, linear residual skip projections, `LayerNorm`, `GELU` activations, and an ego-relational readout head `MLP([h2, h0])` (`--bs 256`, 50 epochs).
+We compare two residual architectures trained over **81 unbiased *Gaia* DR3 progenitor streams** ($N \in [20\,000, 50\,000]$ stars per cluster, partitioned deterministically at the simulation level with `seed=42` into 65 Train / 8 Validation / 8 Test streams):
+1. **3-Layer Residual GCN (`scripts/train_gcn.py`):** `(3d+3) -> 64 -> 128 -> 1` with `GCNConv`, linear residual skip projections, `LayerNorm`, `GELU` activations, and an ego-relational readout head `MLP([h2, h0])` (`--bs 256`, 25 epochs on the 5D noiseless baseline).
 2. **3-Layer Multi-Head Residual GAT (`scripts/train_gat.py`):** `GATConv(3d+3, 32, heads=4)` $\to$ `GATConv(128, 64, heads=4)` $\to$ `GATConv(256, 1, heads=1)` with `LayerNorm`, `ELU` activations, dropout $(p = 0.1)$, and ego-relational readout (`--bs 64`, 50 epochs).
 
 #### Two-Stage Curriculum & Subspace-Aligned $5\mathrm{D} \to 4\mathrm{D}$ Weight Transfer
-- **Step 5 — 5-Observable Curriculum (`slurm/step5_train_curriculum_and_plot.sh`):** Models are first pre-trained for 50 epochs on noiseless 5D astrometric graphs (`clean_5obs`, $\mathrm{lr} = 10^{-3}$) and then fine-tuned for 50 epochs on *Gaia* DR3 magnitude-dependent noisy graphs (`noisy_5obs`, $\mathrm{lr} = 5\times 10^{-4}$, Lindegren et al. 2021).
-- **Step 6 — 4-Observable Ablation Study (`slurm/step6_ablation_4obs.sh`):** To isolate the physical contribution of each astrometric coordinate (`no_RA`, `no_Dec`, `no_Parallax`, `no_pmRA`, `no_pmDec`), each 4D model ($3d+3 = 15$ input channels) is initialized directly from the converged 5D Clean weights ($18$ input channels) via `load_pretrained_with_channel_adaptation` (`src/gnn_models.py`). All internal message-passing and attention layers are copied identically ($100\%$ preservation), while first-layer projections (`conv1.lin.weight`, `skip1.weight`, and the `h0` slice of `ego_head.0.weight`) are sliced along the exact retained coordinate indices $\pi(\mathcal{I}) = \mathcal{I} \cup (5+\mathcal{I}) \cup (10+\mathcal{I}) \cup \{15,16,17\}$ and scaled by $\sqrt{18/15}$ to preserve activation variance prior to 4D Clean pre-training (50 epochs) and 4D *Gaia* DR3 noisy fine-tuning (50 epochs).
+- **Step 5 — 5-Observable Curriculum (`slurm/step5_train_curriculum_and_plot.sh`):** Both GCN (25 epochs, architectural baseline) and GAT (50 epochs) are trained on noiseless 5D astrometric graphs (`clean_5obs`, $\mathrm{lr} = 10^{-3}$). The converged 5D Clean GAT checkpoint (`best_gat_clean.pth`) is then fine-tuned for 50 epochs on *Gaia* DR3 magnitude-dependent noisy graphs (`noisy_5obs`, $\mathrm{lr} = 5\times 10^{-4}$, Lindegren et al. 2021).
+- **Step 6 — 4-Observable Ablation Study (`slurm/step6_ablation_4obs.sh`):** To isolate the physical contribution of each astrometric coordinate (`no_RA`, `no_Dec`, `no_Parallax`, `no_pmRA`, `no_pmDec`), each 4D GAT model ($3d+3 = 15$ input channels) is initialized directly from the converged 5D Clean GAT weights ($18$ input channels) via `load_pretrained_with_channel_adaptation` (`src/gnn_models.py`). All internal message-passing and attention layers are copied identically ($100\%$ preservation), while first-layer projections (`conv1.lin.weight`, `skip1.weight`, and the `h0` slice of `ego_head.0.weight`) are sliced along the exact retained coordinate indices $\pi(\mathcal{I}) = \mathcal{I} \cup (5+\mathcal{I}) \cup (10+\mathcal{I}) \cup \{15,16,17\}$ and scaled by $\sqrt{18/15}$ to preserve activation variance prior to 4D Clean pre-training (50 epochs) and 4D *Gaia* DR3 noisy fine-tuning (50 epochs).
 
-#### Multi-Node Distributed Execution & OOM Protection (`scripts/distributed_trainer.py`, `src/oom_Pin_and_offload.py`)
-- **Multi-Node CPU DDP (`2 nodes x 36 cores = 72 CPUs`, `246 GB/node = 492 GB total RAM`):** Distributed data-parallel training across SLURM nodes with exact node-weighted gradient accumulation over micro-batches (`--micro_bs 16` for GCN, `--micro_bs 4` for GAT), preserving exact effective batch sizes (`256` and `64`) while keeping peak RAM below $28\text{ GB}$ per node.
-- **Disk Activation Offloading (`DiskActivationOffloader`):** Monitors Linux cgroup memory usage and automatically streams large intermediate autograd tensors to `/scratch` via `torch.autograd.graph.saved_tensors_hooks` if memory exceeds $70\%$ of the node limit.
+#### Multi-Node Distributed Execution & Memory Optimization (`scripts/distributed_trainer.py`, `src/oom_Pin_and_offload.py`)
+- **Multi-Node DDP & Micro-Batch Gradient Accumulation:** Supports single-machine execution (CPU or GPU) as well as multi-node SLURM `DistributedDataParallel` (`srun` / `torchrun`). Exact node-weighted gradient accumulation over micro-batches (`--micro_bs`) preserves the global effective batch size (`256` for GCN, `64` for GAT) regardless of available hardware memory.
+- **Disk Activation Offloading (`DiskActivationOffloader`):** Monitors node/cgroup memory usage and automatically streams intermediate autograd tensors to temporary storage via `torch.autograd.graph.saved_tensors_hooks` if RAM usage exceeds $70\%$ of the configured limit.
 
 | Training & Validation Loss Convergence (GCN vs. GAT) | Weight Matrix Singular Value Spectrum (RMT) |
 | :---: | :---: |
@@ -167,26 +188,77 @@ At $t = 2.0\text{ Gyr}$ (snapshot 100), the multi-head GAT model achieves **96.2
 
 ---
 
-## Installation & Usage
+## Installation & Reproducibility Guide
 
-### Dependencies
+Follow the steps below to reproduce the entire pipeline — from progenitor orbit integration and *N*-body simulations to graph construction, curriculum training, 4-observable ablations, and figure generation.
 
-Create a Python 3.10+ environment with the required astrophysics and deep-learning packages:
+### 1. Environment Setup
+
+Clone the repository and create a Python 3.10+ virtual environment with the required astrophysics and PyTorch Geometric packages:
 
 ```bash
-pip install numpy scipy pandas matplotlib h5py astropy galpy swiftsimio unyt cartopy
+git clone https://github.com/adricozma/GnnClusterClassifier.git
+cd GnnClusterClassifier
+
+python3 -m venv env_astro
+source env_astro/bin/activate
+
+pip install --upgrade pip
+pip install numpy scipy pandas matplotlib h5py astropy galpy swiftsimio unyt cartopy plotly
 pip install torch torch_geometric torch_cluster
 ```
 
-### 1. Computing Dynamical Labels & 5D Observable Matrices
-
-To extract ground-truth bound labels (`src/bound_labels.py`) and standardized 5D observable matrices (`src/observables_matrix.py`) from raw `SWIFT` HDF5 snapshots:
+Define a working directory `DATA_DIR` with sufficient storage for simulation snapshots, extracted observables, and graph datasets:
 
 ```bash
-python scripts/extract_observables.py
+export DATA_DIR="./data_study2"
+mkdir -p "$DATA_DIR"
 ```
 
-Or interactively via `notebooks/labels_data_matrices.ipynb`. In Python, `compute_bound_stars` can also return the boolean mask of **potential escapers** satisfying $r_{3D} \lt R_J$ and $E_J \ge E_{\mathrm{crit}}$:
+---
+
+### 2. Step-by-Step Data Generation (Steps 1–4)
+
+#### Step 1: Progenitor Orbits & Virialized Plummer Initial Conditions
+Select the 81 unbiased Milky Way stream progenitors ($R_p \ge 5\text{ kpc}$ in `MWPotential2014`) and generate virialized Plummer `.hdf5` initial conditions at $t = -2.0\text{ Gyr}$:
+
+```bash
+python3 make_ICs/select_unbiased_orbits.py
+python3 make_ICs/generate_unbiased_ics.py
+```
+
+#### Step 2: *N*-Body Evolution in `SWIFT`
+Evolve each initial condition `make_ICs/initial_conditions_unbiased/IC_<ID>.hdf5` forward for $2.0\text{ Gyr}$ (101 snapshots, $\Delta t = 20\text{ Myr}$) using `SWIFT` compiled with `--with-ext-potential=MWPotential2014` and `configs/params.yml`:
+
+```bash
+# Example for a single cluster (or submit slurm/step2_run_swift_array.sh on a SLURM cluster):
+swift --external-gravity --self-gravity --threads=8 configs/params.yml
+```
+
+#### Step 3: Exact Dynamical Bound Labels & 5D Astrometric Observables
+Extract the exact ground-truth Jacobi bound labels (`B_L_snapshot_*.npy`), noiseless 5D ICRS observables (`--mode clean`), and *Gaia* DR3 magnitude-dependent noisy observables (`--mode gaia_noisy`) across 5 random $\mathrm{SO}(3)$ observer rotations per snapshot:
+
+```bash
+# Clean 5D observables + exact boundness labels:
+python3 scripts/extract_observables.py \
+    --sim_dir "$DATA_DIR/outputs_unbiased" \
+    --obs_out_dir "$DATA_DIR/obs_clean" \
+    --labels_out_dir "$DATA_DIR/labels_clean" \
+    --mode clean \
+    --rotations 5 \
+    --workers 8
+
+# Gaia DR3 noisy 5D observables:
+python3 scripts/extract_observables.py \
+    --sim_dir "$DATA_DIR/outputs_unbiased" \
+    --obs_out_dir "$DATA_DIR/obs_gaia_noisy" \
+    --labels_out_dir "$DATA_DIR/labels_clean" \
+    --mode gaia_noisy \
+    --rotations 5 \
+    --workers 8
+```
+
+In Python scripts or notebooks, `compute_bound_stars` (`src/bound_labels.py`) can also return the boolean mask of **potential escapers** ($r_{3D} \lt R_J$ and $E_J \ge E_{\mathrm{crit}}$):
 
 ```python
 from src.bound_labels import compute_bound_stars
@@ -196,30 +268,136 @@ is_bound, is_potential_escaper, x_rel, y_rel, z_rel, vx_rel, vy_rel, vz_rel, rj,
 )
 ```
 
-### 2. Constructing *k*-NN Graphs
-
-Use `notebooks/graph_data.ipynb` to convert the standardized 5D observable matrices (`obs_matrices_snapshot_*.npy`) and bound labels (`B_L_snapshot_*.npy`) into PyTorch Geometric `Data` objects with *k*-NN connectivity.
-
-### 3. Training the GAT / GCN Models
-
-Run `scripts/train_gat.py` to train the multi-head GAT model with stream-level (`IC_ID`) partitioning (ensuring no snapshot or rotation of a validation/test stream leaks into the training set) and optional positive-class loss weighting:
+#### Step 4: Constructing 5D *k*-NN Phase-Space Graphs ($k = 20$)
+Convert the standardized observable matrices and labels into PyTorch Geometric `.pt` graphs:
 
 ```bash
-python scripts/train_gat.py \
-    --data_folder /path/to/graph_data \
-    --split_mode ic \
-    --epochs 70 \
-    --lr 0.005 \
-    --batch_size 64 \
-    --pos_weight 2.91 \
-    --save_model best_gnn_model_02.pth \
-    --log_file training_metrics.log
+# 5D Noiseless graphs:
+python3 scripts/build_graph_dataset.py \
+    --obs_dir "$DATA_DIR/obs_clean" \
+    --labels_dir "$DATA_DIR/labels_clean" \
+    --output_dir "$DATA_DIR/graph_data_clean" \
+    --rotations 5 \
+    --k_neighbors 20 \
+    --num_workers 8
+
+# 5D Gaia DR3 Noisy graphs:
+python3 scripts/build_graph_dataset.py \
+    --obs_dir "$DATA_DIR/obs_gaia_noisy" \
+    --labels_dir "$DATA_DIR/labels_clean" \
+    --output_dir "$DATA_DIR/graph_data_noisy" \
+    --rotations 5 \
+    --k_neighbors 20 \
+    --num_workers 8
 ```
 
-To plot live training and validation loss curves from a log file:
+---
+
+### 3. Reproducing the GNN Training & Curriculum Fine-Tuning (Steps 5–6)
+
+All training scripts use a fixed random generator seed (`42`) with `--split_mode ic` to partition the 81 streams into the exact same **65 Train / 8 Validation / 8 Test** simulations, ensuring full reproducibility and zero data leakage across snapshots or rotations.
+
+#### Step 5a: Stage 1 — 5-Observable Noiseless Pre-Training (GCN Baseline & GAT)
 
 ```bash
-python visualization/plot_metric_live.py
+# 1. Train the 3-Layer Residual GCN Baseline (25 epochs, effective batch size 256):
+python3 scripts/train_gcn.py \
+    --data_folder "$DATA_DIR/graph_data_clean" \
+    --n 5 \
+    --lr 0.001 \
+    --bs 256 \
+    --micro_bs 16 \
+    --epochs 25 \
+    --split_mode ic \
+    --save_model "GNN-jed/trained_models/study2/clean_5obs/best_gcn_clean.pth" \
+    --log_file "GNN-jed/trained_models/study2/clean_5obs/training_metrics_gcn_clean.log"
+
+# 2. Train the 3-Layer Multi-Head Residual GAT (50 epochs, effective batch size 64):
+python3 scripts/train_gat.py \
+    --data_folder "$DATA_DIR/graph_data_clean" \
+    --n 5 \
+    --lr 0.001 \
+    --bs 64 \
+    --micro_bs 16 \
+    --epochs 50 \
+    --split_mode ic \
+    --save_model "GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth" \
+    --log_file "GNN-jed/trained_models/study2/clean_5obs/training_metrics_gat_clean.log"
+```
+
+#### Step 5b: Stage 2 — Curriculum Fine-Tuning on *Gaia* DR3 Noisy Graphs (GAT)
+
+Initialize the GAT with the converged Stage 1 noiseless weights (`--pretrained_weights`) and fine-tune on the *Gaia* DR3 noisy graphs at $\mathrm{lr} = 5\times 10^{-4}$:
+
+```bash
+python3 scripts/train_gat.py \
+    --data_folder "$DATA_DIR/graph_data_noisy" \
+    --n 5 \
+    --lr 0.0005 \
+    --bs 64 \
+    --micro_bs 16 \
+    --epochs 50 \
+    --split_mode ic \
+    --pretrained_weights "GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth" \
+    --save_model "GNN-jed/trained_models/study2/noisy_5obs/best_gat_noisy.pth" \
+    --log_file "GNN-jed/trained_models/study2/noisy_5obs/training_metrics_gat_noisy.log"
+```
+
+#### Step 6: 4-Observable Ablation Study ($5\mathrm{D} \to 4\mathrm{D}$ Subspace Weight Transfer)
+
+To train an ablation model dropping one astrometric observable (columns: `0=RA`, `1=Dec`, `2=Parallax`, `3=pmRA`, `4=pmDec` — e.g. `1,2,3,4` for `4obs_no_RA`), build the 4D graphs and pass the 5D Clean GAT checkpoint to `--pretrained_weights` (`scripts/train_gat.py` automatically performs variance-preserving $5\mathrm{D} \to 4\mathrm{D}$ channel adaptation):
+
+```bash
+export FEAT="1,2,3,4"
+export TAG="4obs_no_RA"
+
+# 1. Build 4D Clean & Noisy k-NN graphs:
+python3 scripts/build_graph_dataset.py \
+    --obs_dir "$DATA_DIR/obs_clean" --labels_dir "$DATA_DIR/labels_clean" \
+    --output_dir "$DATA_DIR/graph_data_${TAG}_clean" --feature_indices "$FEAT" --rotations 5 --k_neighbors 20
+
+python3 scripts/build_graph_dataset.py \
+    --obs_dir "$DATA_DIR/obs_gaia_noisy" --labels_dir "$DATA_DIR/labels_clean" \
+    --output_dir "$DATA_DIR/graph_data_${TAG}_noisy" --feature_indices "$FEAT" --rotations 5 --k_neighbors 20
+
+# 2. Stage 1: 4D Clean GAT pre-training (initialized from 5D Clean GAT weights):
+python3 scripts/train_gat.py \
+    --data_folder "$DATA_DIR/graph_data_${TAG}_clean" \
+    --n 5 --lr 0.001 --bs 64 --micro_bs 16 --epochs 50 --split_mode ic \
+    --pretrained_weights "GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth" \
+    --save_model "GNN-jed/trained_models/study2/${TAG}_clean/best_gat_${TAG}_clean.pth" \
+    --log_file "GNN-jed/trained_models/study2/${TAG}_clean/training_metrics_gat_${TAG}_clean.log"
+
+# 3. Stage 2: 4D Gaia DR3 Noisy GAT fine-tuning:
+python3 scripts/train_gat.py \
+    --data_folder "$DATA_DIR/graph_data_${TAG}_noisy" \
+    --n 5 --lr 0.0005 --bs 64 --micro_bs 16 --epochs 50 --split_mode ic \
+    --pretrained_weights "GNN-jed/trained_models/study2/${TAG}_clean/best_gat_${TAG}_clean.pth" \
+    --save_model "GNN-jed/trained_models/study2/${TAG}_noisy/best_gat_${TAG}_noisy.pth" \
+    --log_file "GNN-jed/trained_models/study2/${TAG}_noisy/training_metrics_gat_${TAG}_noisy.log"
+```
+
+#### Multi-Node SLURM Execution & Figure Generation
+
+On a SLURM HPC cluster, the entire curriculum and 4-observable ablation suite can be submitted via:
+
+```bash
+bash slurm/launch_full_study2_pipeline.sh
+```
+
+To generate all diagnostic figures (loss/accuracy curves, confusion matrices, ROC/PR curves, perigalacticon error profiles, RMT weight spectra, and interactive 3D HTML stream visualizations) from any trained checkpoint in [`GNN-jed/trained_models/study2/weights/`](GNN-jed/trained_models/study2/weights/):
+
+```bash
+python3 scripts/generate_study2_figures.py \
+    --output_dir "GNN-jed/trained_models/study2/clean_5obs" \
+    --tag "clean_5obs" \
+    --gcn_log "GNN-jed/trained_models/study2/clean_5obs/training_metrics_gcn_clean.log" \
+    --gat_log "GNN-jed/trained_models/study2/clean_5obs/training_metrics_gat_clean.log" \
+    --gcn_weights "GNN-jed/trained_models/study2/weights/best_gcn_clean.pth" \
+    --gat_weights "GNN-jed/trained_models/study2/weights/best_gat_clean.pth" \
+    --graph_dir "$DATA_DIR/graph_data_clean" \
+    --sim_dir "$DATA_DIR/outputs_unbiased" \
+    --labels_dir "$DATA_DIR/labels_clean"
 ```
 
 ---

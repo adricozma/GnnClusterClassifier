@@ -9,9 +9,13 @@ checkpoints, and learning rate schedules) can be inspected live during SLURM exe
 import glob
 import os
 import re
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+
+try:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+except Exception:
+    plt = None
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -71,7 +75,7 @@ def parse_log_file(log_path):
 
 def update_live_plots_for_log(log_path):
     """Update both the per-experiment live training plot and the master Study 2 live dashboard PNG."""
-    if not log_path or not os.path.exists(log_path):
+    if plt is None or not log_path or not os.path.exists(log_path):
         return None
 
     exp_dir = os.path.dirname(os.path.abspath(log_path))
@@ -135,6 +139,8 @@ def update_live_plots_for_log(log_path):
 
 def update_master_study2_live_plot():
     """Aggregate all active/completed Study 2 training logs into a single master live figure."""
+    if plt is None:
+        return None
     study2_dir = os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2")
     os.makedirs(study2_dir, exist_ok=True)
     all_logs = sorted(glob.glob(os.path.join(study2_dir, "**", "training_metrics_*.log"), recursive=True))
