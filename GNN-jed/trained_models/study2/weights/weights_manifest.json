@@ -21,12 +21,12 @@
     "experiment_path": "GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth",
     "central_archive_path": "GNN-jed/trained_models/study2/weights/best_gat_clean.pth",
     "size_kb": 361.2,
-    "best_epoch": 3,
-    "val_loss": 0.2032,
-    "val_acc": 92.0,
+    "best_epoch": 4,
+    "val_loss": 0.1849,
+    "val_acc": 92.63,
     "test_loss": null,
     "test_acc": null,
     "test_f1": null,
-    "updated_at": "2026-11-09 20:39:14"
+    "updated_at": "2026-11-09 23:18:45"
   }
 }
