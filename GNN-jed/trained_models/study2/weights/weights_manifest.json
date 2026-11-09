@@ -13,5 +13,20 @@
     "test_acc": 92.17,
     "test_f1": 0.8886,
     "updated_at": "2026-11-09 12:06:19"
+  },
+  "best_gat_clean.pth": {
+    "filename": "best_gat_clean.pth",
+    "architecture": "GAT",
+    "in_channels": 5,
+    "experiment_path": "GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth",
+    "central_archive_path": "GNN-jed/trained_models/study2/weights/best_gat_clean.pth",
+    "size_kb": 361.2,
+    "best_epoch": 1,
+    "val_loss": 0.2562,
+    "val_acc": 89.86,
+    "test_loss": null,
+    "test_acc": null,
+    "test_f1": null,
+    "updated_at": "2026-11-09 15:03:48"
   }
 }
