@@ -1,25 +1,25 @@
 # Live Pipeline Status on Jed
 
 ```text
-[2026-11-09 10:25:51] Study 2 Pipeline Status on Jed
+[2026-11-09 10:30:58] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
 - Step 4 (5D Graphs): Clean=81/81 | GaiaNoisy=81/81
 - Step 5/6 Live GNN Training Progress:
-  * clean_5obs/training_metrics_gcn_clean.log: Ep 022 | Train 0.1145 (95.39%) | Val 0.1868 (92.00%, Best=92.22%) | Test=In progress
+  * clean_5obs/training_metrics_gcn_clean.log: Ep 023 | Train 0.1146 (95.38%) | Val 0.1832 (92.18%, Best=92.22%) | Test=In progress
 
 SLURM Queue:
 JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
 40998767_[0-4%   academic      Study2_Step6_4Obs   PD       0:00      2 (Dependency)
-      40998766   academic   Study2_Step5_Train81    R   17:56:03      2 jst[072,076]
+      40998766   academic   Study2_Step5_Train81    R   18:01:11      2 jst[072,076]
 ```
 
 ## Live Neural Network Training Metrics
 
 | Experiment | Architecture | Latest Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Best Val Acc | Test Acc | Test F1 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `clean_5obs` | **GCN** | 22 | 0.1145 | 95.39% | 0.1868 | 92.00% | **92.22%** | **In progress** | - |
+| `clean_5obs` | **GCN** | 23 | 0.1146 | 95.38% | 0.1832 | 92.18% | **92.22%** | **In progress** | - |
 
 ## Real-Time GNN Learning Curves (Loss & Accuracy Evolution)
 
