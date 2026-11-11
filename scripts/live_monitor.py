@@ -363,8 +363,10 @@ def _save_uploaded_plots(cache: dict) -> None:
         pass
 
 
-def daemonize(log_path="/scratch/cozma/slurm_logs/live_monitor_daemon.log"):
+def daemonize(log_path=None):
     """Detach process via POSIX double-fork and setsid so it survives VS Code/SSH exit."""
+    if log_path is None:
+        log_path = os.path.join(ROOT_DIR, "slurm_logs", "live_monitor_daemon.log")
     import signal
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
     if os.fork() > 0:
