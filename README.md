@@ -14,7 +14,7 @@ In observational surveys such as *Gaia*, however, radial velocities $(v_{\mathrm
 
 This repository provides a complete numerical and deep-learning pipeline that:
 1. Reconstructs realistic progenitor initial conditions via backward orbit integration of observed Milky Way stellar streams from the *Gaia* DR3 atlas (Ibata et al. 2024) inside a realistic three-component Milky Way potential (`MWPotential2014`, Bovy 2015).
-2. Evolves 75 self-consistent *N*-body Plummer globular clusters forward in time for $2.0\text{ Gyr}$ using the cosmological/astrophysical code `SWIFT` (Schaller et al. 2024) on the EPFL HPC cluster **Jed**.
+2. Evolves 81 self-consistent *N*-body Plummer globular clusters forward in time for $2.0\text{ Gyr}$ using the cosmological/astrophysical code `SWIFT` (Schaller et al. 2024) on the EPFL HPC cluster **Jed** (and 75 clusters in Study 1).
 3. Computes exact physical boundness and potential escaper labels from 3D Jacobi energies and tidal radii following Küpper et al. (2010a,b), using a 3D *k*-nearest-neighbor local density estimator (Casertano & Hut 1985) and iterative shrinking spheres to track the surviving core accurately even in heavily stripped streams.
 4. Projects the simulations into synthetic 5D *Gaia*-like astrometric observables with data augmentation over random observer orientations and physical-scale standardization.
 5. Trains **Residual Graph Convolutional Networks (GCN)** and **Multi-Head Residual Graph Attention Networks (GAT)** with local phase-space relational encoding (`3d + 3` invariants) on *k*-NN graphs $(k = 20)$, using **Two-Stage Curriculum Learning** (noiseless pre-training $\to$ *Gaia* DR3 magnitude-dependent noisy fine-tuning), **subspace-aligned $5\mathrm{D} \to 4\mathrm{D}$ weight transfer** for systematic observable ablations, and multi-node distributed training with micro-batch gradient accumulation and automatic disk activation offloading.
@@ -137,7 +137,7 @@ To prevent extended, asymmetric tidal tails from biasing the cluster center-of-m
 - **Unbound Stream Stars (`label = 0`):** Stars outside the Jacobi radius or exceeding the critical Jacobi energy.
 
 ![Bound Star Fraction vs Galactocentric Radius](assets/figures/R_vs_t_6panels_rp1.png)
-*Evolution of the Galactocentric radius $R(t)$ over $2.0\text{ Gyr}$ across the 75 simulated clusters, grouped into six panels by their first perigalacticon distance $R_{p1}$ and color-coded by the instantaneous fraction of bound stars.*
+*Evolution of the Galactocentric radius $R(t)$ over $2.0\text{ Gyr}$ across simulated clusters (75 in Study 1, expanded to 81 unbiased streams in Study 2), grouped into six panels by their first perigalacticon distance $R_{p1}$ and color-coded by the instantaneous fraction of bound stars.*
 
 ---
 
@@ -177,14 +177,14 @@ We compare two residual architectures trained over **81 unbiased *Gaia* DR3 prog
 | :---: | :---: |
 | ![Training and validation loss curves](assets/figures/live_plots_GNN.png) | ![Spectral analysis of GNN weights](assets/figures/spectral_analysis_GNN.png) |
 
-At $t = 2.0\text{ Gyr}$ (snapshot 100), the multi-head GAT model achieves **96.26% mean node accuracy** across all 75 streams, accurately separating surviving bound cores from stripped tidal tails while concentrating its remaining errors on marginal systems undergoing final dissolution at intermediate perigalacticon $(R_{p1} \in [8, 18]\text{ kpc})$.
+At $t = 2.0\text{ Gyr}$ (snapshot 100), the multi-head GAT model achieves **96.26% mean node accuracy** on the baseline test streams (and generalizes over all 81 unbiased streams in Study 2), accurately separating surviving bound cores from stripped tidal tails while concentrating its remaining errors on marginal systems undergoing final dissolution at intermediate perigalacticon $(R_{p1} \in [8, 18]\text{ kpc})$.
 
 | Dissolved Stream (`IC_1`, $R_{p1} = 1.9\text{ kpc}$, 100% Accuracy) | Surviving Bound Core (`IC_81`, $R_{p1} = 16.5\text{ kpc}$, 98.11% Accuracy) |
 | :---: | :---: |
 | ![GAT predictions on IC_1 at snapshot 100](assets/figures/prediction_GAT_ID1_output100.png) | ![GAT predictions on IC_81 at snapshot 100](assets/figures/prediction_GAT_ID81_output100.png) |
 
 ![GAT Error Percentage by First Perigalacticon](assets/figures/error_percentage_by_perigalacticon.png)
-*Classification error percentage at $t = 2.0\text{ Gyr}$ (snapshot 100) across all 75 simulated streams ordered by first perigalacticon distance $R_{p1}$. Streams with small $R_{p1}$ are completely disrupted early on, whereas clusters with intermediate $R_{p1}$ retain marginally bound cores rich in potential escapers.*
+*Classification error percentage at $t = 2.0\text{ Gyr}$ (snapshot 100) across simulated streams ordered by first perigalacticon distance $R_{p1}$. Streams with small $R_{p1}$ are completely disrupted early on, whereas clusters with intermediate $R_{p1}$ retain marginally bound cores rich in potential escapers.*
 
 ---
 
