@@ -9,6 +9,8 @@ Implements:
   ego-relational readout.
 """
 
+from __future__ import annotations
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -68,9 +70,10 @@ def compute_node_relational_features(x: torch.Tensor, edge_index: torch.Tensor) 
 class GCN(nn.Module):
     """Three-layer Residual Graph Convolutional Network with local phase-space relational features."""
 
-    def __init__(self, in_channels: int = 5):
+    def __init__(self, in_channels: int = 5, dropout: float = 0.2):
         super().__init__()
         self.in_channels = in_channels
+        self.dropout = float(dropout)
         in_rel = 3 * in_channels + 3
 
         self.conv1 = GCNConv(in_rel, 64)
@@ -95,30 +98,38 @@ class GCN(nn.Module):
             h0 = compute_node_relational_features(x, edge_index)
 
         h1 = F.gelu(self.norm1(self.conv1(h0, edge_index) + self.skip1(h0)))
+        if self.dropout > 0.0:
+            h1 = F.dropout(h1, p=self.dropout, training=self.training)
         h2 = F.gelu(self.norm2(self.conv2(h1, edge_index) + self.skip2(h1)))
+        if self.dropout > 0.0:
+            h2 = F.dropout(h2, p=self.dropout, training=self.training)
         out_graph = self.conv3(h2, edge_index)
-        out_ego = self.ego_head(torch.cat([h2, h0], dim=-1))
+        ego_in = torch.cat([h2, h0], dim=-1)
+        if self.dropout > 0.0:
+            ego_in = F.dropout(ego_in, p=self.dropout, training=self.training)
+        out_ego = self.ego_head(ego_in)
         return out_graph + out_ego
 
 
 class GAT(nn.Module):
     """Three-layer Multi-Head Residual Graph Attention Network with local phase-space relational features."""
 
-    def __init__(self, in_channels: int = 5, dropout: float = 0.1):
+    def __init__(self, in_channels: int = 5, dropout: float = 0.4, edge_dropout: float | None = None):
         super().__init__()
         self.in_channels = in_channels
-        self.dropout = dropout
+        self.dropout = float(dropout)
+        self.edge_dropout = float(dropout if edge_dropout is None else edge_dropout)
         in_rel = 3 * in_channels + 3
 
-        self.conv1 = GATConv(in_rel, 32, heads=4, concat=True, dropout=dropout)
+        self.conv1 = GATConv(in_rel, 32, heads=4, concat=True, dropout=self.edge_dropout)
         self.skip1 = nn.Linear(in_rel, 128)
         self.norm1 = nn.LayerNorm(128)
 
-        self.conv2 = GATConv(128, 64, heads=4, concat=True, dropout=dropout)
+        self.conv2 = GATConv(128, 64, heads=4, concat=True, dropout=self.edge_dropout)
         self.skip2 = nn.Linear(128, 256)
         self.norm2 = nn.LayerNorm(256)
 
-        self.conv3 = GATConv(256, 1, heads=1, concat=False, dropout=dropout)
+        self.conv3 = GATConv(256, 1, heads=1, concat=False, dropout=self.edge_dropout)
         self.ego_head = nn.Sequential(
             nn.Linear(256 + in_rel, 64),
             nn.ELU(),
@@ -138,7 +149,8 @@ class GAT(nn.Module):
         h2 = F.dropout(h2, p=self.dropout, training=self.training)
 
         out_graph = self.conv3(h2, edge_index)
-        out_ego = self.ego_head(torch.cat([h2, h0], dim=-1))
+        ego_in = F.dropout(torch.cat([h2, h0], dim=-1), p=self.dropout, training=self.training)
+        out_ego = self.ego_head(ego_in)
         return out_graph + out_ego
 
 

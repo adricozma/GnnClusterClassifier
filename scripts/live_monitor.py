@@ -154,12 +154,25 @@ def collect_pipeline_progress():
             best_va = max(d["val_acc"])
             test_str = f"{d['test_acc']:.2f}%" if d["test_acc"] is not None else "In progress"
             f1_str = f"{d['test_f1']:.4f}" if d["test_f1"] is not None else "-"
+
+            core_fnr_str = "-"
+            if d.get("test_core_fnr") is not None:
+                core_fnr_str = f"{d['test_core_fnr']:.2f}%"
+                if d.get("val_core_fnr"):
+                    core_fnr_str += f" (val: {min(d['val_core_fnr']):.2f}%)"
+            elif d.get("val_core_fnr"):
+                core_fnr_str = f"{min(d['val_core_fnr']):.2f}% (val min)"
+
+            core_ep_str = ""
+            if d.get("val_core_fnr"):
+                core_ep_str = f" | CoreFNR: {d['val_core_fnr'][-1]:.2f}% (min={min(d['val_core_fnr']):.2f}%)"
+
             latest_epochs.append(
-                f"{rel}: Ep {ep:03d} | Train {tr_l:.4f} ({tr_a:.2f}%) | Val {va_l:.4f} ({va_a:.2f}%, Best={best_va:.2f}%) | Test={test_str}"
+                f"{rel}: Ep {ep:03d} | Train {tr_l:.4f} ({tr_a:.2f}%) | Val {va_l:.4f} ({va_a:.2f}%, Best={best_va:.2f}%){core_ep_str} | Test={test_str}"
             )
             exp_name = os.path.basename(os.path.dirname(lg))
             model_name = "GAT" if "_gat" in os.path.basename(lg) else "GCN"
-            training_rows.append((exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, test_str, f1_str))
+            training_rows.append((exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, core_fnr_str, test_str, f1_str))
 
     try:
         update_master_study2_live_plot()
@@ -239,12 +252,17 @@ def write_live_status_markdown(report, prog):
             "",
             "## Live Neural Network Training Metrics",
             "",
-            "| Experiment | Architecture | Latest Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Best Val Acc | Test Acc | Test F1 |",
-            "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
+            "| Experiment | Architecture | Latest Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Best Val Acc | Core FNR | Test Acc | Test F1 |",
+            "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
         ])
-        for exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, test_str, f1_str in prog["training_rows"]:
+        for row in prog["training_rows"]:
+            if len(row) == 11:
+                exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, core_str, test_str, f1_str = row
+            else:
+                exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, test_str, f1_str = row
+                core_str = "-"
             md_lines.append(
-                f"| `{exp_name}` | **{model_name}** | {ep} | {tr_l:.4f} | {tr_a:.2f}% | {va_l:.4f} | {va_a:.2f}% | **{best_va:.2f}%** | **{test_str}** | {f1_str} |"
+                f"| `{exp_name}` | **{model_name}** | {ep} | {tr_l:.4f} | {tr_a:.2f}% | {va_l:.4f} | {va_a:.2f}% | **{best_va:.2f}%** | {core_str} | **{test_str}** | {f1_str} |"
             )
 
     if prog.get("saved_weights"):
@@ -438,6 +456,24 @@ def main():
                         d_gcn = parse_log_file(gcn_clean_log)
                         if d_gcn["epochs"] and d_gcn["epochs"][-1] >= 25 and d_gcn["test_acc"] is None:
                             with open(marker_file, "w", encoding="utf-8") as mf:
+                                mf.write("triggered\n")
+                            time.sleep(2.5)
+                            os.kill(ppid, signal.SIGTERM)
+
+                # Hot-reload transition for active GAT clean_5obs process if it was started before the anti-overfitting update
+                gat_marker = os.path.join(
+                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "clean_5obs", ".gat_overfit_fix_transition_done"
+                )
+                gat_clean_log = os.path.join(
+                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "clean_5obs", "training_metrics_gat_clean.log"
+                )
+                if os.path.exists(cmdline_file) and not os.path.exists(gat_marker):
+                    with open(cmdline_file, "rb") as cf:
+                        cmd_str = cf.read().decode("utf-8", errors="ignore")
+                    if "train_gat.py" in cmd_str and "clean_5obs" in cmd_str and os.path.exists(gat_clean_log):
+                        d_gat = parse_log_file(gat_clean_log)
+                        if d_gat["epochs"] and d_gat["epochs"][-1] >= 18 and d_gat["test_acc"] is None:
+                            with open(gat_marker, "w", encoding="utf-8") as mf:
                                 mf.write("triggered\n")
                             time.sleep(2.5)
                             os.kill(ppid, signal.SIGTERM)

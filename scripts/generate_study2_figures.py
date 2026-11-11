@@ -114,15 +114,27 @@ def plot_training_curves(gcn_log, gat_log, output_dir, tag):
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5), dpi=180)
     if ep1:
+        min_v1 = min(val_l1)
+        b_idx1 = val_l1.index(min_v1)
+        b_ep1 = ep1[b_idx1]
         ax1.plot(ep1, tr_l1, "--", color="#3b82f6", alpha=0.8, label="GCN Train Loss")
-        ax1.plot(ep1, val_l1, "-", color="#1d4ed8", lw=2.2, label="GCN Val Loss")
+        ax1.plot(ep1, val_l1, "-", color="#1d4ed8", lw=2.2, label=f"GCN Val Loss (min={min_v1:.4f} @ Ep {b_ep1})")
+        ax1.axvline(b_ep1, color="#1d4ed8", linestyle=":", alpha=0.5, lw=1.4)
+        ax1.plot(b_ep1, min_v1, "*", color="#fbbf24", markeredgecolor="#1d4ed8", ms=10, zorder=5)
+
         ax2.plot(ep1, tr_a1, "--", color="#3b82f6", alpha=0.8, label="GCN Train Acc")
-        ax2.plot(ep1, val_a1, "-", color="#1d4ed8", lw=2.2, label="GCN Val Acc")
+        ax2.plot(ep1, val_a1, "-", color="#1d4ed8", lw=2.2, label=f"GCN Val Acc (best={max(val_a1):.2f}%)")
     if ep2:
+        min_v2 = min(val_l2)
+        b_idx2 = val_l2.index(min_v2)
+        b_ep2 = ep2[b_idx2]
         ax1.plot(ep2, tr_l2, "--", color="#f97316", alpha=0.8, label="GAT Train Loss")
-        ax1.plot(ep2, val_l2, "-", color="#ea580c", lw=2.2, label="GAT Val Loss")
+        ax1.plot(ep2, val_l2, "-", color="#ea580c", lw=2.2, label=f"GAT Val Loss (min={min_v2:.4f} @ Ep {b_ep2})")
+        ax1.axvline(b_ep2, color="#ea580c", linestyle=":", alpha=0.5, lw=1.4)
+        ax1.plot(b_ep2, min_v2, "*", color="#fbbf24", markeredgecolor="#ea580c", ms=10, zorder=5)
+
         ax2.plot(ep2, tr_a2, "--", color="#f97316", alpha=0.8, label="GAT Train Acc")
-        ax2.plot(ep2, val_a2, "-", color="#ea580c", lw=2.2, label="GAT Val Acc")
+        ax2.plot(ep2, val_a2, "-", color="#ea580c", lw=2.2, label=f"GAT Val Acc (best={max(val_a2):.2f}%)")
 
     ax1.set_xlabel("Epoch")
     ax1.set_ylabel("Binary Cross-Entropy Loss")
@@ -489,7 +501,19 @@ def evaluate_per_stream_and_plot(
         f_bound_true = float(np.mean(y_true) * 100.0)
         rp1 = orbit_info.get(sid, {}).get("R_p1", float(sid))
         ecc = orbit_info.get(sid, {}).get("ecc", 0.0)
-        stream_errors.append((sid, rp1, ecc, err_pct, f_bound_true))
+
+        tn = (y_true == 0) & (preds == 0)
+        tp = (y_true == 1) & (preds == 1)
+        fn = (y_true == 1) & (preds == 0)
+        fp = (y_true == 0) & (preds == 1)
+
+        n_bound = int(np.sum(y_true == 1))
+        n_fn = int(np.sum(fn))
+        n_tp = int(np.sum(tp))
+        fn_rate_core = float((n_fn / max(1, n_bound)) * 100.0)
+        recall_core = float(100.0 - fn_rate_core)
+
+        stream_errors.append((sid, rp1, ecc, err_pct, f_bound_true, n_bound, n_fn, n_tp, fn_rate_core, recall_core))
 
         if sid in sample_ids:
             snap_hdf5 = os.path.join(sim_dir, ic_name, "snapshot_0100.hdf5")
@@ -506,11 +530,6 @@ def evaluate_per_stream_and_plot(
                 coord_x, coord_y = data.x[:, 0].numpy(), data.x[:, 1].numpy()
                 xlab, ylab = "Standardized Feature 0 (RA*)", "Standardized Feature 1 (Dec)"
 
-            tn = (y_true == 0) & (preds == 0)
-            tp = (y_true == 1) & (preds == 1)
-            fn = (y_true == 1) & (preds == 0)
-            fp = (y_true == 0) & (preds == 1)
-
             fig, ax = plt.subplots(figsize=(8.5, 7), dpi=180)
             ax.scatter(coord_x[tn], coord_y[tn], s=2, c="#94a3b8", alpha=0.45, label=f"True Unbound (TN: {np.sum(tn)})")
             ax.scatter(coord_x[tp], coord_y[tp], s=4, c="#2563eb", alpha=0.8, label=f"True Bound (TP: {np.sum(tp)})")
@@ -518,7 +537,7 @@ def evaluate_per_stream_and_plot(
             ax.scatter(coord_x[fn], coord_y[fn], s=8, c="#dc2626", alpha=0.9, label=f"Missed Bound (FN: {np.sum(fn)})")
             ax.set_xlabel(xlab)
             ax.set_ylabel(ylab)
-            ax.set_title(f"{model_type} Prediction on IC_{sid} at t = 2.0 Gyr ({tag} | Error: {err_pct:.2f}%)")
+            ax.set_title(f"{model_type} Prediction on IC_{sid} at t = 2.0 Gyr ({tag} | Error: {err_pct:.2f}% | Core FNR: {fn_rate_core:.2f}%)")
             ax.legend(loc="upper right", markerscale=2.0)
             ax.grid(True, alpha=0.2)
             plt.tight_layout()
@@ -544,7 +563,7 @@ def evaluate_per_stream_and_plot(
                     })
             _write_plotly_html(
                 os.path.join(output_dir, f"{base_pred}.html"),
-                f"{model_type} Spatial Classification on IC_{sid} at t = 2.0 Gyr ({tag} | Error: {err_pct:.2f}%)",
+                f"{model_type} Spatial Classification on IC_{sid} at t = 2.0 Gyr ({tag} | Error: {err_pct:.2f}% | Core FNR: {fn_rate_core:.2f}%)",
                 pred_traces,
                 {"xaxis": {"title": xlab}, "yaxis": {"title": ylab, "scaleanchor": "x", "scaleratio": 1}},
             )
@@ -602,6 +621,178 @@ def evaluate_per_stream_and_plot(
         ],
         {"xaxis": {"title": "Streams Ordered by First Perigalacticon R_p1"}, "yaxis": {"title": "Error Percentage [%]"}},
     )
+
+    # Filter for surviving dense cores (where true bound stars >= 20 at snapshot 100)
+    surviving_cores = [x for x in stream_errors if x[5] >= 20]
+    if surviving_cores:
+        core_labels = [f"IC_{x[0]}" for x in surviving_cores]
+        core_rp1 = [x[1] for x in surviving_cores]
+        core_ecc = [x[2] for x in surviving_cores]
+        core_err = [x[3] for x in surviving_cores]
+        core_nbound = [x[5] for x in surviving_cores]
+        core_nfn = [x[6] for x in surviving_cores]
+        core_ntp = [x[7] for x in surviving_cores]
+        core_fnr = [x[8] for x in surviving_cores]
+        core_rec = [x[9] for x in surviving_cores]
+
+        total_core_bound = sum(core_nbound)
+        total_core_fn = sum(core_nfn)
+        overall_core_fnr = (total_core_fn / max(1, total_core_bound)) * 100.0
+        overall_core_rec = 100.0 - overall_core_fnr
+        mean_core_fnr = float(np.mean(core_fnr))
+        mean_core_rec = float(np.mean(core_rec))
+
+        fig, (ax_fnr, ax_rec) = plt.subplots(2, 1, figsize=(15, 8.5), dpi=180, sharex=True)
+
+        norm_rp = plt.Normalize(vmin=min(core_rp1), vmax=max(core_rp1))
+        cmap = plt.cm.viridis
+        bar_colors = [cmap(norm_rp(r)) for r in core_rp1]
+
+        # Top panel: Core False Negative Rate
+        ax_fnr.bar(
+            range(len(surviving_cores)),
+            core_fnr,
+            color=bar_colors,
+            edgecolor="#b91c1c",
+            alpha=0.88,
+            width=0.65,
+        )
+        ax_fnr.axhline(
+            overall_core_fnr,
+            color="#dc2626",
+            linestyle="--",
+            lw=2.2,
+            label=f"Pooled Surviving Core FNR: {overall_core_fnr:.2f}% (Mean Stream: {mean_core_fnr:.2f}%)",
+        )
+        ax_fnr.set_ylabel("Core False Negative Rate [%]\n(Missed Bound Stars / $N_{\\mathrm{bound}}$)", fontsize=10)
+        ax_fnr.set_title(
+            f"{model_type} Surviving Dense Core False Negative Rate & Recall vs. First Perigalacticon $R_{{p1}}$ ({tag})\n"
+            f"[Surviving Cores with $N_{{\\mathrm{{bound}}}} \\ge 20$: {len(surviving_cores)} streams | "
+            f"Pooled Core FNR = {overall_core_fnr:.2f}% (Recall = {overall_core_rec:.2f}%)]",
+            fontsize=12,
+            fontweight="bold",
+        )
+        ax_fnr.grid(True, axis="y", alpha=0.25)
+        ax_fnr.legend(loc="upper right", fontsize=9.5)
+        ax_fnr.set_ylim(0, max(15.0, max(core_fnr) * 1.15))
+
+        # Bottom panel: Core Recall
+        ax_rec.bar(
+            range(len(surviving_cores)),
+            core_rec,
+            color=bar_colors,
+            edgecolor="#047857",
+            alpha=0.88,
+            width=0.65,
+        )
+        ax_rec.axhline(
+            overall_core_rec,
+            color="#059669",
+            linestyle="--",
+            lw=2.2,
+            label=f"Pooled Surviving Core Recall: {overall_core_rec:.2f}% (Mean Stream: {mean_core_rec:.2f}%)",
+        )
+        ax_rec.set_xticks(range(len(surviving_cores)))
+        ax_rec.set_xticklabels(
+            [f"{lbl}\n($R_{{p1}}$={rp:.1f}kpc)" for lbl, rp in zip(core_labels, core_rp1)],
+            rotation=60,
+            fontsize=8,
+        )
+        ax_rec.set_xlabel("Surviving Progenitor Streams Ordered by Increasing First Perigalacticon $R_{p1}$ [kpc]", fontsize=10)
+        ax_rec.set_ylabel("Core Recall [%]\n(True Bound Recovery Rate)", fontsize=10)
+        ax_rec.grid(True, axis="y", alpha=0.25)
+        ax_rec.legend(loc="lower right", fontsize=9.5)
+        ax_rec.set_ylim(min(80.0, min(core_rec) * 0.95), 102.0)
+
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm_rp)
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=[ax_fnr, ax_rec], pad=0.015, aspect=25)
+        cbar.set_label("First Perigalacticon $R_{p1}$ [kpc]", fontsize=10)
+
+        plt.tight_layout()
+        core_base = f"surviving_core_fnr_by_perigalacticon_{model_type}_{tag}"
+        plt.savefig(os.path.join(output_dir, f"{core_base}.png"))
+        plt.close(fig)
+
+        hover_core = [
+            f"<b>{lbl}</b><br>"
+            f"R_p1: {rp:.2f} kpc | e: {ec:.2f}<br>"
+            f"Surviving Core Bound Stars: {nb}<br>"
+            f"Missed Bound Stars (FN): {nfn}<br>"
+            f"True Detected Stars (TP): {ntp}<br>"
+            f"<b>Core FNR: {fnr:.2f}%</b><br>"
+            f"<b>Core Recall: {rec:.2f}%</b><br>"
+            f"Total Stream Error: {err:.2f}%"
+            for lbl, rp, ec, nb, nfn, ntp, fnr, rec, err in zip(
+                core_labels, core_rp1, core_ecc, core_nbound, core_nfn, core_ntp, core_fnr, core_rec, core_err
+            )
+        ]
+
+        traces_core = [
+            {
+                "x": core_labels,
+                "y": core_fnr,
+                "type": "bar",
+                "name": "Core FNR (%)",
+                "text": hover_core,
+                "hoverinfo": "text",
+                "marker": {
+                    "color": core_rp1,
+                    "colorscale": "Plasma",
+                    "colorbar": {"title": "R_p1 [kpc]", "x": 1.05},
+                },
+                "xaxis": "x1",
+                "yaxis": "y1",
+            },
+            {
+                "x": core_labels,
+                "y": [overall_core_fnr] * len(core_labels),
+                "mode": "lines",
+                "name": f"Pooled Core FNR ({overall_core_fnr:.2f}%)",
+                "line": {"color": "#ef4444", "dash": "dash", "width": 2.5},
+                "xaxis": "x1",
+                "yaxis": "y1",
+            },
+            {
+                "x": core_labels,
+                "y": core_rec,
+                "type": "bar",
+                "name": "Core Recall (%)",
+                "text": hover_core,
+                "hoverinfo": "text",
+                "marker": {
+                    "color": core_rp1,
+                    "colorscale": "Viridis",
+                    "showscale": False,
+                },
+                "xaxis": "x2",
+                "yaxis": "y2",
+            },
+            {
+                "x": core_labels,
+                "y": [overall_core_rec] * len(core_labels),
+                "mode": "lines",
+                "name": f"Pooled Core Recall ({overall_core_rec:.2f}%)",
+                "line": {"color": "#10b981", "dash": "dash", "width": 2.5},
+                "xaxis": "x2",
+                "yaxis": "y2",
+            },
+        ]
+
+        layout_core = {
+            "grid": {"rows": 2, "columns": 1, "pattern": "independent"},
+            "xaxis1": {"title": "Streams Ordered by R_p1", "tickangle": -45},
+            "yaxis1": {"title": "Core False Negative Rate [%] (Lower is better)"},
+            "xaxis2": {"title": "Streams Ordered by R_p1", "tickangle": -45},
+            "yaxis2": {"title": "Core Recall [%] (Higher is better)"},
+        }
+
+        _write_plotly_html(
+            os.path.join(output_dir, f"{core_base}.html"),
+            f"{model_type} Surviving Dense Core FNR and Recall by R_p1 ({tag} | Pooled FNR: {overall_core_fnr:.2f}%, Recall: {overall_core_rec:.2f}%)",
+            traces_core,
+            layout_core,
+        )
 
 
 def build_master_dashboard(output_dir, tag):

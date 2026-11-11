@@ -38,7 +38,7 @@ The repository is organized to separate core physical/feature-engineering module
 ├── make_ICs/
 │   ├── Ibata_catalog.txt                # Gaia DR3 stellar stream catalog (Ibata et al. 2024)
 │   ├── stars_6D_ibata2024.csv           # Filtered 6D stream stars used to define progenitor orbits
-│   ├── select_unbiased_orbits.py        # Unbiased progenitor orbit selector (R_p >= 5 kpc, 81 streams)
+│   ├── select_unbiased_orbits.py        # Unbiased progenitor orbit selector (R_p >= 0.0 kpc, 81 streams)
 │   ├── generate_unbiased_ics.py         # Batch virialized Plummer sphere HDF5 generator for SWIFT
 │   ├── IC_plummer_swift.py              # Isotropic/anisotropic Plummer sphere HDF5 generator
 │   ├── OrbitIntegration_Ibata.ipynb     # Backward orbit integration (-2 Gyr) in galpy MWPotential2014
@@ -163,7 +163,7 @@ $$
 
 We compare two residual architectures trained over **81 unbiased *Gaia* DR3 progenitor streams** ($N \in [20\,000, 50\,000]$ stars per cluster, partitioned deterministically at the simulation level with `seed=42` into 65 Train / 8 Validation / 8 Test streams):
 1. **3-Layer Residual GCN (`scripts/train_gcn.py`):** `(3d+3) -> 64 -> 128 -> 1` with `GCNConv`, linear residual skip projections, `LayerNorm`, `GELU` activations, and an ego-relational readout head `MLP([h2, h0])` (`--bs 256`, 25 epochs on the 5D noiseless baseline).
-2. **3-Layer Multi-Head Residual GAT (`scripts/train_gat.py`):** `GATConv(3d+3, 32, heads=4)` $\to$ `GATConv(128, 64, heads=4)` $\to$ `GATConv(256, 1, heads=1)` with `LayerNorm`, `ELU` activations, dropout $(p = 0.1)$, and ego-relational readout (`--bs 64`, 50 epochs).
+2. **3-Layer Multi-Head Residual GAT (`scripts/train_gat.py`):** `GATConv(3d+3, 32, heads=4)` $\to$ `GATConv(128, 64, heads=4)` $\to$ `GATConv(256, 1, heads=1)` with `LayerNorm`, `ELU` activations, aggressive dropout ($p = 0.4$ on both multi-head `GATConv` attention coefficients and hidden layer / ego-head activations), stronger L2 regularization (`weight_decay = 1e-3` in `AdamW`), adaptive learning rate scheduling (`OneCycleLR` / `CosineAnnealingWarmRestarts`), strict validation BCE loss early stopping (`patience = 4` epochs), and an ego-relational readout head `MLP([h2, h0])` (`--bs 64`, 50 epochs). Training continuously tracks the targeted surviving-core metrics **`CoreFNR` / `CoreRec`** (False Negative Rate and Recall on bound core stars, alongside the dedicated diagnostic figure `surviving_core_fnr_by_perigalacticon_GAT_{tag}.{png,html}`).
 
 #### Two-Stage Curriculum & Subspace-Aligned $5\mathrm{D} \to 4\mathrm{D}$ Weight Transfer
 - **Step 5 — 5-Observable Curriculum (`slurm/step5_train_curriculum_and_plot.sh`):** Both GCN (25 epochs, architectural baseline) and GAT (50 epochs) are trained on noiseless 5D astrometric graphs (`clean_5obs`, $\mathrm{lr} = 10^{-3}$). The converged 5D Clean GAT checkpoint (`best_gat_clean.pth`) is then fine-tuned for 50 epochs on *Gaia* DR3 magnitude-dependent noisy graphs (`noisy_5obs`, $\mathrm{lr} = 5\times 10^{-4}$, Lindegren et al. 2021).
@@ -220,7 +220,7 @@ mkdir -p "$DATA_DIR"
 ### 2. Step-by-Step Data Generation (Steps 1–4)
 
 #### Step 1: Progenitor Orbits & Virialized Plummer Initial Conditions
-Select the 81 unbiased Milky Way stream progenitors ($R_p \ge 5\text{ kpc}$ in `MWPotential2014`) and generate virialized Plummer `.hdf5` initial conditions at $t = -2.0\text{ Gyr}$:
+Select the 81 unbiased Milky Way stream progenitors ($R_p \ge 0.0\text{ kpc}$ in `MWPotential2014`, retaining both close-pericenter dissolving systems and outer-halo clusters inside $\max(|x|,|y|,|z|) \le 480\text{ kpc}$) and generate virialized Plummer `.hdf5` initial conditions at $t = -2.0\text{ Gyr}$:
 
 ```bash
 python3 make_ICs/select_unbiased_orbits.py
@@ -312,7 +312,7 @@ python3 scripts/train_gcn.py \
     --save_model "GNN-jed/trained_models/study2/clean_5obs/best_gcn_clean.pth" \
     --log_file "GNN-jed/trained_models/study2/clean_5obs/training_metrics_gcn_clean.log"
 
-# 2. Train the 3-Layer Multi-Head Residual GAT (50 epochs, effective batch size 64):
+# 2. Train the 3-Layer Multi-Head Residual GAT (50 epochs, effective batch size 64, aggressive anti-overfitting):
 python3 scripts/train_gat.py \
     --data_folder "$DATA_DIR/graph_data_clean" \
     --n 5 \
@@ -320,6 +320,10 @@ python3 scripts/train_gat.py \
     --bs 64 \
     --micro_bs 16 \
     --epochs 50 \
+    --dropout 0.4 \
+    --weight_decay 1e-3 \
+    --scheduler onecycle \
+    --patience 4 \
     --split_mode ic \
     --save_model "GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth" \
     --log_file "GNN-jed/trained_models/study2/clean_5obs/training_metrics_gat_clean.log"
@@ -327,7 +331,7 @@ python3 scripts/train_gat.py \
 
 #### Step 5b: Stage 2 — Curriculum Fine-Tuning on *Gaia* DR3 Noisy Graphs (GAT)
 
-Initialize the GAT with the converged Stage 1 noiseless weights (`--pretrained_weights`) and fine-tune on the *Gaia* DR3 noisy graphs at $\mathrm{lr} = 5\times 10^{-4}$:
+Initialize the GAT with the converged Stage 1 noiseless weights (`--pretrained_weights`) and fine-tune on the *Gaia* DR3 noisy graphs at $\mathrm{lr} = 5\times 10^{-4}$ with adaptive learning rate scheduling:
 
 ```bash
 python3 scripts/train_gat.py \
@@ -337,6 +341,10 @@ python3 scripts/train_gat.py \
     --bs 64 \
     --micro_bs 16 \
     --epochs 50 \
+    --dropout 0.4 \
+    --weight_decay 1e-3 \
+    --scheduler onecycle \
+    --patience 4 \
     --split_mode ic \
     --pretrained_weights "GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth" \
     --save_model "GNN-jed/trained_models/study2/noisy_5obs/best_gat_noisy.pth" \
@@ -364,6 +372,7 @@ python3 scripts/build_graph_dataset.py \
 python3 scripts/train_gat.py \
     --data_folder "$DATA_DIR/graph_data_${TAG}_clean" \
     --n 5 --lr 0.001 --bs 64 --micro_bs 16 --epochs 50 --split_mode ic \
+    --dropout 0.4 --weight_decay 1e-3 --scheduler onecycle --patience 4 \
     --pretrained_weights "GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth" \
     --save_model "GNN-jed/trained_models/study2/${TAG}_clean/best_gat_${TAG}_clean.pth" \
     --log_file "GNN-jed/trained_models/study2/${TAG}_clean/training_metrics_gat_${TAG}_clean.log"
@@ -372,6 +381,7 @@ python3 scripts/train_gat.py \
 python3 scripts/train_gat.py \
     --data_folder "$DATA_DIR/graph_data_${TAG}_noisy" \
     --n 5 --lr 0.0005 --bs 64 --micro_bs 16 --epochs 50 --split_mode ic \
+    --dropout 0.4 --weight_decay 1e-3 --scheduler onecycle --patience 4 \
     --pretrained_weights "GNN-jed/trained_models/study2/${TAG}_clean/best_gat_${TAG}_clean.pth" \
     --save_model "GNN-jed/trained_models/study2/${TAG}_noisy/best_gat_${TAG}_noisy.pth" \
     --log_file "GNN-jed/trained_models/study2/${TAG}_noisy/training_metrics_gat_${TAG}_noisy.log"

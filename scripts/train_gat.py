@@ -51,6 +51,24 @@ def build_parser():
         default="",
         help="Optional comma-separated feature column indices to select on the fly (e.g. '0,1,3,4' for 4-observable ablation).",
     )
+    parser.add_argument("--dropout", type=float, default=0.4, help="Dropout probability on GATConv attention and hidden activations (default: 0.4).")
+    parser.add_argument("--weight_decay", type=float, default=1e-3, help="L2 weight decay regularization in AdamW (default: 1e-3).")
+    parser.add_argument("--patience", type=int, default=4, help="Strict early-stopping patience on validation BCE loss (default: 4).")
+    parser.add_argument(
+        "--min_Radial_kpc",
+        "--filter_rp_min",
+        dest="min_Radial_kpc",
+        type=float,
+        default=0.0,
+        help="Optional minimum perigalacticon R_p [kpc] filter on streams (e.g. 5.0).",
+    )
+    parser.add_argument(
+        "--scheduler",
+        type=str,
+        default="onecycle",
+        choices=["onecycle", "cosine", "plateau"],
+        help="Adaptive learning rate scheduler.",
+    )
     parser.add_argument("--force_disk_offload", action="store_true", help="Force offloading intermediate autograd tensors to /scratch.")
     parser.add_argument("--no_resume", dest="resume", action="store_false", help="Disable automatic epoch checkpoint resume.")
     parser.set_defaults(resume=True)
@@ -59,4 +77,5 @@ def build_parser():
 
 if __name__ == "__main__":
     args = build_parser().parse_args()
+    args.filter_rp_min = args.min_Radial_kpc
     run_training("gat", args)

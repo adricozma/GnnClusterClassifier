@@ -21,7 +21,7 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 │   ├── Ibata_catalog.txt                      # Raw Gaia DR3 stellar stream catalog (Ibata et al. 2024)
 │   ├── stars_6D_ibata2024.csv                 # Filtered 6D phase-space catalog (1,703 stars across 84 streams)
 │   ├── IC_plummer_swift.py                    # Virialized Plummer sphere generator for SWIFT (.hdf5)
-│   ├── select_unbiased_orbits.py              # [Study 2] Unbiased orbit selector (R_p >= 5 kpc, no 100 kpc cutoff)
+│   ├── select_unbiased_orbits.py              # [Study 2] Unbiased orbit selector (R_p >= 0.0 kpc, 81 streams inside SWIFT volume)
 │   ├── generate_unbiased_ics.py               # [Study 2] Batch Plummer HDF5 IC generator for unbiased seeds
 │   ├── SWIFT_seeds.npy                        # [Study 1 - Untouched] Original 75 progenitor seeds
 │   ├── orbits/                                # [Study 1 - Untouched] Original 75 integrated trajectories
@@ -53,7 +53,7 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 │   ├── build_graph_dataset.py                 # Parallel O(N log N) cKDTree k-NN graph builder (5D or 4D ablation subsets)
 │   ├── distributed_trainer.py                 # Unified DDP, micro-batch gradient accumulation & checkpoint engine
 │   ├── train_gcn.py                           # 3-layer Residual GCN trainer (--split_mode ic, clean_5obs baseline)
-│   ├── train_gat.py                           # 3-layer Multi-Head Residual GAT trainer (--split_mode ic, Clean & Noisy)
+│   ├── train_gat.py                           # 3-layer Multi-Head Residual GAT trainer (p=0.4 dropout, AdamW wd=1e-3, OneCycleLR, CoreFNR/CoreRec)
 │   ├── live_plot_utils.py                     # Real-time epoch-by-epoch live learning curve generator (.png)
 │   ├── live_monitor.py                        # Automated training telemetry and status updater
 │   └── generate_study2_figures.py             # Automated generator for all report/README plots (.png + interactive .html)
@@ -100,7 +100,7 @@ Bulk simulation outputs, extracted observable matrices, and PyTorch Geometric `.
 | Dataset / Artifact | Default Relative / Cluster Path | Description |
 | :--- | :--- | :--- |
 | **SWIFT Binary** | `swift` (`--with-ext-potential=MWPotential2014`) | Compiled `SWIFT` $N$-body solver with analytical Milky Way potential |
-| **Study 2 SWIFT ICs** | `make_ICs/initial_conditions_unbiased/` | 81 virialized Plummer HDF5 initial conditions ($R_p \ge 5\text{ kpc}$) |
+| **Study 2 SWIFT ICs** | `make_ICs/initial_conditions_unbiased/` | 81 virialized Plummer HDF5 initial conditions ($R_p \ge 0.0\text{ kpc}$) |
 | **Study 2 SWIFT Outputs** | `$DATA_DIR/outputs_unbiased/` | 81 directories $\times$ 101 HDF5 snapshots ($2.0\text{ Gyr}$, $\Delta t = 20\text{ Myr}$) |
 | **Study 2 Bound Labels** | `$DATA_DIR/labels_clean/` | Exact bound & potential-escaper labels `B_L_snapshot_*.npy` |
 | **Study 2 Clean Observables** | `$DATA_DIR/obs_clean/` | Standardized noiseless 5D ICRS observable matrices |

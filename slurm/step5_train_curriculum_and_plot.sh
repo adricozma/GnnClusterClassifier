@@ -78,7 +78,11 @@ run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
     --n 5 \
     --lr 0.001 \
     --bs 64 \
-    --epochs 50 \
+    --epochs 25 \
+    --patience 4 \
+    --dropout 0.4 \
+    --weight_decay 1e-3 \
+    --scheduler onecycle \
     --split_mode ic \
     --save_model "$OUT_DIR/clean_5obs/best_gat_clean.pth" \
     --log_file "$OUT_DIR/clean_5obs/training_metrics_gat_clean.log"
@@ -105,7 +109,11 @@ run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
     --n 5 \
     --lr 0.0005 \
     --bs 64 \
-    --epochs 50 \
+    --epochs 20 \
+    --patience 4 \
+    --dropout 0.4 \
+    --weight_decay 1e-3 \
+    --scheduler onecycle \
     --split_mode ic \
     --pretrained_weights "$OUT_DIR/clean_5obs/best_gat_clean.pth" \
     --save_model "$OUT_DIR/noisy_5obs/best_gat_noisy.pth" \

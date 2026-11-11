@@ -20,10 +20,13 @@ except Exception:
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 EPOCH_LINE_RE = re.compile(
-    r"^\s*(\d+)\s*\|\s*([0-9.]+)\s*\|\s*([0-9.]+)%\s*\|\s*([0-9.]+)\s*\|\s*([0-9.]+)%\s*\|\s*([0-9.eE+-]+)(\s*\(\*\))?"
+    r"^\s*(\d+)\s*\|\s*([0-9.]+)\s*\|\s*([0-9.]+)%\s*\|\s*([0-9.]+)\s*\|\s*([0-9.]+)%\s*\|\s*([0-9.eE+-]+)(?:.*?(\(\*\)))?"
 )
+CORE_FNR_RE = re.compile(r"(?:Core\s*FNR|CoreFNR|FNR)\s*:\s*([0-9.]+)%", re.IGNORECASE)
+CORE_REC_RE = re.compile(r"(?:Core\s*Rec(?:all)?|CoreRec(?:all)?|Core\s*Recall)\s*:\s*([0-9.]+)%", re.IGNORECASE)
+
 TEST_LINE_RE = re.compile(
-    r"Final Test Loss\s*:\s*([0-9.]+)\s*\|\s*Acc:\s*([0-9.]+)%(?:\s*\|\s*BalAcc:\s*([0-9.]+)%\s*\|\s*F1:\s*([0-9.]+))?"
+    r"Final Test Loss\s*:\s*([0-9.]+)\s*\|\s*(?:Final Test )?Acc:\s*([0-9.]+)%"
 )
 
 
@@ -35,12 +38,16 @@ def parse_log_file(log_path):
         "train_acc": [],
         "val_loss": [],
         "val_acc": [],
+        "val_core_fnr": [],
+        "val_core_rec": [],
         "lr": [],
         "best_epochs": [],
         "test_loss": None,
         "test_acc": None,
         "test_bal_acc": None,
         "test_f1": None,
+        "test_core_fnr": None,
+        "test_core_rec": None,
     }
     if not log_path or not os.path.exists(log_path):
         return data
@@ -57,17 +64,32 @@ def parse_log_file(log_path):
                     data["val_loss"].append(float(m.group(4)))
                     data["val_acc"].append(float(m.group(5)))
                     data["lr"].append(float(m.group(6)))
-                    if m.group(7):
+                    if m.group(7) or "(*)" in line:
                         data["best_epochs"].append(ep)
+                    m_fnr = CORE_FNR_RE.search(line)
+                    if m_fnr:
+                        data["val_core_fnr"].append(float(m_fnr.group(1)))
+                    m_rec = CORE_REC_RE.search(line)
+                    if m_rec:
+                        data["val_core_rec"].append(float(m_rec.group(1)))
                     continue
-                tm = TEST_LINE_RE.search(line)
-                if tm:
-                    data["test_loss"] = float(tm.group(1))
-                    data["test_acc"] = float(tm.group(2))
-                    if tm.group(3):
-                        data["test_bal_acc"] = float(tm.group(3))
-                    if tm.group(4):
-                        data["test_f1"] = float(tm.group(4))
+                if "Final Test Loss" in line:
+                    tm = TEST_LINE_RE.search(line)
+                    if tm:
+                        data["test_loss"] = float(tm.group(1))
+                        data["test_acc"] = float(tm.group(2))
+                        m_bal = re.search(r"BalAcc:\s*([0-9.]+)%", line)
+                        if m_bal:
+                            data["test_bal_acc"] = float(m_bal.group(1))
+                        m_f1 = re.search(r"F1:\s*([0-9.]+)", line)
+                        if m_f1:
+                            data["test_f1"] = float(m_f1.group(1))
+                        m_t_fnr = CORE_FNR_RE.search(line)
+                        if m_t_fnr:
+                            data["test_core_fnr"] = float(m_t_fnr.group(1))
+                        m_t_rec = CORE_REC_RE.search(line)
+                        if m_t_rec:
+                            data["test_core_rec"] = float(m_t_rec.group(1))
     except Exception:
         pass
     return data
@@ -95,24 +117,52 @@ def update_live_plots_for_log(log_path):
     if gcn_data["epochs"]:
         ep = gcn_data["epochs"]
         best_val_acc = max(gcn_data["val_acc"])
+        min_val_loss = min(gcn_data["val_loss"])
+        best_loss_idx = gcn_data["val_loss"].index(min_val_loss)
+        best_loss_epoch = ep[best_loss_idx]
+
+        loss_lbl = f"GCN Val Loss (min={min_val_loss:.4f} @ Ep {best_loss_epoch}"
+        if gcn_data["val_core_fnr"]:
+            loss_lbl += f", min CoreFNR={min(gcn_data['val_core_fnr']):.2f}%"
+        loss_lbl += ")"
+
         ax1.plot(ep, gcn_data["train_loss"], "--", color="#60a5fa", alpha=0.85, lw=1.6, label="GCN Train Loss")
-        ax1.plot(ep, gcn_data["val_loss"], "-o", color="#1d4ed8", ms=3.5, lw=2.2, label=f"GCN Val Loss (min={min(gcn_data['val_loss']):.4f})")
+        ax1.plot(ep, gcn_data["val_loss"], "-o", color="#1d4ed8", ms=3.5, lw=2.2, label=loss_lbl)
+        ax1.axvline(best_loss_epoch, color="#1d4ed8", linestyle=":", alpha=0.6, lw=1.5)
+        ax1.plot(best_loss_epoch, min_val_loss, "*", color="#fbbf24", markeredgecolor="#1d4ed8", ms=12, zorder=5, label=f"GCN Best Checkpoint (Ep {best_loss_epoch})")
+
         ax2.plot(ep, gcn_data["train_acc"], "--", color="#60a5fa", alpha=0.85, lw=1.6, label="GCN Train Acc")
         lbl_acc = f"GCN Val Acc (best={best_val_acc:.2f}%"
         if gcn_data["test_acc"] is not None:
             lbl_acc += f", test={gcn_data['test_acc']:.2f}%"
+        if gcn_data["val_core_rec"]:
+            lbl_acc += f", max CoreRec={max(gcn_data['val_core_rec']):.2f}%"
         lbl_acc += ")"
         ax2.plot(ep, gcn_data["val_acc"], "-o", color="#1d4ed8", ms=3.5, lw=2.2, label=lbl_acc)
 
     if gat_data["epochs"]:
         ep = gat_data["epochs"]
         best_val_acc = max(gat_data["val_acc"])
+        min_val_loss = min(gat_data["val_loss"])
+        best_loss_idx = gat_data["val_loss"].index(min_val_loss)
+        best_loss_epoch = ep[best_loss_idx]
+
+        loss_lbl = f"GAT Val Loss (min={min_val_loss:.4f} @ Ep {best_loss_epoch}"
+        if gat_data["val_core_fnr"]:
+            loss_lbl += f", min CoreFNR={min(gat_data['val_core_fnr']):.2f}%"
+        loss_lbl += ")"
+
         ax1.plot(ep, gat_data["train_loss"], "--", color="#fb923c", alpha=0.85, lw=1.6, label="GAT Train Loss")
-        ax1.plot(ep, gat_data["val_loss"], "-s", color="#ea580c", ms=3.5, lw=2.2, label=f"GAT Val Loss (min={min(gat_data['val_loss']):.4f})")
+        ax1.plot(ep, gat_data["val_loss"], "-s", color="#ea580c", ms=3.5, lw=2.2, label=loss_lbl)
+        ax1.axvline(best_loss_epoch, color="#ea580c", linestyle=":", alpha=0.6, lw=1.5)
+        ax1.plot(best_loss_epoch, min_val_loss, "*", color="#fbbf24", markeredgecolor="#ea580c", ms=12, zorder=5, label=f"GAT Best Checkpoint (Ep {best_loss_epoch})")
+
         ax2.plot(ep, gat_data["train_acc"], "--", color="#fb923c", alpha=0.85, lw=1.6, label="GAT Train Acc")
         lbl_acc = f"GAT Val Acc (best={best_val_acc:.2f}%"
         if gat_data["test_acc"] is not None:
             lbl_acc += f", test={gat_data['test_acc']:.2f}%"
+        if gat_data["val_core_rec"]:
+            lbl_acc += f", max CoreRec={max(gat_data['val_core_rec']):.2f}%"
         lbl_acc += ")"
         ax2.plot(ep, gat_data["val_acc"], "-s", color="#ea580c", ms=3.5, lw=2.2, label=lbl_acc)
 
@@ -165,10 +215,15 @@ def update_master_study2_live_plot():
         color = cmap(idx % 10)
         ep = d["epochs"]
         best_val = max(d["val_acc"])
+        min_loss = min(d["val_loss"])
+        best_idx = d["val_loss"].index(min_loss)
+        best_ep = ep[best_idx]
         test_str = f" | Test={d['test_acc']:.2f}%" if d["test_acc"] is not None else ""
-        ax1.plot(ep, d["train_loss"], "--", color=color, alpha=0.55, lw=1.3)
-        ax1.plot(ep, d["val_loss"], "-o", color=color, ms=3, lw=2.0, label=f"{label} [Ep {ep[-1]}]")
-        ax2.plot(ep, d["train_acc"], "--", color=color, alpha=0.55, lw=1.3)
+        core_str = f" | CoreFNR={min(d['val_core_fnr']):.2f}%" if d["val_core_fnr"] else ""
+        ax1.plot(ep, d["train_loss"], "--", color=color, alpha=0.45, lw=1.3)
+        ax1.plot(ep, d["val_loss"], "-o", color=color, ms=3, lw=2.0, label=f"{label} [Ep {ep[-1]}]{core_str}")
+        ax1.plot(best_ep, min_loss, "*", color=color, ms=9, zorder=4)
+        ax2.plot(ep, d["train_acc"], "--", color=color, alpha=0.45, lw=1.3)
         ax2.plot(
             ep,
             d["val_acc"],
