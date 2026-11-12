@@ -1,0 +1,34 @@
+{
+  "best_gcn_clean.pth": {
+    "filename": "best_gcn_clean.pth",
+    "architecture": "GCN",
+    "in_channels": 5,
+    "experiment_path": "GNN-jed/trained_models/study2/clean_5obs/best_gcn_clean.pth",
+    "central_archive_path": "GNN-jed/trained_models/study2/weights/best_gcn_clean.pth",
+    "size_kb": 120.0,
+    "best_epoch": 24,
+    "val_loss": 0.1817,
+    "val_acc": 92.32,
+    "test_loss": 0.1841,
+    "test_acc": 92.17,
+    "test_f1": 0.8886,
+    "updated_at": "2026-11-09 12:06:19"
+  },
+  "best_gat_clean.pth": {
+    "filename": "best_gat_clean.pth",
+    "architecture": "GAT",
+    "in_channels": 5,
+    "experiment_path": "GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth",
+    "central_archive_path": "GNN-jed/trained_models/study2/weights/best_gat_clean.pth",
+    "size_kb": 361.2,
+    "best_epoch": 18,
+    "val_loss": 0.147,
+    "val_acc": 94.2,
+    "val_core_fnr": 100.0,
+    "test_loss": 0.1641,
+    "test_acc": 93.04,
+    "test_f1": 0.9035,
+    "test_core_fnr": 6.49,
+    "updated_at": "2026-11-12 00:57:49"
+  }
+}

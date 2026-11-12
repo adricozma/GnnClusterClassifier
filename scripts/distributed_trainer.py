@@ -1,5 +1,6 @@
 """ Unified distributed / gradient-accumulation / disk-offload training engine for GCN and GAT."""
 
+import contextlib
 import gc
 import json
 import math
@@ -129,15 +130,34 @@ def _archive_and_register_weights(
 
 
 class AstroGraphDataset(Dataset):
-    def __init__(self, file_paths, feat_idx=None):
-        self.file_paths = file_paths
+    def __init__(self, file_items, feat_idx=None, stochastic=False, n_rot=5, fixed_rot=None):
+        self.file_items = file_items
         self.feat_idx = feat_idx
+        self.stochastic = stochastic
+        self.n_rot = n_rot
+        self.fixed_rot = fixed_rot
+        self.epoch = 0
+
+    def set_epoch(self, epoch: int):
+        self.epoch = epoch
 
     def __len__(self):
-        return len(self.file_paths)
+        return len(self.file_items)
 
     def __getitem__(self, idx):
-        filepath = self.file_paths[idx]
+        item = self.file_items[idx]
+        if isinstance(item, tuple):
+            base_stem, available_rots = item
+            if self.fixed_rot is not None:
+                rot = self.fixed_rot if self.fixed_rot in available_rots else available_rots[0]
+            elif self.stochastic and len(available_rots) > 0:
+                rot = available_rots[(self.epoch + idx) % len(available_rots)]
+            else:
+                rot = available_rots[0]
+            filepath = f"{base_stem}_rotation_{rot}.pt"
+        else:
+            filepath = item
+
         data = torch.load(filepath, weights_only=False)
         if self.feat_idx is not None and data.x.shape[1] > len(self.feat_idx):
             data.x = data.x[:, self.feat_idx]
@@ -213,6 +233,19 @@ def run_training(arch: str, args):
     else:
         epochs = min(epochs, 50)
 
+    stochastic_rot = getattr(args, "stochastic_rotation", True)
+    use_bf16 = getattr(args, "bf16", False)
+    bf16_supported = (
+        device.type == "cpu"
+        and hasattr(torch.cpu, "is_bf16_supported")
+        and torch.cpu.is_bf16_supported()
+    )
+    autocast_ctx = (
+        torch.autocast(device_type="cpu", dtype=torch.bfloat16)
+        if (use_bf16 and bf16_supported)
+        else contextlib.nullcontext()
+    )
+
     if is_main:
         print(
             f"[{arch.upper()}] Device: {device} | DDP World Size: {world_size} node(s) | "
@@ -224,6 +257,10 @@ def run_training(arch: str, args):
             f"{math.ceil(per_rank_bs / micro_bs)} grad-accum steps/node, Max Epochs: {epochs}, "
             f"Strict Val-Loss Patience: {early_stop_patience}, Dropout: {dropout_val}, "
             f"Weight Decay: {weight_decay_val:.1e}, Scheduler: {scheduler_type})"
+        )
+        print(
+            f"[{arch.upper()}] SO(3) Data Augmentation: stochastic_rotation={stochastic_rot} "
+            f"| AVX-512 bfloat16: {'ACTIVE' if (use_bf16 and bf16_supported) else ('OFF' if not use_bf16 else 'FALLBACK_FP32')}"
         )
 
     outputlist = list(range(0, 101))

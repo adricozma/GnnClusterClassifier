@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Study 2 Interactive Figure Dashboard (clean_5obs)</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      margin: 0;
+      padding: 28px;
+    }
+    h1, h2 { color: #e2e8f0; }
+    a { color: #38bdf8; text-decoration: none; font-weight: 500; }
+    a:hover { text-decoration: underline; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .card {
+      background: #1e293b;
+      padding: 16px;
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    }
+    .card img {
+      width: 100%;
+      height: auto;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Study 2 Scientific Figures Dashboard (clean_5obs)</h1>
+  <h2>Interactive HTML Plots (Click to open full-screen zoomable Plotly view)</h2>
+  <ul>
+    <li><a href="seeds_positions_unbiased.html" target="_blank">seeds_positions_unbiased.html</a></li>
+  </ul>
+  <h2>Static Publication PNG Figures</h2>
+  <div class="grid">
+    <div class="card"><h3>seeds_positions_unbiased.png</h3><img src="seeds_positions_unbiased.png" alt="seeds_positions_unbiased.png" /></div>
+  </div>
+</body>
+</html>
