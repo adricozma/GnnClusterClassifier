@@ -66,6 +66,39 @@ def get_slurm_queue():
         return f"Unable to query squeue: {e}"
 
 
+def get_in_flight_training_progress():
+    """Detect active batch progress from the most recent SLURM output log."""
+    out_files = sorted(
+        glob.glob(os.path.join(ROOT_DIR, "slurm_logs", "*.out")),
+        key=os.path.getmtime,
+        reverse=True,
+    )
+    for out_f in out_files[:3]:
+        try:
+            with open(out_f, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()[-40:]
+            for line in reversed(lines):
+                m = re.search(
+                    r"Epoch\s+(\d+)\s*\|\s*Batch\s+(\d+)/(\d+)\s*\|\s*Batch Loss:\s*([0-9.]+)\s*\|\s*LR:\s*([0-9.eE+-]+)\s*\|\s*RAM:\s*([0-9.]+[GM])",
+                    line,
+                )
+                if m:
+                    ep = int(m.group(1))
+                    b_cur = int(m.group(2))
+                    b_tot = int(m.group(3))
+                    pct = (b_cur / max(1, b_tot)) * 100.0
+                    loss = float(m.group(4))
+                    lr = m.group(5)
+                    ram = m.group(6)
+                    return {
+                        "summary": f"[IN FLIGHT] GAT Clean: Ep {ep:03d} | Batch {b_cur:04d}/{b_tot:04d} ({pct:.1f}%) | Batch Loss {loss:.4f} | LR: {lr} | RAM: {ram}",
+                        "row": ("clean_5obs", "GAT (In Flight)", f"Ep {ep:02d} ({pct:.0f}%)", loss, "-", "-", "-", "-", "-", "In progress", "-"),
+                    }
+        except Exception:
+            pass
+    return None
+
+
 def collect_pipeline_progress():
     """Count completed files across each stage of Study 2 and refresh live training plots."""
     n_ics = len(glob.glob(os.path.join(ROOT_DIR, "make_ICs", "initial_conditions_unbiased", "IC_*.hdf5")))
@@ -173,6 +206,11 @@ def collect_pipeline_progress():
             exp_name = os.path.basename(os.path.dirname(lg))
             model_name = "GAT" if "_gat" in os.path.basename(lg) else "GCN"
             training_rows.append((exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, core_fnr_str, test_str, f1_str))
+
+    in_flight = get_in_flight_training_progress()
+    if in_flight:
+        latest_epochs.append(in_flight["summary"])
+        training_rows.append(in_flight["row"])
 
     try:
         update_master_study2_live_plot()
