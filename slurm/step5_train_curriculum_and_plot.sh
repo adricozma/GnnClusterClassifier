@@ -80,7 +80,7 @@ fi
 if grep -q "=== END OF TRAINING ===" "$OUT_DIR/clean_5obs/training_metrics_gat_clean.log" 2>/dev/null && [ -f "$OUT_DIR/clean_5obs/best_gat_clean.pth" ]; then
     echo "  [Step 5] Stage 1 Clean GAT pre-training already completed. Skipping."
 else
-    run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
+    run_ddp_with_oom_fallback "scripts/train_gat.py" 32 \
         --data_folder "/scratch/cozma/graph_data_clean" \
         --n 5 \
         --lr 0.001 \
@@ -115,7 +115,7 @@ echo "=================================================================="
 if grep -q "=== END OF TRAINING ===" "$OUT_DIR/noisy_5obs/training_metrics_gat_noisy.log" 2>/dev/null && [ -f "$OUT_DIR/noisy_5obs/best_gat_noisy.pth" ]; then
     echo "  [Step 5] Stage 2 Gaia DR3 Noisy GAT fine-tuning already completed. Skipping."
 else
-    run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
+    run_ddp_with_oom_fallback "scripts/train_gat.py" 32 \
         --data_folder "/scratch/cozma/graph_data_noisy" \
         --n 5 \
         --lr 0.0005 \

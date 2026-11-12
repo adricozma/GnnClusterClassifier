@@ -145,13 +145,19 @@ class DiskActivationOffloader:
         return tensor
 
     def __enter__(self):
-        self._hooks_ctx = torch.autograd.graph.saved_tensors_hooks(self._pack_hook, self._unpack_hook)
-        self._hooks_ctx.__enter__()
+        if not self.force_enable:
+            self._cached_over = get_process_and_cgroup_rss_gb() >= self.threshold_gb
+        else:
+            self._cached_over = True
+        if self._cached_over:
+            self._hooks_ctx = torch.autograd.graph.saved_tensors_hooks(self._pack_hook, self._unpack_hook)
+            self._hooks_ctx.__enter__()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self._hooks_ctx is not None:
             self._hooks_ctx.__exit__(exc_type, exc_val, exc_tb)
+            self._hooks_ctx = None
         for fpath in self._files:
             try:
                 if os.path.exists(fpath):

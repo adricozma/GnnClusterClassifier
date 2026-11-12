@@ -101,7 +101,7 @@ echo "=== [3/4] Stage 1: Clean GAT Pre-Training on 4 Observables ($TAG, initiali
 if grep -q "=== END OF TRAINING ===" "$OUT_DIR_CLEAN/training_metrics_gat_${TAG}_clean.log" 2>/dev/null && [ -f "$OUT_DIR_CLEAN/best_gat_${TAG}_clean.pth" ]; then
     echo "  [Step 6] Stage 1 Clean GAT pre-training for $TAG already completed. Skipping."
 else
-    run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
+    run_ddp_with_oom_fallback "scripts/train_gat.py" 32 \
         --data_folder "$GRAPH_DIR_CLEAN" \
         --n 5 \
         --lr 0.001 \
@@ -131,7 +131,7 @@ echo "=== [4/4] Stage 2: Gaia DR3 Noisy GAT Fine-Tuning on 4 Observables ($TAG) 
 if grep -q "=== END OF TRAINING ===" "$OUT_DIR_NOISY/training_metrics_gat_${TAG}_noisy.log" 2>/dev/null && [ -f "$OUT_DIR_NOISY/best_gat_${TAG}_noisy.pth" ]; then
     echo "  [Step 6] Stage 2 Gaia DR3 Noisy GAT fine-tuning for $TAG already completed. Skipping."
 else
-    run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
+    run_ddp_with_oom_fallback "scripts/train_gat.py" 32 \
         --data_folder "$GRAPH_DIR_NOISY" \
         --n 5 \
         --lr 0.0005 \
