@@ -72,9 +72,18 @@ JOB6=$(submit_multinode_with_fallback "slurm/step6_ablation_4obs.sh" "afterok:$J
     "1 36 246G 168:00:00")
 echo "  -> Step 6 (4-Obs Ablation initialized from 5-Obs weights) Job ID: $JOB6 (depends on $JOB5)"
 
+echo "=== STEP 7: GCN RETRAINING WITH STOCHASTIC SO(3) ROTATIONS (AFTER ALL STEPS, DEPENDS ON STEP 6) ==="
+JOB7=$(submit_multinode_with_fallback "slurm/step7_retrain_gcn_stochastic.sh" "afterok:$JOB6" "--job-name=Study2_Step7_GCNStochastic" \
+    "2 36 246G 24:00:00" \
+    "3 24 164G 24:00:00" \
+    "4 18 123G 24:00:00" \
+    "1 36 246G 24:00:00")
+echo "  -> Step 7 (GCN Clean Retraining with stochastic rotations) Job ID: $JOB7 (depends on $JOB6)"
+
 echo ""
 echo "================================================================================"
 echo "STUDY 2 72-TASK BUDGET (2 NODES x 36 CORES = 72 CPUS, 492G TOTAL) SUBMITTED!"
-echo "  * Step 5 (5-Obs Clean -> Noisy, 81 clusters, 2 nodes x 36 CPUs / 246G): $JOB5"
+echo "  * Step 5 (5-Obs Clean -> Noisy GAT, 81 clusters, 2 nodes x 36 CPUs / 246G): $JOB5"
 echo "  * Step 6 (4-Obs Ablations x5, 2 nodes x 36 CPUs / 246G, after $JOB5): $JOB6"
+echo "  * Step 7 (GCN Baseline Retraining, 2 nodes x 36 CPUs / 246G, after $JOB6): $JOB7"
 echo "================================================================================"

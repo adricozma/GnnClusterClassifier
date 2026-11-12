@@ -83,6 +83,8 @@ else
     run_ddp_with_oom_fallback "scripts/train_gat.py" 32 \
         --data_folder "/scratch/cozma/graph_data_clean" \
         --n 5 \
+        --stochastic_rotation \
+        --bf16 \
         --lr 0.001 \
         --bs 64 \
         --epochs 50 \
@@ -118,6 +120,8 @@ else
     run_ddp_with_oom_fallback "scripts/train_gat.py" 32 \
         --data_folder "/scratch/cozma/graph_data_noisy" \
         --n 5 \
+        --stochastic_rotation \
+        --bf16 \
         --lr 0.0005 \
         --bs 64 \
         --epochs 30 \

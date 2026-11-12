@@ -53,7 +53,25 @@ def build_parser():
     )
     parser.add_argument("--dropout", type=float, default=0.2, help="Dropout probability on hidden activations (default: 0.2).")
     parser.add_argument("--weight_decay", type=float, default=1e-3, help="L2 weight decay regularization in AdamW (default: 1e-3).")
-    parser.add_argument("--patience", type=int, default=4, help="Strict early-stopping patience on validation BCE loss (default: 4).")
+    parser.add_argument("--patience", type=int, default=10, help="Strict early-stopping patience on validation BCE loss (default: 10).")
+    parser.add_argument(
+        "--stochastic_rotation",
+        action="store_true",
+        default=True,
+        help="Cycle through SO(3) rotations per epoch for ~5x training speedup with identical data distribution.",
+    )
+    parser.add_argument(
+        "--no_stochastic_rotation",
+        dest="stochastic_rotation",
+        action="store_false",
+        help="Disable stochastic rotation and load all rotations every epoch.",
+    )
+    parser.add_argument(
+        "--bf16",
+        action="store_true",
+        default=False,
+        help="Enable Intel AVX-512 bfloat16 native mixed precision on CPU.",
+    )
     parser.add_argument(
         "--min_Radial_kpc",
         "--filter_rp_min",

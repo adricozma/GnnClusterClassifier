@@ -296,16 +296,28 @@ def run_training(arch: str, args):
                     f"retained {len(ic_dirs)}/{before_cnt} streams."
                 )
 
-    def collect_files_for_ics(selected_ics):
-        paths = []
+    def collect_files_for_ics(selected_ics, stochastic=False, fixed_rot=None):
+        items = []
         for ic_dir in selected_ics:
             data_folder_path = os.path.join(data_folder, ic_dir)
             for output in outputlist:
+                available_rots = []
                 for i in range(n):
                     graph_file = f"{data_folder_path}/graph_data_output_{output}_rotation_{i}.pt"
                     if os.path.exists(graph_file):
-                        paths.append(graph_file)
-        return paths
+                        available_rots.append(i)
+                if not available_rots:
+                    continue
+                if stochastic:
+                    base_stem = f"{data_folder_path}/graph_data_output_{output}"
+                    items.append((base_stem, available_rots))
+                elif fixed_rot is not None:
+                    rot = fixed_rot if fixed_rot in available_rots else available_rots[0]
+                    items.append(f"{data_folder_path}/graph_data_output_{output}_rotation_{rot}.pt")
+                else:
+                    for i in available_rots:
+                        items.append(f"{data_folder_path}/graph_data_output_{output}_rotation_{i}.pt")
+        return items
 
     if split_mode == "ic":
         train_ics_subset, val_ics_subset, test_ics_subset = random_split(
@@ -320,11 +332,25 @@ def run_training(arch: str, args):
             print(f"  Val ICs : {val_ics}")
             print(f"  Test ICs: {test_ics}")
 
-        train_set = AstroGraphDataset(collect_files_for_ics(train_ics), feat_idx=feature_indices)
-        val_set = AstroGraphDataset(collect_files_for_ics(val_ics), feat_idx=feature_indices)
-        test_set = AstroGraphDataset(collect_files_for_ics(test_ics), feat_idx=feature_indices)
+        train_set = AstroGraphDataset(
+            collect_files_for_ics(train_ics, stochastic=stochastic_rot),
+            feat_idx=feature_indices,
+            stochastic=stochastic_rot,
+            n_rot=n,
+        )
+        val_set = AstroGraphDataset(
+            collect_files_for_ics(val_ics, stochastic=False, fixed_rot=0 if stochastic_rot else None),
+            feat_idx=feature_indices,
+            stochastic=False,
+            fixed_rot=0 if stochastic_rot else None,
+        )
+        test_set = AstroGraphDataset(
+            collect_files_for_ics(test_ics, stochastic=False, fixed_rot=None),
+            feat_idx=feature_indices,
+            stochastic=False,
+        )
     else:
-        file_paths = collect_files_for_ics(ic_dirs)
+        file_paths = collect_files_for_ics(ic_dirs, stochastic=False)
         if is_main:
             print(f"End of indexing! {len(file_paths)} files found.")
         dataset = AstroGraphDataset(file_paths, feat_idx=feature_indices)
@@ -606,6 +632,8 @@ def run_training(arch: str, args):
 
         if train_sampler is not None:
             train_sampler.set_epoch(epoch)
+        if hasattr(train_set, "set_epoch"):
+            train_set.set_epoch(epoch)
 
         model.train()
         total_nodes_train = 0.0
@@ -642,8 +670,9 @@ def run_training(arch: str, args):
                         mem_threshold_fraction=0.70,
                         force_enable=False,
                     ):
-                        out = model(sub_batch).view(-1)
-                        loss_sum = criterion_sum(out, sub_batch.y)
+                        with autocast_ctx:
+                            out = model(sub_batch).view(-1)
+                        loss_sum = criterion_sum(out.float(), sub_batch.y.float())
                         scaled_loss = loss_sum / batch_total_nodes
                         scaled_loss.backward()
 
@@ -688,8 +717,9 @@ def run_training(arch: str, args):
         with torch.no_grad():
             for sub_batch in val_loader:
                 sub_batch = sub_batch.to(device)
-                out = base_model(sub_batch).view(-1)
-                loss_sum = criterion_sum(out, sub_batch.y)
+                with autocast_ctx:
+                    out = base_model(sub_batch).view(-1)
+                loss_sum = criterion_sum(out.float(), sub_batch.y.float())
 
                 running_val_loss += float(loss_sum.item())
                 total_nodes_val += float(sub_batch.num_nodes)
@@ -831,8 +861,9 @@ def run_training(arch: str, args):
     with torch.no_grad():
         for sub_batch in test_loader:
             sub_batch = sub_batch.to(device)
-            out = base_model(sub_batch).view(-1)
-            loss_sum = criterion_sum(out, sub_batch.y)
+            with autocast_ctx:
+                out = base_model(sub_batch).view(-1)
+            loss_sum = criterion_sum(out.float(), sub_batch.y.float())
 
             running_test_loss += float(loss_sum.item())
             total_nodes_test += float(sub_batch.num_nodes)

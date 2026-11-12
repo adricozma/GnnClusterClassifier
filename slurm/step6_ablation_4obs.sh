@@ -104,10 +104,12 @@ else
     run_ddp_with_oom_fallback "scripts/train_gat.py" 32 \
         --data_folder "$GRAPH_DIR_CLEAN" \
         --n 5 \
+        --stochastic_rotation \
+        --bf16 \
         --lr 0.001 \
         --bs 64 \
         --epochs 20 \
-        --patience 4 \
+        --patience 8 \
         --dropout 0.4 \
         --weight_decay 1e-3 \
         --scheduler onecycle \
@@ -134,10 +136,12 @@ else
     run_ddp_with_oom_fallback "scripts/train_gat.py" 32 \
         --data_folder "$GRAPH_DIR_NOISY" \
         --n 5 \
+        --stochastic_rotation \
+        --bf16 \
         --lr 0.0005 \
         --bs 64 \
         --epochs 20 \
-        --patience 4 \
+        --patience 8 \
         --dropout 0.4 \
         --weight_decay 1e-3 \
         --scheduler onecycle \
