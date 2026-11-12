@@ -63,29 +63,37 @@ echo "STAGE 1: CLEAN PRE-TRAINING (Noiseless 5D Astrometric Graphs, 81 Streams)"
 echo "Nodes: $NNODES x 72 CPUs (492G RAM/node)"
 echo "=================================================================="
 
-run_ddp_with_oom_fallback "scripts/train_gcn.py" 16 \
-    --data_folder "/scratch/cozma/graph_data_clean" \
-    --n 5 \
-    --lr 0.001 \
-    --bs 256 \
-    --epochs 25 \
-    --split_mode ic \
-    --save_model "$OUT_DIR/clean_5obs/best_gcn_clean.pth" \
-    --log_file "$OUT_DIR/clean_5obs/training_metrics_gcn_clean.log"
+if grep -q "=== END OF TRAINING ===" "$OUT_DIR/clean_5obs/training_metrics_gcn_clean.log" 2>/dev/null && [ -f "$OUT_DIR/clean_5obs/best_gcn_clean.pth" ]; then
+    echo "  [Step 5] Stage 1 Clean GCN baseline already completed. Skipping."
+else
+    run_ddp_with_oom_fallback "scripts/train_gcn.py" 16 \
+        --data_folder "/scratch/cozma/graph_data_clean" \
+        --n 5 \
+        --lr 0.001 \
+        --bs 256 \
+        --epochs 25 \
+        --split_mode ic \
+        --save_model "$OUT_DIR/clean_5obs/best_gcn_clean.pth" \
+        --log_file "$OUT_DIR/clean_5obs/training_metrics_gcn_clean.log"
+fi
 
-run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
-    --data_folder "/scratch/cozma/graph_data_clean" \
-    --n 5 \
-    --lr 0.001 \
-    --bs 64 \
-    --epochs 25 \
-    --patience 4 \
-    --dropout 0.4 \
-    --weight_decay 1e-3 \
-    --scheduler onecycle \
-    --split_mode ic \
-    --save_model "$OUT_DIR/clean_5obs/best_gat_clean.pth" \
-    --log_file "$OUT_DIR/clean_5obs/training_metrics_gat_clean.log"
+if grep -q "=== END OF TRAINING ===" "$OUT_DIR/clean_5obs/training_metrics_gat_clean.log" 2>/dev/null && [ -f "$OUT_DIR/clean_5obs/best_gat_clean.pth" ]; then
+    echo "  [Step 5] Stage 1 Clean GAT pre-training already completed. Skipping."
+else
+    run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
+        --data_folder "/scratch/cozma/graph_data_clean" \
+        --n 5 \
+        --lr 0.001 \
+        --bs 64 \
+        --epochs 50 \
+        --patience 10 \
+        --dropout 0.4 \
+        --weight_decay 1e-3 \
+        --scheduler onecycle \
+        --split_mode ic \
+        --save_model "$OUT_DIR/clean_5obs/best_gat_clean.pth" \
+        --log_file "$OUT_DIR/clean_5obs/training_metrics_gat_clean.log"
+fi
 
 echo "Generating Stage 1 PNG & Interactive HTML Figures..."
 python3 scripts/generate_study2_figures.py \
@@ -97,27 +105,31 @@ python3 scripts/generate_study2_figures.py \
     --gat_weights "$OUT_DIR/clean_5obs/best_gat_clean.pth" \
     --graph_dir "/scratch/cozma/graph_data_clean" \
     --sim_dir "$SIM_DIR" \
-    --labels_dir "/scratch/cozma/study2/labels_clean"
+    --labels_dir "/scratch/cozma/study2/labels_clean" || true
 python3 scripts/live_monitor.py --once || true
 
 echo "=================================================================="
 echo "STAGE 2: CURRICULUM FINE-TUNING ON GAIA DR3 NOISY GRAPHS (GAT ONLY, 81 Streams)"
 echo "=================================================================="
 
-run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
-    --data_folder "/scratch/cozma/graph_data_noisy" \
-    --n 5 \
-    --lr 0.0005 \
-    --bs 64 \
-    --epochs 20 \
-    --patience 4 \
-    --dropout 0.4 \
-    --weight_decay 1e-3 \
-    --scheduler onecycle \
-    --split_mode ic \
-    --pretrained_weights "$OUT_DIR/clean_5obs/best_gat_clean.pth" \
-    --save_model "$OUT_DIR/noisy_5obs/best_gat_noisy.pth" \
-    --log_file "$OUT_DIR/noisy_5obs/training_metrics_gat_noisy.log"
+if grep -q "=== END OF TRAINING ===" "$OUT_DIR/noisy_5obs/training_metrics_gat_noisy.log" 2>/dev/null && [ -f "$OUT_DIR/noisy_5obs/best_gat_noisy.pth" ]; then
+    echo "  [Step 5] Stage 2 Gaia DR3 Noisy GAT fine-tuning already completed. Skipping."
+else
+    run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
+        --data_folder "/scratch/cozma/graph_data_noisy" \
+        --n 5 \
+        --lr 0.0005 \
+        --bs 64 \
+        --epochs 30 \
+        --patience 8 \
+        --dropout 0.4 \
+        --weight_decay 1e-3 \
+        --scheduler onecycle \
+        --split_mode ic \
+        --pretrained_weights "$OUT_DIR/clean_5obs/best_gat_clean.pth" \
+        --save_model "$OUT_DIR/noisy_5obs/best_gat_noisy.pth" \
+        --log_file "$OUT_DIR/noisy_5obs/training_metrics_gat_noisy.log"
+fi
 
 echo "Generating Stage 2 PNG & Interactive HTML Figures..."
 python3 scripts/generate_study2_figures.py \
@@ -127,7 +139,7 @@ python3 scripts/generate_study2_figures.py \
     --gat_weights "$OUT_DIR/noisy_5obs/best_gat_noisy.pth" \
     --graph_dir "/scratch/cozma/graph_data_noisy" \
     --sim_dir "$SIM_DIR" \
-    --labels_dir "/scratch/cozma/study2/labels_clean"
+    --labels_dir "/scratch/cozma/study2/labels_clean" || true
 
 echo "=== STEP 5 CURRICULUM TRAINING & FIGURE GENERATION COMPLETED ==="
 python3 scripts/live_monitor.py --once || true

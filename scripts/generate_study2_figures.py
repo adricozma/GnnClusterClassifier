@@ -667,7 +667,7 @@ def evaluate_per_stream_and_plot(
         ax_fnr.set_ylabel("Core False Negative Rate [%]\n(Missed Bound Stars / $N_{\\mathrm{bound}}$)", fontsize=10)
         ax_fnr.set_title(
             f"{model_type} Surviving Dense Core False Negative Rate & Recall vs. First Perigalacticon $R_{{p1}}$ ({tag})\n"
-            f"[Surviving Cores with $N_{{\\mathrm{{bound}}}} \\ge 20$: {len(surviving_cores)} streams | "
+            f"[Surviving Cores with $N_{{\\mathrm{{bound}}}} \\geq 20$: {len(surviving_cores)} streams | "
             f"Pooled Core FNR = {overall_core_fnr:.2f}% (Recall = {overall_core_rec:.2f}%)]",
             fontsize=12,
             fontweight="bold",

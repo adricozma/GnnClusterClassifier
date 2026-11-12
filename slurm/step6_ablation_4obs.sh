@@ -98,20 +98,24 @@ if [ -f "$OUT_DIR_5OBS_CLEAN/best_gat_clean.pth" ]; then
 fi
 
 echo "=== [3/4] Stage 1: Clean GAT Pre-Training on 4 Observables ($TAG, initialized from 5D Clean GAT weights) ==="
-run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
-    --data_folder "$GRAPH_DIR_CLEAN" \
-    --n 5 \
-    --lr 0.001 \
-    --bs 64 \
-    --epochs 20 \
-    --patience 4 \
-    --dropout 0.4 \
-    --weight_decay 1e-3 \
-    --scheduler onecycle \
-    --split_mode ic \
-    --pretrained_weights "$PRETRAIN_GAT_5D" \
-    --save_model "$OUT_DIR_CLEAN/best_gat_${TAG}_clean.pth" \
-    --log_file "$OUT_DIR_CLEAN/training_metrics_gat_${TAG}_clean.log"
+if grep -q "=== END OF TRAINING ===" "$OUT_DIR_CLEAN/training_metrics_gat_${TAG}_clean.log" 2>/dev/null && [ -f "$OUT_DIR_CLEAN/best_gat_${TAG}_clean.pth" ]; then
+    echo "  [Step 6] Stage 1 Clean GAT pre-training for $TAG already completed. Skipping."
+else
+    run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
+        --data_folder "$GRAPH_DIR_CLEAN" \
+        --n 5 \
+        --lr 0.001 \
+        --bs 64 \
+        --epochs 20 \
+        --patience 4 \
+        --dropout 0.4 \
+        --weight_decay 1e-3 \
+        --scheduler onecycle \
+        --split_mode ic \
+        --pretrained_weights "$PRETRAIN_GAT_5D" \
+        --save_model "$OUT_DIR_CLEAN/best_gat_${TAG}_clean.pth" \
+        --log_file "$OUT_DIR_CLEAN/training_metrics_gat_${TAG}_clean.log"
+fi
 
 python3 scripts/generate_study2_figures.py \
     --output_dir "$OUT_DIR_CLEAN" \
@@ -121,23 +125,27 @@ python3 scripts/generate_study2_figures.py \
     --gat_weights "$OUT_DIR_CLEAN/best_gat_${TAG}_clean.pth" \
     --graph_dir "$GRAPH_DIR_CLEAN" \
     --sim_dir "$SIM_DIR" \
-    --labels_dir "/scratch/cozma/study2/labels_clean"
+    --labels_dir "/scratch/cozma/study2/labels_clean" || true
 
 echo "=== [4/4] Stage 2: Gaia DR3 Noisy GAT Fine-Tuning on 4 Observables ($TAG) ==="
-run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
-    --data_folder "$GRAPH_DIR_NOISY" \
-    --n 5 \
-    --lr 0.0005 \
-    --bs 64 \
-    --epochs 20 \
-    --patience 4 \
-    --dropout 0.4 \
-    --weight_decay 1e-3 \
-    --scheduler onecycle \
-    --split_mode ic \
-    --pretrained_weights "$OUT_DIR_CLEAN/best_gat_${TAG}_clean.pth" \
-    --save_model "$OUT_DIR_NOISY/best_gat_${TAG}_noisy.pth" \
-    --log_file "$OUT_DIR_NOISY/training_metrics_gat_${TAG}_noisy.log"
+if grep -q "=== END OF TRAINING ===" "$OUT_DIR_NOISY/training_metrics_gat_${TAG}_noisy.log" 2>/dev/null && [ -f "$OUT_DIR_NOISY/best_gat_${TAG}_noisy.pth" ]; then
+    echo "  [Step 6] Stage 2 Gaia DR3 Noisy GAT fine-tuning for $TAG already completed. Skipping."
+else
+    run_ddp_with_oom_fallback "scripts/train_gat.py" 16 \
+        --data_folder "$GRAPH_DIR_NOISY" \
+        --n 5 \
+        --lr 0.0005 \
+        --bs 64 \
+        --epochs 20 \
+        --patience 4 \
+        --dropout 0.4 \
+        --weight_decay 1e-3 \
+        --scheduler onecycle \
+        --split_mode ic \
+        --pretrained_weights "$OUT_DIR_CLEAN/best_gat_${TAG}_clean.pth" \
+        --save_model "$OUT_DIR_NOISY/best_gat_${TAG}_noisy.pth" \
+        --log_file "$OUT_DIR_NOISY/training_metrics_gat_${TAG}_noisy.log"
+fi
 
 python3 scripts/generate_study2_figures.py \
     --output_dir "$OUT_DIR_NOISY" \
@@ -147,7 +155,7 @@ python3 scripts/generate_study2_figures.py \
     --gat_weights "$OUT_DIR_NOISY/best_gat_${TAG}_noisy.pth" \
     --graph_dir "$GRAPH_DIR_NOISY" \
     --sim_dir "$SIM_DIR" \
-    --labels_dir "/scratch/cozma/study2/labels_clean"
+    --labels_dir "/scratch/cozma/study2/labels_clean" || true
 
 echo "=== COMPLETED 4-OBSERVABLE CLEAN + GAIA NOISY GAT ABLATION FOR $TAG ==="
 python3 scripts/live_monitor.py --once || true

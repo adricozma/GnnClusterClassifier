@@ -206,12 +206,12 @@ def run_training(arch: str, args):
     eval_bs = min(per_rank_bs, max(micro_bs, 32))
 
     # Strict validation-loss early stopping to prevent overfitting on surviving dense cores.
-    default_patience = 5 if arch == "gcn" else 4
+    default_patience = 5 if arch == "gcn" else 10
     early_stop_patience = int(getattr(args, "patience", default_patience) or default_patience)
     if arch == "gcn":
         epochs = min(epochs, 25)
     else:
-        epochs = min(epochs, 30)
+        epochs = min(epochs, 50)
 
     if is_main:
         print(
@@ -435,9 +435,39 @@ def run_training(arch: str, args):
                 print(f"[Resume] Could not load resume state ({e}); starting from epoch 0.")
             ckpt = None
             start_epoch = 0
+    elif getattr(args, "resume", True) and os.path.exists(last_model_path) and os.path.exists(log_filename):
+        try:
+            parsed_hist = parse_log_file(log_filename)
+            if parsed_hist["epochs"]:
+                last_ep = int(parsed_hist["epochs"][-1])
+                sd = torch.load(last_model_path, map_location=device, weights_only=True)
+                base_model.load_state_dict(sd)
+                start_epoch = last_ep
+                if parsed_hist.get("lr"):
+                    last_logged_lr = float(parsed_hist["lr"][-1])
+                    for pg in optimizer.param_groups:
+                        pg["lr"] = last_logged_lr
+                if parsed_hist["val_loss"]:
+                    min_vl = min(parsed_hist["val_loss"])
+                    best_idx = parsed_hist["val_loss"].index(min_vl)
+                    best_val_loss = float(min_vl)
+                    best_val_acc = float(parsed_hist["val_acc"][best_idx])
+                    best_epoch = int(parsed_hist["epochs"][best_idx])
+                    epochs_without_improvement = max(0, last_ep - best_epoch)
+                if is_main:
+                    print(
+                        f"[Resume] Resumed weights from '{last_model_path}' at epoch {start_epoch}/{epochs} "
+                        f"(best_epoch={best_epoch}, best_val_loss={best_val_loss:.4f}, "
+                        f"best_val_acc={best_val_acc:.2f}%, no_improv={epochs_without_improvement})"
+                    )
+        except Exception as e:
+            if is_main:
+                print(f"[Resume] Could not resume from last weights ({e}); starting from epoch 0.")
+            ckpt = None
+            start_epoch = 0
 
     # Initialize adaptive learning rate scheduler (aware of start_epoch on resumed runs)
-    if start_epoch == 0 or ckpt is None:
+    if start_epoch == 0:
         if scheduler_type == "onecycle":
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
                 optimizer,
