@@ -24,9 +24,11 @@
     "best_epoch": 18,
     "val_loss": 0.147,
     "val_acc": 94.2,
-    "test_loss": null,
-    "test_acc": null,
-    "test_f1": null,
-    "updated_at": "2026-11-11 12:19:44"
+    "val_core_fnr": 100.0,
+    "test_loss": 0.1641,
+    "test_acc": 93.04,
+    "test_f1": 0.9035,
+    "test_core_fnr": 6.49,
+    "updated_at": "2026-11-12 00:57:49"
   }
 }
