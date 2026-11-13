@@ -1,30 +1,44 @@
 # Live Pipeline Status on Jed
 
 ```text
-[2026-11-13 06:32:55] Study 2 Pipeline Status on Jed
+[2026-11-13 06:35:04] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
 - Step 4 (5D Graphs): Clean=81/81 | GaiaNoisy=81/81
 - Step 5/6 Live GNN Training Progress:
-  * clean_5obs/training_metrics_gat_clean.log: Ep 020 | Train 0.1587 (93.65%) | Val 0.2280 (91.08%, Best=91.08%) | Test=In progress
+  * clean_5obs/training_metrics_gat_clean.log: Ep 020 | Train 0.1587 (93.65%) | Val 0.2280 (91.08%, Best=91.08%) | CoreFNR: 11.95% (min=8.43%) | Test=In progress
   * clean_5obs/training_metrics_gcn_clean.log: Ep 025 | Train 0.1136 (95.42%) | Val 0.1820 (92.33%, Best=92.33%) | Test=92.17%
   * legacy/clean_5obs_static_5rot/training_metrics_gcn_clean.log: Ep 025 | Train 0.1136 (95.42%) | Val 0.1820 (92.33%, Best=92.33%) | Test=92.17%
+- Saved Model Checkpoints (.pth): 8 mirrored in GNN-jed/trained_models/study2/weights/
 
 SLURM Queue:
 JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
       41146836   academic Study2_Step7_GCNStocha   PD       0:00      2 (Dependency)
 41146835_[0-4%   academic      Study2_Step6_4Obs   PD       0:00      2 (Dependency)
-      41146834   academic   Study2_Step5_Train81    R   15:47:33      2 jst[317,320]
+      41146834   academic   Study2_Step5_Train81    R   15:50:48      2 jst[317,320]
 ```
 
 ## Live Neural Network Training Metrics
 
-| Experiment | Architecture | Latest Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Best Val Acc | Test Acc | Test F1 |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `clean_5obs` | **GAT** | 20 | 0.1587 | 93.65% | 0.2280 | 91.08% | **91.08%** | **In progress** | - |
-| `clean_5obs` | **GCN** | 25 | 0.1136 | 95.42% | 0.1820 | 92.33% | **92.33%** | **92.17%** | 0.8886 |
-| `clean_5obs_static_5rot` | **GCN** | 25 | 0.1136 | 95.42% | 0.1820 | 92.33% | **92.33%** | **92.17%** | 0.8886 |
+| Experiment | Architecture | Latest Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Best Val Acc | Core FNR | Test Acc | Test F1 |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| `clean_5obs` | **GAT** | 20 | 0.1587 | 93.65% | 0.2280 | 91.08% | **91.08%** | 8.43% (val min) | **In progress** | - |
+| `clean_5obs` | **GCN** | 25 | 0.1136 | 95.42% | 0.1820 | 92.33% | **92.33%** | - | **92.17%** | 0.8886 |
+| `clean_5obs_static_5rot` | **GCN** | 25 | 0.1136 | 95.42% | 0.1820 | 92.33% | **92.33%** | - | **92.17%** | 0.8886 |
+
+## Saved Model Weights (`.pth` Checkpoints)
+
+| Checkpoint | Size | Experiment Path | Central Archive Mirror |
+| :--- | :---: | :--- | :--- |
+| `best_gat_clean.pth` | 361.2 KB | `GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth` | `GNN-jed/trained_models/study2/weights/best_gat_clean.pth` |
+| `best_gat_clean_ep18_backup.pth` | 361.2 KB | `GNN-jed/trained_models/study2/clean_5obs/best_gat_clean_ep18_backup.pth` | `GNN-jed/trained_models/study2/weights/best_gat_clean_ep18_backup.pth` |
+| `best_gcn_clean.pth` | 120.0 KB | `GNN-jed/trained_models/study2/clean_5obs/best_gcn_clean.pth` | `GNN-jed/trained_models/study2/weights/best_gcn_clean.pth` |
+| `best_gat_clean_ep18_backup.pth` | 361.2 KB | `GNN-jed/trained_models/study2/legacy/clean_5obs_static_5rot/best_gat_clean_ep18_backup.pth` | `GNN-jed/trained_models/study2/weights/best_gat_clean_ep18_backup.pth` |
+| `best_gcn_clean.pth` | 120.0 KB | `GNN-jed/trained_models/study2/legacy/clean_5obs_static_5rot/best_gcn_clean.pth` | `GNN-jed/trained_models/study2/weights/best_gcn_clean.pth` |
+| `best_gat_clean.pth` | 361.2 KB | `GNN-jed/trained_models/study2/legacy/weights/best_gat_clean.pth` | `GNN-jed/trained_models/study2/weights/best_gat_clean.pth` |
+| `best_gat_clean_ep18_backup.pth` | 361.2 KB | `GNN-jed/trained_models/study2/legacy/weights/best_gat_clean_ep18_backup.pth` | `GNN-jed/trained_models/study2/weights/best_gat_clean_ep18_backup.pth` |
+| `best_gcn_clean.pth` | 120.0 KB | `GNN-jed/trained_models/study2/legacy/weights/best_gcn_clean.pth` | `GNN-jed/trained_models/study2/weights/best_gcn_clean.pth` |
 
 ## Real-Time GNN Learning Curves (Loss & Accuracy Evolution)
 
