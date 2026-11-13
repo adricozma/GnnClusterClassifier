@@ -479,7 +479,7 @@ def main() -> None:
                     if (is_distributed and m_idx < n_micro - 1)
                     else nullcontext()
                 )
-                with sync_ctx, offloader.offload_context():
+                with sync_ctx, offloader:
                     logits = train_model(
                         batch.x,
                         batch.edge_index,
@@ -595,7 +595,7 @@ def main() -> None:
             f"Final Test Loss : {te_loss:.4f} | Acc: {te_m['acc']:.2f}% | "
             f"BalAcc: {te_m['bal_acc']:.2f}% | MacroF1: {te_m['macro_f1']:.4f} | "
             f"F1: {te_m['bound_f1']:.4f} | Prec: {te_m['bound_prec']:.4f} | "
-            f"Rec: {te_m['bound_rec']:.4f} | PE_Rec: {te_m['pe_rec']:.2f}% | "
+            f"Rec: {te_m['bound_rec'] / 100.0:.4f} | PE_Rec: {te_m['pe_rec']:.2f}% | "
             f"CoreFNR: {te_m['core_fnr']:.2f}% | FieldFPR: {te_m['field_fpr']:.2f}%\n"
         )
         print("\n" + summary_line)

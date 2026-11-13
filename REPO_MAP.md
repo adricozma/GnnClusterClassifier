@@ -42,6 +42,8 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 │   ├── gnn_models.py                          # [Study 2] Local k-NN phase-space relational encoder, Residual GCN &
 │   │                                          #   Multi-Head Residual GAT (4 heads, LayerNorm, ego-relational readout)
 │   ├── oom_Pin_and_offload.py                 # [Study 2] Distributed DDP initializer & cgroup-aware disk activation offloader
+│   ├── gaia_v2.py                             # [Study 2 V2] Kroupa IMF, G<=20.7 cut, Lindegren sigmas, linear parallax & MW field mixing
+│   ├── gnn_models_v2.py                       # [Study 2 V2] N-invariant sky-kNN GAT_V2, edge_attr, err_x, 3-class & 5D->4D transfer
 │   └── Stellar_objects/                       # 3D cluster density, line-of-sight dispersion, and sequence utilities
 │       ├── cluster_v4_properties.py
 │       ├── dispersion_vel_LOS.py
@@ -56,7 +58,15 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 │   ├── train_gat.py                           # 3-layer Multi-Head Residual GAT trainer (p=0.4 dropout, AdamW wd=1e-3, OneCycleLR, CoreFNR/CoreRec)
 │   ├── live_plot_utils.py                     # Real-time epoch-by-epoch live learning curve generator (.png)
 │   ├── live_monitor.py                        # Automated training telemetry and status updater
-│   └── generate_study2_figures.py             # Automated generator for all report/README plots (.png + interactive .html)
+│   ├── generate_study2_figures.py             # Automated generator for all report/README plots (.png + interactive .html)
+│   ├── v2_select_best_4d.py                   # [Study 2 V2] Automated Step 6 best-4D configuration parser & selector
+│   ├── v2_extract_observables.py              # [Study 2 V2] Isolated 3-class Gaia DR3 + MW contaminant observable extractor
+│   ├── v2_build_graph_dataset.py              # [Study 2 V2] Pure 2D-sky cKDTree graph builder with [dRA*, dDec, theta] edge attributes
+│   ├── v2_train_gat.py                        # [Study 2 V2] DDP GAT_V2 trainer (Clean 5D -> Noisy 5D & Clean Best-4D -> Noisy Best-4D)
+│   └── v2_infer_gaia_dr3.py                   # [Study 2 V2] Real Gaia DR3 / Ibata (2024) catalog inference (auto 5D/4D fallback)
+│
+├── tests/                                     # Unit & end-to-end verification tests
+│   └── test_v2_pipeline.py                    # [Study 2 V2] IMF/parallax/N-invariance/GAT_V2/Best-4D selector/smoke test suite
 │
 ├── slurm/                                     # SLURM batch scripts for HPC execution
 │   ├── step1_orbits_and_ics.sh                # Generates unbiased orbits and Plummer HDF5 initial conditions
@@ -65,7 +75,12 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 │   ├── step4_build_graphs.sh                  # Builds 5D (and optional 4D) k-NN graphs in $DATA_DIR
 │   ├── step5_train_curriculum_and_plot.sh     # Runs Stage 1 Clean (GCN + GAT) -> Stage 2 Noisy (GAT only) + figures
 │   ├── step6_ablation_4obs.sh                 # Runs 4-observable GAT-only ablation study (Clean -> Noisy)
-│   └── launch_full_study2_pipeline.sh         # Master script chaining Steps 5 and 6 via SLURM afterok dependencies
+│   ├── launch_full_study2_pipeline.sh         # Master script chaining Steps 5 and 6 via SLURM afterok dependencies
+│   ├── v2_step3_extract_obs.sh                # [Study 2 V2] Parallel SLURM array extracting Gaia DR3 V2 observables
+│   ├── v2_step4_build_graphs.sh               # [Study 2 V2] Best-4D selector + Clean/Noisy sky-kNN graph build
+│   ├── v2_step5_train_5d.sh                   # [Study 2 V2] 2-node DDP Clean 5D -> Noisy 5D GAT_V2 training
+│   ├── v2_step6_train_best4d.sh               # [Study 2 V2] 2-node DDP Best-4D transfer training + Ibata (2024) inference
+│   └── launch_study2_v2.sh                    # [Study 2 V2] Automated SLURM launcher chained after active V1 pipeline jobs
 │
 ├── GNN-jed/                                   # Trained models & intermediate observable/label matrices
 │   ├── trained_models/
@@ -109,3 +124,6 @@ Bulk simulation outputs, extracted observable matrices, and PyTorch Geometric `.
 | **Study 2 5D Noisy Graphs** | `$DATA_DIR/graph_data_noisy/` | PyTorch Geometric `.pt` 5D $k$-NN graphs ($k = 20$, *Gaia* DR3 noise) |
 | **Study 2 4D Ablation Graphs** | `$DATA_DIR/graph_data_4obs_<tag>_<clean\|noisy>/` | 4-observable $k$-NN graphs for feature-ablation experiments |
 | **Trained Model Weights** | `GNN-jed/trained_models/study2/weights/` | Version-controlled `.pth` checkpoints & `MODEL_WEIGHTS_REGISTRY.md` |
+| **Study 2 V2 Observables** | `/scratch/cozma/study2_v2/obs_unbiased/` | Gaia DR3 *G* <= 20.7 linear-parallax & MW contaminant `.npz` archives |
+| **Study 2 V2 Sky Graphs** | `/scratch/cozma/study2_v2/graphs_<clean\|noisy>/` | Pure 2D-sky *k*-NN PyG graphs (`edge_attr`, `err_x`, 3-class `y`) |
+| **Study 2 V2 Models & Logs** | `GNN-jed/trained_models/study2_v2/` | Best-4D config, V2 5D/4D checkpoints, logs & Gaia DR3 inference outputs |
