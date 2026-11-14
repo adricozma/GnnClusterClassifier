@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>GCN vs. GAT Training & Validation Dynamics (noisy_5obs)</title>
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    h2 {
+      margin-top: 0;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+    #plot {
+      width: 100%;
+      height: 82vh;
+      background: #1e293b;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+  </style>
+</head>
+<body>
+  <h2>GCN vs. GAT Training & Validation Dynamics (noisy_5obs)</h2>
+  <div id="plot"></div>
+  <script>
+    const traces = [{"x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "y": [0.5517, 0.4083, 0.3761, 0.3511, 0.3332, 0.3222, 0.31, 0.305, 0.2982, 0.2941, 0.2856, 0.283, 0.281, 0.2783, 0.2773, 0.2741, 0.271, 0.2717, 0.2678, 0.2683], "mode": "lines", "name": "GAT Train Loss", "line": {"dash": "dash", "color": "#fb923c"}, "xaxis": "x1", "yaxis": "y1"}, {"x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "y": [0.4727, 0.4594, 0.4351, 0.4358, 0.4533, 0.4108, 0.4264, 0.4549, 0.4397, 0.4185, 0.4269, 0.4014, 0.4116, 0.4154, 0.4125, 0.4213, 0.4321, 0.4173, 0.4138, 0.4221], "mode": "lines", "name": "GAT Val Loss", "line": {"width": 3, "color": "#ea580c"}, "xaxis": "x1", "yaxis": "y1"}, {"x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "y": [72.97, 78.52, 81.01, 82.67, 83.97, 84.73, 85.55, 85.92, 86.38, 86.62, 87.15, 87.22, 87.41, 87.57, 87.62, 87.81, 87.96, 87.94, 88.17, 88.1], "mode": "lines", "name": "GAT Train Acc (%)", "line": {"dash": "dash", "color": "#fb923c"}, "xaxis": "x2", "yaxis": "y2"}, {"x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "y": [73.65, 76.75, 78.58, 79.0, 78.44, 81.0, 80.16, 79.51, 80.1, 81.17, 80.94, 81.76, 80.89, 81.37, 81.56, 81.25, 81.06, 81.29, 81.65, 81.26], "mode": "lines", "name": "GAT Val Acc (%)", "line": {"width": 3, "color": "#ea580c"}, "xaxis": "x2", "yaxis": "y2"}];
+    const layout = Object.assign({
+      paper_bgcolor: "#1e293b",
+      plot_bgcolor: "#0f172a",
+      font: { color: "#e2e8f0", size: 13 },
+      hovermode: "closest"
+    }, {"grid": {"rows": 1, "columns": 2, "pattern": "independent"}, "xaxis1": {"title": "Epoch"}, "yaxis1": {"title": "BCE Loss"}, "xaxis2": {"title": "Epoch"}, "yaxis2": {"title": "Accuracy [%]"}});
+    Plotly.newPlot("plot", traces, layout, {responsive: true});
+  </script>
+</body>
+</html>
