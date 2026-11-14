@@ -23,8 +23,8 @@
     "central_archive_path": "GNN-jed/trained_models/study2/weights/best_gat_clean.pth",
     "size_kb": 361.2,
     "best_epoch": 18,
-    "val_loss": 0.1470,
-    "val_acc": 94.20,
+    "val_loss": 0.147,
+    "val_acc": 94.2,
     "val_core_fnr": 6.64,
     "test_loss": 0.1641,
     "test_acc": 93.04,
@@ -56,14 +56,14 @@
     "experiment_path": "GNN-jed/trained_models/study2/4obs_no_RA_clean/best_gat_4obs_no_RA_clean.pth",
     "central_archive_path": "GNN-jed/trained_models/study2/weights/best_gat_4obs_no_RA_clean.pth",
     "size_kb": 357.9,
-    "best_epoch": 1,
-    "val_loss": 0.2692,
-    "val_acc": 88.90,
-    "val_core_fnr": 8.41,
+    "best_epoch": 2,
+    "val_loss": 0.2404,
+    "val_acc": 90.04,
+    "val_core_fnr": 15.56,
     "test_loss": null,
     "test_acc": null,
     "test_f1": null,
     "test_core_fnr": null,
-    "updated_at": "2026-11-14 17:45:50"
+    "updated_at": "2026-11-14 18:31:30"
   }
 }
