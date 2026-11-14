@@ -341,6 +341,7 @@ def auto_push_to_github():
                 "src/",
                 "scripts/",
                 "slurm/",
+                "tests/",
                 "GNN-jed/trained_models/study2/",
             ],
             cwd=ROOT_DIR,

@@ -145,9 +145,9 @@ Bulk simulation outputs, extracted observable matrices, and PyTorch Geometric `.
    - `40,905` 5D `.pt` graphs each in `/scratch/cozma/graph_data_clean` and `/scratch/cozma/graph_data_noisy`.
    - All 10 pre-built 4D ablation graph directories (`graph_data_4obs_no_{RA,Dec,Parallax,pmRA,pmDec}_{clean,noisy}`, `40,905` `.pt` graphs each) are already built on `/scratch/cozma/`.
 3. **Completed Study 2 V1 Model Checkpoints (`GNN-jed/trained_models/study2/weights/`):**
-   - `best_gcn_clean.pth` (Static 5-rot, `dropout=0.2`, Ep 24/25): `Val Loss = 0.1817 (92.32%)`, **`Test Acc = 92.17%`, `BalAcc = 91.59%`, `Test F1 = 0.8886`**.
-   - `best_gat_clean_ep18_backup.pth` (Static 5-rot, `dropout=0.2`, Ep 18/22): `Val Loss = 0.1470 (94.20%)`, **`Test Acc = 93.04%`, `BalAcc = 93.15%`, `Test F1 = 0.9035`, `CoreFNR = 6.49%`**.
-   - `best_gat_clean.pth` (Stochastic 5-rot, `dropout=0.4`, Ep 35/45): `Val Loss = 0.2071 (91.89%)`, **`Test Acc = 91.43%`, `BalAcc = 91.28%`, `Test F1 = 0.8807`, `CoreFNR = 9.22%`**.
+   - `best_gat_clean.pth` / `best_gat_clean_ep18_backup.pth` (Canonical 5D Clean GAT, `dropout=0.2`, Ep 18/22): `Val Loss = 0.1470 (94.20%)`, **`Test Acc = 93.04%`, `BalAcc = 93.15%`, `Test F1 = 0.9035`, `CoreFNR = 6.49%`**.
+   - `best_gcn_clean.pth` (Static 5-rot, `dropout=0.2`, Ep 19/24): `Val Loss = 0.1725 (93.16%)`, **`Test Acc = 92.17%`, `BalAcc = 91.90%`, `Test F1 = 0.8886`, `CoreFNR = 10.32%`**.
+   - `best_gat_clean_dropout04_ep35.pth` (Archived Stochastic 5-rot, `dropout=0.4`, Ep 35/45): `Val Loss = 0.2071 (91.89%)`, **`Test Acc = 91.43%`, `BalAcc = 91.28%`, `Test F1 = 0.8807`, `CoreFNR = 9.22%`**.
    - `best_gat_noisy.pth` (Stochastic 5-rot Curriculum on V1 Gaia DR3 noise, `dropout=0.4`, Best Ep 12/20): `Val Loss = 0.4014 (81.76%)`, **`Test Loss = 0.3181`, `Test Acc = 84.91%`, `BalAcc = 83.88%`, `Test F1 = 0.7879`, `CoreFNR = 19.52%` (`CoreRec = 80.48%`)** — **COMPLETED** (all Stage 2 PNG/HTML figures generated in `GNN-jed/trained_models/study2/noisy_5obs/`).
 
 ---
