@@ -183,66 +183,199 @@ def plot_training_curves(gcn_log, gat_log, output_dir, tag):
     )
 
 
+def _compute_mp_threshold_and_curve(s: np.ndarray, shape: tuple[int, int]):
+    """Compute Gavish-Donoho (2014) / Marchenko-Pastur (MP) bulk upper edge and theoretical density."""
+    m_dim, n_dim = min(shape), max(shape)
+    beta = float(m_dim) / max(1.0, float(n_dim))
+    # Gavish & Donoho (2014) optimal hard threshold factor omega(beta) for unknown noise variance
+    omega_beta = 0.56 * (beta ** 3) - 0.95 * (beta ** 2) + 1.82 * beta + 1.43
+    s_med = float(np.median(s))
+    sigma_mp_plus = omega_beta * s_med
+    # Equivalent MP bulk scale sigma_bulk such that sigma_mp_plus = sigma_bulk * (1 + sqrt(beta))
+    mp_MP_median_factor = float(np.sqrt(max(1e-6, (1.0 + np.sqrt(beta)) ** 2)))
+    sigma_bulk = sigma_mp_plus / max(1e-6, mp_MP_median_factor)
+    sigma_mp_minus = sigma_bulk * abs(1.0 - np.sqrt(beta))
+    return sigma_mp_minus, sigma_mp_plus, beta
+
+
 def plot_spectral_analysis(gcn_weights_path, gat_weights_path, output_dir, tag, in_channels=5):
-    """Perform SVD on the second layer weight matrices of GCN and GAT."""
-    fig, ax = plt.subplots(figsize=(8, 5.5), dpi=180)
-    traces = []
+    """Render RMT Singular Value Spectrum in Candle / Bar (Bâtons) mode to highlight outliers detaching from the MP bulk."""
+    models_to_plot = []
 
     if gcn_weights_path and os.path.exists(gcn_weights_path):
-        m_gcn = GCNModel(in_channels=in_channels)
-        m_gcn.load_state_dict(torch.load(gcn_weights_path, map_location="cpu", weights_only=True))
-        w_gcn = m_gcn.conv2.lin.weight.detach().cpu().numpy()
-        s_gcn = np.linalg.svd(w_gcn, compute_uv=False)
-        s_gcn_norm = s_gcn / max(1e-12, s_gcn[0])
-        idx_gcn = list(range(1, len(s_gcn_norm) + 1))
-        ax.semilogy(idx_gcn, s_gcn_norm, "o-", color="#2563eb", lw=2, ms=4, label="GCN (conv2: 32x64)")
-        traces.append({
-            "x": idx_gcn,
-            "y": s_gcn_norm.tolist(),
-            "mode": "lines+markers",
-            "name": "GCN (conv2: 32x64)",
-            "line": {"color": "#3b82f6", "width": 2.5},
-        })
+        try:
+            sd_gcn = torch.load(gcn_weights_path, map_location="cpu", weights_only=True)
+            w_gcn = sd_gcn.get("conv2.lin.weight")
+            if w_gcn is not None:
+                w_np = w_gcn.detach().cpu().numpy()
+                s_gcn = np.linalg.svd(w_np, compute_uv=False)
+                models_to_plot.append(("GCN (conv2: 128×64)", s_gcn, w_np.shape, "#2563eb", "#93c5fd", "#1d4ed8"))
+        except Exception:
+            pass
 
     if gat_weights_path and os.path.exists(gat_weights_path):
-        m_gat = GATModel(in_channels=in_channels)
-        m_gat.load_state_dict(torch.load(gat_weights_path, map_location="cpu", weights_only=True))
-        w_gat_tensor = (
-            m_gat.conv2.lin.weight
-            if hasattr(m_gat.conv2, "lin") and m_gat.conv2.lin is not None
-            else m_gat.conv2.lin_src.weight
-        )
-        w_gat = w_gat_tensor.detach().cpu().numpy()
-        s_gat = np.linalg.svd(w_gat, compute_uv=False)
-        s_gat_norm = s_gat / max(1e-12, s_gat[0])
-        idx_gat = list(range(1, len(s_gat_norm) + 1))
-        ax.semilogy(idx_gat, s_gat_norm, "s-", color="#ea580c", lw=2, ms=3.5, label="GAT (conv2: 128x256)")
-        traces.append({
-            "x": idx_gat,
-            "y": s_gat_norm.tolist(),
-            "mode": "lines+markers",
-            "name": "GAT (conv2: 128x256)",
-            "line": {"color": "#f97316", "width": 2.5},
-        })
+        try:
+            sd_gat = torch.load(gat_weights_path, map_location="cpu", weights_only=True)
+            w_gat = sd_gat.get("conv2.lin.weight", sd_gat.get("conv2.lin_src.weight"))
+            if w_gat is not None:
+                w_np = w_gat.detach().cpu().numpy()
+                s_gat = np.linalg.svd(w_np, compute_uv=False)
+                models_to_plot.append(("GAT (conv2: 256×128)", s_gat, w_np.shape, "#ea580c", "#fdba74", "#b91c1c"))
+        except Exception:
+            pass
 
-    if not traces:
-        plt.close(fig)
+    if not models_to_plot:
         return
 
-    ax.set_xlabel("Singular Value Index $i$")
-    ax.set_ylabel("Normalized Singular Value $\\sigma_i / \\sigma_1$")
-    ax.set_title(f"Singular Value Spectrum of Intermediate Layer Weights ({tag})")
-    ax.grid(True, which="both", alpha=0.25)
-    ax.legend()
+    n_rows = len(models_to_plot)
+    fig, axes = plt.subplots(n_rows, 2, figsize=(14.5, 5.2 * n_rows), dpi=180, squeeze=False)
+    traces = []
+
+    for row_idx, (m_label, s_vals, w_shape, col_main, col_bulk, col_spike) in enumerate(models_to_plot):
+        ax_esd = axes[row_idx, 0]
+        ax_rank = axes[row_idx, 1]
+
+        s_norm = s_vals / max(1e-12, float(s_vals[0]))
+        s_mp_min, s_mp_max, beta = _compute_mp_threshold_and_curve(s_norm, w_shape)
+        is_spike = s_norm > s_mp_max
+        n_spikes = int(np.sum(is_spike))
+        idx = np.arange(1, len(s_norm) + 1)
+
+        # --- LEFT PANEL: Empirical Spectral Density (Bar Histogram) + Candle Stems for Detached Outliers ---
+        bins = np.linspace(0.0, max(1.02, float(s_norm.max()) * 1.03), 28)
+        counts, edges = np.histogram(s_norm, bins=bins, density=False)
+        centers = 0.5 * (edges[:-1] + edges[1:])
+        width = (edges[1] - edges[0]) * 0.82
+
+        bar_colors = [col_spike if c > s_mp_max else col_bulk for c in centers]
+        ax_esd.bar(
+            centers,
+            counts,
+            width=width,
+            color=bar_colors,
+            edgecolor="#1e293b",
+            linewidth=0.6,
+            alpha=0.80,
+            label=f"Singular Value Histogram (Bulk ≤ {s_mp_max:.2f})",
+            zorder=2,
+        )
+
+        # Overlay individual candle stems (bâtons/candles) for every singular value, emphasizing detached spikes
+        spike_vals = s_norm[is_spike]
+        bulk_vals = s_norm[~is_spike]
+        candle_h_bulk = max(1.0, float(counts.max()) * 0.14)
+        candle_h_spike = max(1.8, float(counts.max()) * 0.42)
+
+        if len(bulk_vals) > 0:
+            ax_esd.vlines(bulk_vals, 0, candle_h_bulk, color="#475569", lw=1.0, alpha=0.55, zorder=3)
+        if len(spike_vals) > 0:
+            ax_esd.vlines(
+                spike_vals,
+                0,
+                candle_h_spike,
+                color=col_spike,
+                lw=2.2,
+                zorder=4,
+                label=f"Detached Signal Candles ({n_spikes} spikes > MP edge)",
+            )
+            ax_esd.scatter(
+                spike_vals,
+                np.full_like(spike_vals, candle_h_spike),
+                color="#fbbf24",
+                edgecolors=col_spike,
+                s=42,
+                linewidth=1.3,
+                zorder=5,
+            )
+
+        ax_esd.axvline(
+            s_mp_max,
+            color="#dc2626",
+            linestyle="--",
+            lw=2.0,
+            zorder=6,
+            label=f"Marchenko–Pastur Bulk Edge $\\sigma_{{MP}}^+ = {s_mp_max:.3f}$",
+        )
+        ax_esd.axvspan(0.0, s_mp_max, color=col_bulk, alpha=0.14, label="RMT Noise/Bulk Regime")
+        ax_esd.set_xlabel("Normalized Singular Value $\\sigma_i / \\sigma_1$")
+        ax_esd.set_ylabel("Mode Count (Histogram + Candle Stems)")
+        ax_esd.set_title(f"{m_label} — Spectral Bulk vs. Detached Spikes ({tag})")
+        ax_esd.grid(True, alpha=0.25)
+        ax_esd.legend(fontsize=8.3, loc="upper right")
+
+        # --- RIGHT PANEL: Ranked Candle / Bar Spectrum (sigma_i / sigma_1 vs Index i) ---
+        colors_rank = [col_spike if sp else col_bulk for sp in is_spike]
+        ax_rank.bar(
+            idx[~is_spike],
+            s_norm[~is_spike],
+            width=0.72,
+            color=col_bulk,
+            edgecolor="#334155",
+            linewidth=0.35,
+            alpha=0.85,
+            label=f"MP Bulk Modes ({len(s_norm) - n_spikes})",
+            zorder=2,
+        )
+        if n_spikes > 0:
+            ax_rank.bar(
+                idx[is_spike],
+                s_norm[is_spike],
+                width=0.78,
+                color=col_spike,
+                edgecolor="#7f1d1d",
+                linewidth=0.6,
+                alpha=0.95,
+                label=f"Detached Outliers > $\\sigma_{{MP}}^+$ ({n_spikes})",
+                zorder=3,
+            )
+            ax_rank.scatter(
+                idx[is_spike],
+                s_norm[is_spike],
+                color="#fbbf24",
+                edgecolors=col_spike,
+                s=28,
+                linewidth=1.0,
+                zorder=4,
+            )
+
+        ax_rank.axhline(
+            s_mp_max,
+            color="#dc2626",
+            linestyle="--",
+            lw=1.8,
+            zorder=5,
+            label=f"MP Upper Edge $\\sigma_{{MP}}^+ / \\sigma_1 = {s_mp_max:.3f}$",
+        )
+        ax_rank.set_xlabel("Singular Value Rank Index $i$")
+        ax_rank.set_ylabel("Normalized Singular Value $\\sigma_i / \\sigma_1$")
+        ax_rank.set_title(f"{m_label} — Ranked Candle Spectrum ({n_spikes} Detached Modes)")
+        ax_rank.set_xlim(0, len(s_norm) + 1)
+        ax_rank.set_ylim(0, 1.06)
+        ax_rank.grid(True, which="both", alpha=0.25)
+        ax_rank.legend(fontsize=8.3, loc="upper right")
+
+        traces.append({
+            "x": idx.tolist(),
+            "y": s_norm.tolist(),
+            "type": "bar",
+            "name": f"{m_label} (MP edge={s_mp_max:.3f}, {n_spikes} spikes)",
+            "marker": {"color": [col_spike if sp else col_main for sp in is_spike]},
+        })
+
     plt.tight_layout()
+    os.makedirs(output_dir, exist_ok=True)
     plt.savefig(os.path.join(output_dir, f"spectral_analysis_GNN_{tag}.png"))
     plt.close(fig)
 
     _write_plotly_html(
         os.path.join(output_dir, f"spectral_analysis_GNN_{tag}.html"),
-        f"Singular Value Spectrum (SVD) of GNN Weight Matrices ({tag})",
+        f"Singular Value Candle Spectrum (RMT Bulk vs. Outliers) — {tag}",
         traces,
-        {"xaxis": {"title": "Singular Value Index i"}, "yaxis": {"title": "Normalized Singular Value (sigma_i / sigma_1)", "type": "log"}},
+        {
+            "barmode": "group",
+            "xaxis": {"title": "Singular Value Rank Index i"},
+            "yaxis": {"title": "Normalized Singular Value (sigma_i / sigma_1)"},
+        },
     )
 
 
