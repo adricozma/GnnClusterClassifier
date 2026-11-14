@@ -39,11 +39,12 @@ echo "FINAL STEP 7: RETRAIN GCN CLEAN BASELINE WITH STOCHASTIC SO(3) ROTATIONS"
 echo "Nodes: $NNODES x 36 CPUs (246G RAM/node, 72 CPUs total)"
 echo "=================================================================="
 
-# Archive static GCN to legacy if not already done
-mkdir -p "$OUT_DIR/legacy/clean_5obs_static_5rot"
-if [ -f "$OUT_DIR/clean_5obs/best_gcn_clean.pth" ] && [ ! -f "$OUT_DIR/legacy/clean_5obs_static_5rot/best_gcn_clean.pth" ]; then
-    cp "$OUT_DIR/clean_5obs/best_gcn_clean.pth" "$OUT_DIR/legacy/clean_5obs_static_5rot/" 2>/dev/null || true
-    cp "$OUT_DIR/clean_5obs/training_metrics_gcn_clean.log" "$OUT_DIR/legacy/clean_5obs_static_5rot/" 2>/dev/null || true
+# Archive static GCN to legacy archive if not already done
+LEGACY_DIR="GNN-jed/trained_models/study2_legacy_archive/clean_5obs_static_5rot"
+mkdir -p "$LEGACY_DIR"
+if [ -f "$OUT_DIR/clean_5obs/best_gcn_clean.pth" ] && [ ! -f "$LEGACY_DIR/best_gcn_clean.pth" ]; then
+    cp "$OUT_DIR/clean_5obs/best_gcn_clean.pth" "$LEGACY_DIR/" 2>/dev/null || true
+    cp "$OUT_DIR/clean_5obs/training_metrics_gcn_clean.log" "$LEGACY_DIR/" 2>/dev/null || true
 fi
 
 # Run GCN Clean retraining with stochastic SO(3) rotations

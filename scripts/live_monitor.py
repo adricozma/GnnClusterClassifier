@@ -321,8 +321,13 @@ def write_live_status_markdown(report, prog):
             else:
                 exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, test_str, f1_str = row
                 core_str = "-"
+            tr_l_s = f"{tr_l:.4f}" if isinstance(tr_l, (int, float)) else str(tr_l)
+            tr_a_s = f"{tr_a:.2f}%" if isinstance(tr_a, (int, float)) else str(tr_a)
+            va_l_s = f"{va_l:.4f}" if isinstance(va_l, (int, float)) else str(va_l)
+            va_a_s = f"{va_a:.2f}%" if isinstance(va_a, (int, float)) else str(va_a)
+            best_va_s = f"**{best_va:.2f}%**" if isinstance(best_va, (int, float)) else str(best_va)
             md_lines.append(
-                f"| `{exp_name}` | **{model_name}** | {ep} | {tr_l:.4f} | {tr_a:.2f}% | {va_l:.4f} | {va_a:.2f}% | **{best_va:.2f}%** | {core_str} | **{test_str}** | {f1_str} |"
+                f"| `{exp_name}` | **{model_name}** | {ep} | {tr_l_s} | {tr_a_s} | {va_l_s} | {va_a_s} | {best_va_s} | {core_str} | **{test_str}** | {f1_str} |"
             )
 
     if prog.get("saved_weights"):
@@ -344,6 +349,22 @@ def write_live_status_markdown(report, prog):
             "",
             f"![Live GNN Training Curves]({master_plot_rel})",
         ])
+
+    svd_plots = sorted(glob.glob(os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2", "**", "spectral_analysis_GNN_*.png"), recursive=True))
+    if svd_plots:
+        md_lines.extend([
+            "",
+            "## RMT Singular Value Candle Spectra (Marchenko-Pastur Bulk vs Detached Signal)",
+            "",
+        ])
+        for svd_p in svd_plots:
+            rel_svd = os.path.relpath(svd_p, ROOT_DIR)
+            exp_folder = os.path.basename(os.path.dirname(svd_p))
+            md_lines.extend([
+                f"### `{exp_folder}`",
+                f"![RMT Candle Spectrum {exp_folder}]({rel_svd})",
+                "",
+            ])
 
     with open(status_md_path, "w", encoding="utf-8") as f:
         f.write("\n".join(md_lines) + "\n")

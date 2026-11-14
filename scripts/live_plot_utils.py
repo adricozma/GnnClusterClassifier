@@ -185,7 +185,10 @@ def update_live_plots_for_log(log_path):
 
     # Automatically refresh the RMT candle singular value spectrum if best weights exist in exp_dir
     try:
-        from generate_study2_figures import plot_spectral_analysis
+        try:
+            from scripts.generate_study2_figures import plot_spectral_analysis
+        except ImportError:
+            from generate_study2_figures import plot_spectral_analysis
         gcn_w = sorted(glob.glob(os.path.join(exp_dir, "best_gcn*.pth")))
         gat_w = sorted(glob.glob(os.path.join(exp_dir, "best_gat*.pth")))
         if gcn_w or gat_w:
