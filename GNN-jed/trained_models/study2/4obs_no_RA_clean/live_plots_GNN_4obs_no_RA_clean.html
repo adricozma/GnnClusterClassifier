@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Live GNN Learning Curves (4obs_no_RA_clean)</title>
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <style>
+    body { margin: 0; background: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
+    #plot { width: 100vw; height: 96vh; }
+  </style>
+</head>
+<body>
+  <div id="plot"></div>
+  <script>
+    const traces = [{"x": [1, 2], "y": [0.1996, 0.1752], "mode": "lines+markers", "name": "GAT Train Loss", "line": {"dash": "dash", "color": "#fb923c"}, "xaxis": "x1", "yaxis": "y1"}, {"x": [1, 2], "y": [0.2692, 0.2404], "mode": "lines+markers", "name": "GAT Val Loss (min=0.2404)", "line": {"width": 3, "color": "#ea580c"}, "xaxis": "x1", "yaxis": "y1"}, {"x": [1, 2], "y": [91.88, 92.98], "mode": "lines+markers", "name": "GAT Train Acc (%)", "line": {"dash": "dash", "color": "#fb923c"}, "xaxis": "x2", "yaxis": "y2"}, {"x": [1, 2], "y": [88.9, 90.04], "mode": "lines+markers", "name": "GAT Val Acc (best=90.04%)", "line": {"width": 3, "color": "#ea580c"}, "xaxis": "x2", "yaxis": "y2"}];
+    const layout = {"title": "Interactive GNN Learning Curves \u2014 Loss & Accuracy (4obs_no_RA_clean)", "template": "plotly_dark", "paper_bgcolor": "#0f172a", "plot_bgcolor": "#1e293b", "font": {"family": "Inter, system-ui, sans-serif", "size": 13, "color": "#f8fafc"}, "grid": {"rows": 1, "columns": 2, "pattern": "independent"}, "xaxis1": {"title": "Epoch"}, "yaxis1": {"title": "Binary Cross-Entropy Loss"}, "xaxis2": {"title": "Epoch"}, "yaxis2": {"title": "Node Classification Accuracy [%]"}};
+    Plotly.newPlot('plot', traces, layout, {responsive: true, displaylogo: false});
+  </script>
+</body>
+</html>

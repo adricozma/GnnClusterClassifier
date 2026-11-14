@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Study 2 — Master Index & Interactive GNN Dashboard</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --panel: #1e293b;
+      --panel-alt: #152033;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --gat: #f97316;
+      --gcn: #3b82f6;
+      --green: #10b981;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 28px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.45);
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    h1 { margin: 0; font-size: 1.45rem; color: #f8fafc; }
+    .timestamp { font-size: 0.88rem; color: var(--accent); background: rgba(56,189,248,0.12); padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(56,189,248,0.3); }
+    .nav-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .tab-btn {
+      background: #0f172a;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 9px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.15s ease;
+    }
+    .tab-btn:hover { color: #fff; border-color: var(--accent); }
+    .tab-btn.active {
+      background: var(--accent);
+      color: #0f172a;
+      border-color: var(--accent);
+      box-shadow: 0 0 12px rgba(56,189,248,0.4);
+    }
+    main { max-width: 1650px; margin: 0 auto; padding: 24px 28px 60px; }
+    .tab-section { display: none; }
+    .tab-section.active { display: block; }
+    .viewer-box {
+      background: var(--panel);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 24px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.4);
+    }
+    .viewer-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .viewer-title { font-weight: 700; color: var(--accent); font-size: 1.02rem; }
+    iframe#plotly-viewer {
+      width: 100%;
+      height: 540px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #0f172a;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 24px;
+      font-size: 0.92rem;
+    }
+    th, td { padding: 10px 12px; text-align: center; border-bottom: 1px solid var(--border); }
+    th { background: #0f172a; color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.04em; }
+    td:first-child, th:first-child { text-align: left; }
+    .badge { padding: 3px 9px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; }
+    .badge-gat { background: rgba(249,115,22,0.2); color: #fb923c; border: 1px solid rgba(249,115,22,0.4); }
+    .badge-gcn { background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.4); }
+    .badge-live { background: rgba(168,85,247,0.22); color: #c084fc; border: 1px solid rgba(168,85,247,0.5); }
+    .status-done { color: #34d399; font-weight: 700; }
+    .status-live { color: #fbbf24; font-weight: 700; }
+    .exp-block {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .pending-block { opacity: 0.8; border-style: dashed; }
+    .exp-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+    .subtitle { color: var(--muted); margin-top: 4px; margin-bottom: 16px; font-size: 0.95rem; }
+    .pills-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .plot-pill {
+      display: inline-flex;
+      align-items: center;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .btn-plot {
+      background: transparent;
+      color: #e2e8f0;
+      border: none;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 0.86rem;
+      font-weight: 500;
+    }
+    .btn-plot:hover { background: rgba(56,189,248,0.18); color: var(--accent); }
+    .btn-ext {
+      color: var(--accent);
+      padding: 8px 10px;
+      text-decoration: none;
+      border-left: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+    .btn-ext:hover { background: rgba(56,189,248,0.2); }
+    .dual-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+      gap: 18px;
+    }
+    .img-wrap {
+      background: var(--panel-alt);
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .img-wrap h4 { margin: 0 0 8px 0; font-size: 0.92rem; color: #cbd5e1; }
+    .img-wrap img { width: 100%; height: auto; border-radius: 6px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+      gap: 18px;
+    }
+    .card {
+      background: var(--panel-alt);
+      border: 1px solid var(--border);
+      padding: 14px;
+      border-radius: 10px;
+    }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .card-top h4 { margin: 0; font-size: 0.95rem; color: #f1f5f9; }
+    .btn-card-action {
+      background: rgba(56,189,248,0.15);
+      color: var(--accent);
+      border: 1px solid rgba(56,189,248,0.4);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .btn-card-action:hover { background: var(--accent); color: #0f172a; }
+    .filename { margin: 0 0 10px 0; font-size: 0.78rem; color: var(--muted); }
+    .card img { width: 100%; height: auto; border-radius: 6px; }
+    pre.status-box {
+      background: #0f172a;
+      color: #cbd5e1;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      overflow-x: auto;
+      font-size: 0.86rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-top">
+      <h1>🌌 Study 2 — Master Index Classifié des Entraînements GNN (GAT vs GCN)</h1>
+      <span class="timestamp">Mis à jour : 2026-11-14 18:46:40</span>
+    </div>
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('tab-overview', this)">📊 Vue Globale & Spectres RMT (Tous Modèles)</button>
+      <button class="tab-btn" onclick="switchTab('tab-clean', this)">🟢 1. Baseline 5D Sans Bruit (clean_5obs)</button>
+      <button class="tab-btn" onclick="switchTab('tab-noisy', this)">🟠 2. Gaia DR3 5D Bruité (noisy_5obs)</button>
+      <button class="tab-btn" onclick="switchTab('tab-ablations', this)">🟣 3. Ablations 4D (4obs_*)</button>
+      <button class="tab-btn" onclick="switchTab('tab-v2', this)">🔵 4. Study 2 V2 (Domaine Gaia Réel)</button>
+      <button class="tab-btn" onclick="switchTab('tab-weights', this)">💾 5. Poids (.pth) & Queue SLURM</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Lecteur Interactif Plotly Intégré (persistant en haut de page) -->
+    <div class="viewer-box" id="viewer-container">
+      <div class="viewer-bar">
+        <span class="viewer-title" id="viewer-label">🔍 Lecteur Interactif Plotly : Spectre RMT à Bâtons (clean_5obs)</span>
+        <div>
+          <a id="viewer-ext-link" class="btn-ext" href="clean_5obs/spectral_analysis_GNN_clean_5obs.html" target="_blank" style="border:1px solid var(--accent); border-radius:6px;">↗ Ouvrir en plein écran dans un nouvel onglet</a>
+          <button class="btn-card-action" onclick="toggleViewer()" style="margin-left:8px;">Masquer / Afficher le lecteur</button>
+        </div>
+      </div>
+      <iframe id="plotly-viewer" src="clean_5obs/spectral_analysis_GNN_clean_5obs.html"></iframe>
+    </div>
+
+    <!-- TAB 1: VUE GLOBALE & SPECTRES RMT -->
+    <section id="tab-overview" class="tab-section active">
+      <h2>📋 Tableau Récapitulatif de Tous les Entraînements (Temps Réel)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Expérience</th>
+            <th>Architecture</th>
+            <th>Époque</th>
+            <th>Train Loss</th>
+            <th>Train Acc</th>
+            <th>Val Loss</th>
+            <th>Val Acc</th>
+            <th>Best Val Acc</th>
+            <th>Core FNR</th>
+            <th>Test Acc</th>
+            <th>Test F1</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>4obs_no_RA_clean</code></td><td><span class='badge badge-gat'>GAT</span></td><td><b>2</b></td><td>0.1752</td><td>92.98%</td><td>0.2404</td><td>90.04%</td><td><b>90.04%</b></td><td>8.41% (val min)</td><td><span class='status-live'>In progress</span></td><td><b>-</b></td></tr>
+<tr><td><code>clean_5obs</code></td><td><span class='badge badge-gat'>GAT</span></td><td><b>20</b></td><td>0.1006</td><td>96.00%</td><td>0.1495</td><td>94.10%</td><td><b>94.21%</b></td><td>6.49% (val: 6.60%)</td><td><span class='status-done'>93.04%</span></td><td><b>0.9035</b></td></tr>
+<tr><td><code>clean_5obs</code></td><td><span class='badge badge-gcn'>GCN</span></td><td><b>25</b></td><td>0.1136</td><td>95.42%</td><td>0.1820</td><td>92.33%</td><td><b>92.33%</b></td><td>-</td><td><span class='status-done'>92.17%</span></td><td><b>0.8886</b></td></tr>
+<tr><td><code>noisy_5obs</code></td><td><span class='badge badge-gat'>GAT</span></td><td><b>20</b></td><td>0.2683</td><td>88.10%</td><td>0.4221</td><td>81.26%</td><td><b>81.76%</b></td><td>19.52% (val: 14.33%)</td><td><span class='status-done'>84.91%</span></td><td><b>0.7879</b></td></tr>
+<tr><td><code>4obs_no_RA_clean</code></td><td><span class='badge badge-live'>GAT (In Flight)</span></td><td><b>Ep 03 (19%)</b></td><td>0.1068</td><td>-</td><td>-</td><td>-</td><td><b>-</b></td><td>-</td><td><span class='status-live'>In progress</span></td><td><b>-</b></td></tr>
+        </tbody>
+      </table>
+
+      <div class="exp-block">
+        <h3>📈 Courbes d'Apprentissage Globales (Tous Modèles Superposés)</h3>
+        <a href="latest_live_training.png" target="_blank"><img src="latest_live_training.png" alt="Master Live Training Curves" style="width:100%; max-height:540px; object-fit:contain; border-radius:8px;" /></a>
+      </div>
+
+      <h2>📊 Comparaison des Spectres des Valeurs Singulières en Bâtons (Candles RMT vs Bulk Marchenko–Pastur)</h2>
+      <p class="subtitle">Chaque graphe affiche à gauche la densité spectrale empirique avec le bulk de bruit Marchenko–Pastur (zone ombrée) et les valeurs singulières qui s'en détachent (candles à tête dorée), et à droite le spectre complet classé par rang.</p>
+      <div class='exp-block'><div class='exp-header'><h3>🔬 <code>4obs_no_RA_clean</code></h3><div class='btn-row'><button class='btn-plot' onclick="openInViewer('4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.html', 'Spectre RMT Candles — 4obs_no_RA_clean')">📊 Ouvrir Spectre RMT Interactif</button><a class='btn-ext' href='4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.html' target='_blank'>↗ Nouvel onglet</a><button class='btn-plot' onclick="openInViewer('4obs_no_RA_clean/live_plots_GNN_4obs_no_RA_clean.html', 'Courbes Loss/Acc — 4obs_no_RA_clean')">📈 Ouvrir Courbes Interactives</button></div></div><div class='dual-grid'><div class='img-wrap'><h4>Spectre des Valeurs Singulières en Bâtons (Candles) vs Bulk Marchenko–Pastur</h4><a href='4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.png' target='_blank'><img src='4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.png' alt='SVD 4obs_no_RA_clean' /></a></div><div class='img-wrap'><h4>Évolution Loss & Accuracy</h4><a href='4obs_no_RA_clean/live_plots_GNN_4obs_no_RA_clean.png' target='_blank'><img src='4obs_no_RA_clean/live_plots_GNN_4obs_no_RA_clean.png' alt='Live 4obs_no_RA_clean' /></a></div></div></div>
+<div class='exp-block'><div class='exp-header'><h3>🔬 <code>clean_5obs</code></h3><div class='btn-row'><button class='btn-plot' onclick="openInViewer('clean_5obs/spectral_analysis_GNN_clean_5obs.html', 'Spectre RMT Candles — clean_5obs')">📊 Ouvrir Spectre RMT Interactif</button><a class='btn-ext' href='clean_5obs/spectral_analysis_GNN_clean_5obs.html' target='_blank'>↗ Nouvel onglet</a><button class='btn-plot' onclick="openInViewer('clean_5obs/live_plots_GNN_clean_5obs.html', 'Courbes Loss/Acc — clean_5obs')">📈 Ouvrir Courbes Interactives</button></div></div><div class='dual-grid'><div class='img-wrap'><h4>Spectre des Valeurs Singulières en Bâtons (Candles) vs Bulk Marchenko–Pastur</h4><a href='clean_5obs/spectral_analysis_GNN_clean_5obs.png' target='_blank'><img src='clean_5obs/spectral_analysis_GNN_clean_5obs.png' alt='SVD clean_5obs' /></a></div><div class='img-wrap'><h4>Évolution Loss & Accuracy</h4><a href='clean_5obs/live_plots_GNN_clean_5obs.png' target='_blank'><img src='clean_5obs/live_plots_GNN_clean_5obs.png' alt='Live clean_5obs' /></a></div></div></div>
+<div class='exp-block'><div class='exp-header'><h3>🔬 <code>noisy_5obs</code></h3><div class='btn-row'><button class='btn-plot' onclick="openInViewer('noisy_5obs/spectral_analysis_GNN_noisy_5obs.html', 'Spectre RMT Candles — noisy_5obs')">📊 Ouvrir Spectre RMT Interactif</button><a class='btn-ext' href='noisy_5obs/spectral_analysis_GNN_noisy_5obs.html' target='_blank'>↗ Nouvel onglet</a><button class='btn-plot' onclick="openInViewer('noisy_5obs/live_plots_GNN_noisy_5obs.html', 'Courbes Loss/Acc — noisy_5obs')">📈 Ouvrir Courbes Interactives</button></div></div><div class='dual-grid'><div class='img-wrap'><h4>Spectre des Valeurs Singulières en Bâtons (Candles) vs Bulk Marchenko–Pastur</h4><a href='noisy_5obs/spectral_analysis_GNN_noisy_5obs.png' target='_blank'><img src='noisy_5obs/spectral_analysis_GNN_noisy_5obs.png' alt='SVD noisy_5obs' /></a></div><div class='img-wrap'><h4>Évolution Loss & Accuracy</h4><a href='noisy_5obs/live_plots_GNN_noisy_5obs.png' target='_blank'><img src='noisy_5obs/live_plots_GNN_noisy_5obs.png' alt='Live noisy_5obs' /></a></div></div></div>
+    </section>
+
+    <!-- TAB 2: CLEAN 5OBS -->
+    <section id="tab-clean" class="tab-section">
+      <div class='exp-block'><h3>🟢 1. Baseline 5D Sans Bruit (Observables Exactes) — <code>clean_5obs</code></h3><p class='subtitle'>Comparaison directe GAT (3 couches, 4 têtes, résiduel, Test Acc = 93.04%, Core FNR = 6.49%) vs GCN (Baseline isotrope, Test Acc = 92.17%).</p><h4>Graphes Interactifs Plotly (Cliquer pour afficher dans le lecteur intégré ou ↗ pour plein écran)</h4><div class='pills-container'><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/spectral_analysis_GNN_clean_5obs.html', '📊 Spectre RMT à Bâtons / Candles (clean_5obs)')">📊 Spectre RMT à Bâtons / Candles (clean_5obs)</button><a class='btn-ext' href='clean_5obs/spectral_analysis_GNN_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/live_plots_GNN_clean_5obs.html', '📈 Courbes d'Entraînement Loss & Acc (clean_5obs)')">📈 Courbes d'Entraînement Loss & Acc (clean_5obs)</button><a class='btn-ext' href='clean_5obs/live_plots_GNN_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/surviving_core_fnr_by_perigalacticon_GAT_clean_5obs.html', '🎯 Core FNR & Rappel par Péricentre R_p1 (GAT_clean_5obs)')">🎯 Core FNR & Rappel par Péricentre R_p1 (GAT_clean_5obs)</button><a class='btn-ext' href='clean_5obs/surviving_core_fnr_by_perigalacticon_GAT_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/surviving_core_fnr_by_perigalacticon_GCN_clean_5obs.html', '🎯 Core FNR & Rappel par Péricentre R_p1 (GCN_clean_5obs)')">🎯 Core FNR & Rappel par Péricentre R_p1 (GCN_clean_5obs)</button><a class='btn-ext' href='clean_5obs/surviving_core_fnr_by_perigalacticon_GCN_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/error_percentage_by_perigalacticon_GAT_clean_5obs.html', '📉 Erreur de Classification par Péricentre R_p1 (GAT_clean_5obs)')">📉 Erreur de Classification par Péricentre R_p1 (GAT_clean_5obs)</button><a class='btn-ext' href='clean_5obs/error_percentage_by_perigalacticon_GAT_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/error_percentage_by_perigalacticon_GCN_clean_5obs.html', '📉 Erreur de Classification par Péricentre R_p1 (GCN_clean_5obs)')">📉 Erreur de Classification par Péricentre R_p1 (GCN_clean_5obs)</button><a class='btn-ext' href='clean_5obs/error_percentage_by_perigalacticon_GCN_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/R_vs_t_6panels_rp1.html', '🪐 Évolution Orbitale R(t) & Fraction Liée (6 Panneaux)')">🪐 Évolution Orbitale R(t) & Fraction Liée (6 Panneaux)</button><a class='btn-ext' href='clean_5obs/R_vs_t_6panels_rp1.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/seeds_positions_unbiased.html', '🗺️ Distribution Galactocentrique des 81 Orbites (Seeds)')">🗺️ Distribution Galactocentrique des 81 Orbites (Seeds)</button><a class='btn-ext' href='clean_5obs/seeds_positions_unbiased.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/prediction_GAT_ID11_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID11_output100_clean_5obs)')">🌐 Prédiction 3D Amas & Marées (GAT_ID11_output100_clean_5obs)</button><a class='btn-ext' href='clean_5obs/prediction_GAT_ID11_output100_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/prediction_GAT_ID1_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID1_output100_clean_5obs)')">🌐 Prédiction 3D Amas & Marées (GAT_ID1_output100_clean_5obs)</button><a class='btn-ext' href='clean_5obs/prediction_GAT_ID1_output100_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/prediction_GAT_ID53_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID53_output100_clean_5obs)')">🌐 Prédiction 3D Amas & Marées (GAT_ID53_output100_clean_5obs)</button><a class='btn-ext' href='clean_5obs/prediction_GAT_ID53_output100_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/prediction_GAT_ID70_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID70_output100_clean_5obs)')">🌐 Prédiction 3D Amas & Marées (GAT_ID70_output100_clean_5obs)</button><a class='btn-ext' href='clean_5obs/prediction_GAT_ID70_output100_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/prediction_GAT_ID74_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID74_output100_clean_5obs)')">🌐 Prédiction 3D Amas & Marées (GAT_ID74_output100_clean_5obs)</button><a class='btn-ext' href='clean_5obs/prediction_GAT_ID74_output100_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/prediction_GAT_ID81_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID81_output100_clean_5obs)')">🌐 Prédiction 3D Amas & Marées (GAT_ID81_output100_clean_5obs)</button><a class='btn-ext' href='clean_5obs/prediction_GAT_ID81_output100_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/prediction_GCN_ID11_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GCN_ID11_output100_clean_5obs)')">🌐 Prédiction 3D Amas & Marées (GCN_ID11_output100_clean_5obs)</button><a class='btn-ext' href='clean_5obs/prediction_GCN_ID11_output100_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/prediction_GCN_ID1_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GCN_ID1_output100_clean_5obs)')">🌐 Prédiction 3D Amas & Marées (GCN_ID1_output100_clean_5obs)</button><a class='btn-ext' href='clean_5obs/prediction_GCN_ID1_output100_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/prediction_GCN_ID53_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GCN_ID53_output100_clean_5obs)')">🌐 Prédiction 3D Amas & Marées (GCN_ID53_output100_clean_5obs)</button><a class='btn-ext' href='clean_5obs/prediction_GCN_ID53_output100_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/prediction_GCN_ID70_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GCN_ID70_output100_clean_5obs)')">🌐 Prédiction 3D Amas & Marées (GCN_ID70_output100_clean_5obs)</button><a class='btn-ext' href='clean_5obs/prediction_GCN_ID70_output100_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/prediction_GCN_ID74_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GCN_ID74_output100_clean_5obs)')">🌐 Prédiction 3D Amas & Marées (GCN_ID74_output100_clean_5obs)</button><a class='btn-ext' href='clean_5obs/prediction_GCN_ID74_output100_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('clean_5obs/prediction_GCN_ID81_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GCN_ID81_output100_clean_5obs)')">🌐 Prédiction 3D Amas & Marées (GCN_ID81_output100_clean_5obs)</button><a class='btn-ext' href='clean_5obs/prediction_GCN_ID81_output100_clean_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div></div><h4>Figures Scientifiques Haute Résolution (PNG)</h4><div class='grid'><div class='card'><div class='card-top'><h4>📊 Spectre RMT à Bâtons / Candles (clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/spectral_analysis_GNN_clean_5obs.html', '📊 Spectre RMT à Bâtons / Candles (clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/spectral_analysis_GNN_clean_5obs.png</code></p><a href='clean_5obs/spectral_analysis_GNN_clean_5obs.png' target='_blank'><img src='clean_5obs/spectral_analysis_GNN_clean_5obs.png' alt='spectral_analysis_GNN_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>📈 Courbes d'Entraînement Loss & Acc (clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/live_plots_GNN_clean_5obs.html', '📈 Courbes d'Entraînement Loss & Acc (clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/live_plots_GNN_clean_5obs.png</code></p><a href='clean_5obs/live_plots_GNN_clean_5obs.png' target='_blank'><img src='clean_5obs/live_plots_GNN_clean_5obs.png' alt='live_plots_GNN_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🎯 Core FNR & Rappel par Péricentre R_p1 (GAT_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/surviving_core_fnr_by_perigalacticon_GAT_clean_5obs.html', '🎯 Core FNR & Rappel par Péricentre R_p1 (GAT_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/surviving_core_fnr_by_perigalacticon_GAT_clean_5obs.png</code></p><a href='clean_5obs/surviving_core_fnr_by_perigalacticon_GAT_clean_5obs.png' target='_blank'><img src='clean_5obs/surviving_core_fnr_by_perigalacticon_GAT_clean_5obs.png' alt='surviving_core_fnr_by_perigalacticon_GAT_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🎯 Core FNR & Rappel par Péricentre R_p1 (GCN_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/surviving_core_fnr_by_perigalacticon_GCN_clean_5obs.html', '🎯 Core FNR & Rappel par Péricentre R_p1 (GCN_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/surviving_core_fnr_by_perigalacticon_GCN_clean_5obs.png</code></p><a href='clean_5obs/surviving_core_fnr_by_perigalacticon_GCN_clean_5obs.png' target='_blank'><img src='clean_5obs/surviving_core_fnr_by_perigalacticon_GCN_clean_5obs.png' alt='surviving_core_fnr_by_perigalacticon_GCN_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>📉 Erreur de Classification par Péricentre R_p1 (GAT_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/error_percentage_by_perigalacticon_GAT_clean_5obs.html', '📉 Erreur de Classification par Péricentre R_p1 (GAT_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/error_percentage_by_perigalacticon_GAT_clean_5obs.png</code></p><a href='clean_5obs/error_percentage_by_perigalacticon_GAT_clean_5obs.png' target='_blank'><img src='clean_5obs/error_percentage_by_perigalacticon_GAT_clean_5obs.png' alt='error_percentage_by_perigalacticon_GAT_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>📉 Erreur de Classification par Péricentre R_p1 (GCN_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/error_percentage_by_perigalacticon_GCN_clean_5obs.html', '📉 Erreur de Classification par Péricentre R_p1 (GCN_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/error_percentage_by_perigalacticon_GCN_clean_5obs.png</code></p><a href='clean_5obs/error_percentage_by_perigalacticon_GCN_clean_5obs.png' target='_blank'><img src='clean_5obs/error_percentage_by_perigalacticon_GCN_clean_5obs.png' alt='error_percentage_by_perigalacticon_GCN_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🪐 Évolution Orbitale R(t) & Fraction Liée (6 Panneaux)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/R_vs_t_6panels_rp1.html', '🪐 Évolution Orbitale R(t) & Fraction Liée (6 Panneaux)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/R_vs_t_6panels_rp1.png</code></p><a href='clean_5obs/R_vs_t_6panels_rp1.png' target='_blank'><img src='clean_5obs/R_vs_t_6panels_rp1.png' alt='R_vs_t_6panels_rp1.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🗺️ Distribution Galactocentrique des 81 Orbites (Seeds)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/seeds_positions_unbiased.html', '🗺️ Distribution Galactocentrique des 81 Orbites (Seeds)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/seeds_positions_unbiased.png</code></p><a href='clean_5obs/seeds_positions_unbiased.png' target='_blank'><img src='clean_5obs/seeds_positions_unbiased.png' alt='seeds_positions_unbiased.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GAT_ID11_output100_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/prediction_GAT_ID11_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID11_output100_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/prediction_GAT_ID11_output100_clean_5obs.png</code></p><a href='clean_5obs/prediction_GAT_ID11_output100_clean_5obs.png' target='_blank'><img src='clean_5obs/prediction_GAT_ID11_output100_clean_5obs.png' alt='prediction_GAT_ID11_output100_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GAT_ID1_output100_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/prediction_GAT_ID1_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID1_output100_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/prediction_GAT_ID1_output100_clean_5obs.png</code></p><a href='clean_5obs/prediction_GAT_ID1_output100_clean_5obs.png' target='_blank'><img src='clean_5obs/prediction_GAT_ID1_output100_clean_5obs.png' alt='prediction_GAT_ID1_output100_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GAT_ID53_output100_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/prediction_GAT_ID53_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID53_output100_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/prediction_GAT_ID53_output100_clean_5obs.png</code></p><a href='clean_5obs/prediction_GAT_ID53_output100_clean_5obs.png' target='_blank'><img src='clean_5obs/prediction_GAT_ID53_output100_clean_5obs.png' alt='prediction_GAT_ID53_output100_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GAT_ID70_output100_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/prediction_GAT_ID70_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID70_output100_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/prediction_GAT_ID70_output100_clean_5obs.png</code></p><a href='clean_5obs/prediction_GAT_ID70_output100_clean_5obs.png' target='_blank'><img src='clean_5obs/prediction_GAT_ID70_output100_clean_5obs.png' alt='prediction_GAT_ID70_output100_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GAT_ID74_output100_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/prediction_GAT_ID74_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID74_output100_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/prediction_GAT_ID74_output100_clean_5obs.png</code></p><a href='clean_5obs/prediction_GAT_ID74_output100_clean_5obs.png' target='_blank'><img src='clean_5obs/prediction_GAT_ID74_output100_clean_5obs.png' alt='prediction_GAT_ID74_output100_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GAT_ID81_output100_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/prediction_GAT_ID81_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID81_output100_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/prediction_GAT_ID81_output100_clean_5obs.png</code></p><a href='clean_5obs/prediction_GAT_ID81_output100_clean_5obs.png' target='_blank'><img src='clean_5obs/prediction_GAT_ID81_output100_clean_5obs.png' alt='prediction_GAT_ID81_output100_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GCN_ID11_output100_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/prediction_GCN_ID11_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GCN_ID11_output100_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/prediction_GCN_ID11_output100_clean_5obs.png</code></p><a href='clean_5obs/prediction_GCN_ID11_output100_clean_5obs.png' target='_blank'><img src='clean_5obs/prediction_GCN_ID11_output100_clean_5obs.png' alt='prediction_GCN_ID11_output100_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GCN_ID1_output100_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/prediction_GCN_ID1_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GCN_ID1_output100_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/prediction_GCN_ID1_output100_clean_5obs.png</code></p><a href='clean_5obs/prediction_GCN_ID1_output100_clean_5obs.png' target='_blank'><img src='clean_5obs/prediction_GCN_ID1_output100_clean_5obs.png' alt='prediction_GCN_ID1_output100_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GCN_ID53_output100_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/prediction_GCN_ID53_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GCN_ID53_output100_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/prediction_GCN_ID53_output100_clean_5obs.png</code></p><a href='clean_5obs/prediction_GCN_ID53_output100_clean_5obs.png' target='_blank'><img src='clean_5obs/prediction_GCN_ID53_output100_clean_5obs.png' alt='prediction_GCN_ID53_output100_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GCN_ID70_output100_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/prediction_GCN_ID70_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GCN_ID70_output100_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/prediction_GCN_ID70_output100_clean_5obs.png</code></p><a href='clean_5obs/prediction_GCN_ID70_output100_clean_5obs.png' target='_blank'><img src='clean_5obs/prediction_GCN_ID70_output100_clean_5obs.png' alt='prediction_GCN_ID70_output100_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GCN_ID74_output100_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/prediction_GCN_ID74_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GCN_ID74_output100_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/prediction_GCN_ID74_output100_clean_5obs.png</code></p><a href='clean_5obs/prediction_GCN_ID74_output100_clean_5obs.png' target='_blank'><img src='clean_5obs/prediction_GCN_ID74_output100_clean_5obs.png' alt='prediction_GCN_ID74_output100_clean_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GCN_ID81_output100_clean_5obs)</h4><button class='btn-card-action' onclick="openInViewer('clean_5obs/prediction_GCN_ID81_output100_clean_5obs.html', '🌐 Prédiction 3D Amas & Marées (GCN_ID81_output100_clean_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>clean_5obs/prediction_GCN_ID81_output100_clean_5obs.png</code></p><a href='clean_5obs/prediction_GCN_ID81_output100_clean_5obs.png' target='_blank'><img src='clean_5obs/prediction_GCN_ID81_output100_clean_5obs.png' alt='prediction_GCN_ID81_output100_clean_5obs.png' loading='lazy' /></a></div></div></div>
+    </section>
+
+    <!-- TAB 3: NOISY 5OBS -->
+    <section id="tab-noisy" class="tab-section">
+      <div class='exp-block'><h3>🟠 2. Modèle 5D Bruité Gaia DR3 (Curriculum Fine-Tuning) — <code>noisy_5obs</code></h3><p class='subtitle'>Évaluation de la robustesse face aux incertitudes astrométriques dépendantes de la magnitude G (Gaia DR3).</p><h4>Graphes Interactifs Plotly (Cliquer pour afficher dans le lecteur intégré ou ↗ pour plein écran)</h4><div class='pills-container'><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('noisy_5obs/spectral_analysis_GNN_noisy_5obs.html', '📊 Spectre RMT à Bâtons / Candles (noisy_5obs)')">📊 Spectre RMT à Bâtons / Candles (noisy_5obs)</button><a class='btn-ext' href='noisy_5obs/spectral_analysis_GNN_noisy_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('noisy_5obs/live_plots_GNN_noisy_5obs.html', '📈 Courbes d'Entraînement Loss & Acc (noisy_5obs)')">📈 Courbes d'Entraînement Loss & Acc (noisy_5obs)</button><a class='btn-ext' href='noisy_5obs/live_plots_GNN_noisy_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('noisy_5obs/surviving_core_fnr_by_perigalacticon_GAT_noisy_5obs.html', '🎯 Core FNR & Rappel par Péricentre R_p1 (GAT_noisy_5obs)')">🎯 Core FNR & Rappel par Péricentre R_p1 (GAT_noisy_5obs)</button><a class='btn-ext' href='noisy_5obs/surviving_core_fnr_by_perigalacticon_GAT_noisy_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('noisy_5obs/error_percentage_by_perigalacticon_GAT_noisy_5obs.html', '📉 Erreur de Classification par Péricentre R_p1 (GAT_noisy_5obs)')">📉 Erreur de Classification par Péricentre R_p1 (GAT_noisy_5obs)</button><a class='btn-ext' href='noisy_5obs/error_percentage_by_perigalacticon_GAT_noisy_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('noisy_5obs/R_vs_t_6panels_rp1.html', '🪐 Évolution Orbitale R(t) & Fraction Liée (6 Panneaux)')">🪐 Évolution Orbitale R(t) & Fraction Liée (6 Panneaux)</button><a class='btn-ext' href='noisy_5obs/R_vs_t_6panels_rp1.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('noisy_5obs/seeds_positions_unbiased.html', '🗺️ Distribution Galactocentrique des 81 Orbites (Seeds)')">🗺️ Distribution Galactocentrique des 81 Orbites (Seeds)</button><a class='btn-ext' href='noisy_5obs/seeds_positions_unbiased.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('noisy_5obs/prediction_GAT_ID11_output100_noisy_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID11_output100_noisy_5obs)')">🌐 Prédiction 3D Amas & Marées (GAT_ID11_output100_noisy_5obs)</button><a class='btn-ext' href='noisy_5obs/prediction_GAT_ID11_output100_noisy_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('noisy_5obs/prediction_GAT_ID1_output100_noisy_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID1_output100_noisy_5obs)')">🌐 Prédiction 3D Amas & Marées (GAT_ID1_output100_noisy_5obs)</button><a class='btn-ext' href='noisy_5obs/prediction_GAT_ID1_output100_noisy_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('noisy_5obs/prediction_GAT_ID53_output100_noisy_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID53_output100_noisy_5obs)')">🌐 Prédiction 3D Amas & Marées (GAT_ID53_output100_noisy_5obs)</button><a class='btn-ext' href='noisy_5obs/prediction_GAT_ID53_output100_noisy_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('noisy_5obs/prediction_GAT_ID70_output100_noisy_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID70_output100_noisy_5obs)')">🌐 Prédiction 3D Amas & Marées (GAT_ID70_output100_noisy_5obs)</button><a class='btn-ext' href='noisy_5obs/prediction_GAT_ID70_output100_noisy_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('noisy_5obs/prediction_GAT_ID74_output100_noisy_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID74_output100_noisy_5obs)')">🌐 Prédiction 3D Amas & Marées (GAT_ID74_output100_noisy_5obs)</button><a class='btn-ext' href='noisy_5obs/prediction_GAT_ID74_output100_noisy_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('noisy_5obs/prediction_GAT_ID81_output100_noisy_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID81_output100_noisy_5obs)')">🌐 Prédiction 3D Amas & Marées (GAT_ID81_output100_noisy_5obs)</button><a class='btn-ext' href='noisy_5obs/prediction_GAT_ID81_output100_noisy_5obs.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div></div><h4>Figures Scientifiques Haute Résolution (PNG)</h4><div class='grid'><div class='card'><div class='card-top'><h4>📊 Spectre RMT à Bâtons / Candles (noisy_5obs)</h4><button class='btn-card-action' onclick="openInViewer('noisy_5obs/spectral_analysis_GNN_noisy_5obs.html', '📊 Spectre RMT à Bâtons / Candles (noisy_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>noisy_5obs/spectral_analysis_GNN_noisy_5obs.png</code></p><a href='noisy_5obs/spectral_analysis_GNN_noisy_5obs.png' target='_blank'><img src='noisy_5obs/spectral_analysis_GNN_noisy_5obs.png' alt='spectral_analysis_GNN_noisy_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>📈 Courbes d'Entraînement Loss & Acc (noisy_5obs)</h4><button class='btn-card-action' onclick="openInViewer('noisy_5obs/live_plots_GNN_noisy_5obs.html', '📈 Courbes d'Entraînement Loss & Acc (noisy_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>noisy_5obs/live_plots_GNN_noisy_5obs.png</code></p><a href='noisy_5obs/live_plots_GNN_noisy_5obs.png' target='_blank'><img src='noisy_5obs/live_plots_GNN_noisy_5obs.png' alt='live_plots_GNN_noisy_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🎯 Core FNR & Rappel par Péricentre R_p1 (GAT_noisy_5obs)</h4><button class='btn-card-action' onclick="openInViewer('noisy_5obs/surviving_core_fnr_by_perigalacticon_GAT_noisy_5obs.html', '🎯 Core FNR & Rappel par Péricentre R_p1 (GAT_noisy_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>noisy_5obs/surviving_core_fnr_by_perigalacticon_GAT_noisy_5obs.png</code></p><a href='noisy_5obs/surviving_core_fnr_by_perigalacticon_GAT_noisy_5obs.png' target='_blank'><img src='noisy_5obs/surviving_core_fnr_by_perigalacticon_GAT_noisy_5obs.png' alt='surviving_core_fnr_by_perigalacticon_GAT_noisy_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>📉 Erreur de Classification par Péricentre R_p1 (GAT_noisy_5obs)</h4><button class='btn-card-action' onclick="openInViewer('noisy_5obs/error_percentage_by_perigalacticon_GAT_noisy_5obs.html', '📉 Erreur de Classification par Péricentre R_p1 (GAT_noisy_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>noisy_5obs/error_percentage_by_perigalacticon_GAT_noisy_5obs.png</code></p><a href='noisy_5obs/error_percentage_by_perigalacticon_GAT_noisy_5obs.png' target='_blank'><img src='noisy_5obs/error_percentage_by_perigalacticon_GAT_noisy_5obs.png' alt='error_percentage_by_perigalacticon_GAT_noisy_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🪐 Évolution Orbitale R(t) & Fraction Liée (6 Panneaux)</h4><button class='btn-card-action' onclick="openInViewer('noisy_5obs/R_vs_t_6panels_rp1.html', '🪐 Évolution Orbitale R(t) & Fraction Liée (6 Panneaux)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>noisy_5obs/R_vs_t_6panels_rp1.png</code></p><a href='noisy_5obs/R_vs_t_6panels_rp1.png' target='_blank'><img src='noisy_5obs/R_vs_t_6panels_rp1.png' alt='R_vs_t_6panels_rp1.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🗺️ Distribution Galactocentrique des 81 Orbites (Seeds)</h4><button class='btn-card-action' onclick="openInViewer('noisy_5obs/seeds_positions_unbiased.html', '🗺️ Distribution Galactocentrique des 81 Orbites (Seeds)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>noisy_5obs/seeds_positions_unbiased.png</code></p><a href='noisy_5obs/seeds_positions_unbiased.png' target='_blank'><img src='noisy_5obs/seeds_positions_unbiased.png' alt='seeds_positions_unbiased.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GAT_ID11_output100_noisy_5obs)</h4><button class='btn-card-action' onclick="openInViewer('noisy_5obs/prediction_GAT_ID11_output100_noisy_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID11_output100_noisy_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>noisy_5obs/prediction_GAT_ID11_output100_noisy_5obs.png</code></p><a href='noisy_5obs/prediction_GAT_ID11_output100_noisy_5obs.png' target='_blank'><img src='noisy_5obs/prediction_GAT_ID11_output100_noisy_5obs.png' alt='prediction_GAT_ID11_output100_noisy_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GAT_ID1_output100_noisy_5obs)</h4><button class='btn-card-action' onclick="openInViewer('noisy_5obs/prediction_GAT_ID1_output100_noisy_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID1_output100_noisy_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>noisy_5obs/prediction_GAT_ID1_output100_noisy_5obs.png</code></p><a href='noisy_5obs/prediction_GAT_ID1_output100_noisy_5obs.png' target='_blank'><img src='noisy_5obs/prediction_GAT_ID1_output100_noisy_5obs.png' alt='prediction_GAT_ID1_output100_noisy_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GAT_ID53_output100_noisy_5obs)</h4><button class='btn-card-action' onclick="openInViewer('noisy_5obs/prediction_GAT_ID53_output100_noisy_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID53_output100_noisy_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>noisy_5obs/prediction_GAT_ID53_output100_noisy_5obs.png</code></p><a href='noisy_5obs/prediction_GAT_ID53_output100_noisy_5obs.png' target='_blank'><img src='noisy_5obs/prediction_GAT_ID53_output100_noisy_5obs.png' alt='prediction_GAT_ID53_output100_noisy_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GAT_ID70_output100_noisy_5obs)</h4><button class='btn-card-action' onclick="openInViewer('noisy_5obs/prediction_GAT_ID70_output100_noisy_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID70_output100_noisy_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>noisy_5obs/prediction_GAT_ID70_output100_noisy_5obs.png</code></p><a href='noisy_5obs/prediction_GAT_ID70_output100_noisy_5obs.png' target='_blank'><img src='noisy_5obs/prediction_GAT_ID70_output100_noisy_5obs.png' alt='prediction_GAT_ID70_output100_noisy_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GAT_ID74_output100_noisy_5obs)</h4><button class='btn-card-action' onclick="openInViewer('noisy_5obs/prediction_GAT_ID74_output100_noisy_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID74_output100_noisy_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>noisy_5obs/prediction_GAT_ID74_output100_noisy_5obs.png</code></p><a href='noisy_5obs/prediction_GAT_ID74_output100_noisy_5obs.png' target='_blank'><img src='noisy_5obs/prediction_GAT_ID74_output100_noisy_5obs.png' alt='prediction_GAT_ID74_output100_noisy_5obs.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>🌐 Prédiction 3D Amas & Marées (GAT_ID81_output100_noisy_5obs)</h4><button class='btn-card-action' onclick="openInViewer('noisy_5obs/prediction_GAT_ID81_output100_noisy_5obs.html', '🌐 Prédiction 3D Amas & Marées (GAT_ID81_output100_noisy_5obs)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>noisy_5obs/prediction_GAT_ID81_output100_noisy_5obs.png</code></p><a href='noisy_5obs/prediction_GAT_ID81_output100_noisy_5obs.png' target='_blank'><img src='noisy_5obs/prediction_GAT_ID81_output100_noisy_5obs.png' alt='prediction_GAT_ID81_output100_noisy_5obs.png' loading='lazy' /></a></div></div></div>
+    </section>
+
+    <!-- TAB 4: ABLATIONS 4D -->
+    <section id="tab-ablations" class="tab-section">
+      <h2>🟣 Études d'Ablation 4D (Leave-One-Observable-Out)</h2>
+      <p class="subtitle">Évaluation de l'importance physique de chaque observable astrométrique en retirant tour à tour α, δ, ϖ, μ_α*, μ_δ.</p>
+      <div class='exp-block'><h3>🟣 Ablation 4D : 4obs_no_RA_clean — <code>4obs_no_RA_clean</code></h3><p class='subtitle'>Leave-One-Observable-Out (Sans Ascension Droite (α / RA) — Indices [1,2,3,4]) — Transfert 5D→4D depuis best_gat_clean.pth (93.04%).</p><h4>Graphes Interactifs Plotly (Cliquer pour afficher dans le lecteur intégré ou ↗ pour plein écran)</h4><div class='pills-container'><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.html', '📊 Spectre RMT à Bâtons / Candles (4obs_no_RA_clean)')">📊 Spectre RMT à Bâtons / Candles (4obs_no_RA_clean)</button><a class='btn-ext' href='4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div><div class='plot-pill'><button class='btn-plot' onclick="openInViewer('4obs_no_RA_clean/live_plots_GNN_4obs_no_RA_clean.html', '📈 Courbes d'Entraînement Loss & Acc (4obs_no_RA_clean)')">📈 Courbes d'Entraînement Loss & Acc (4obs_no_RA_clean)</button><a class='btn-ext' href='4obs_no_RA_clean/live_plots_GNN_4obs_no_RA_clean.html' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a></div></div><h4>Figures Scientifiques Haute Résolution (PNG)</h4><div class='grid'><div class='card'><div class='card-top'><h4>📊 Spectre RMT à Bâtons / Candles (4obs_no_RA_clean)</h4><button class='btn-card-action' onclick="openInViewer('4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.html', '📊 Spectre RMT à Bâtons / Candles (4obs_no_RA_clean)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.png</code></p><a href='4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.png' target='_blank'><img src='4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.png' alt='spectral_analysis_GNN_4obs_no_RA_clean.png' loading='lazy' /></a></div><div class='card'><div class='card-top'><h4>📈 Courbes d'Entraînement Loss & Acc (4obs_no_RA_clean)</h4><button class='btn-card-action' onclick="openInViewer('4obs_no_RA_clean/live_plots_GNN_4obs_no_RA_clean.html', '📈 Courbes d'Entraînement Loss & Acc (4obs_no_RA_clean)')">🔍 Version Interactive Plotly</button></div><p class='filename'><code>4obs_no_RA_clean/live_plots_GNN_4obs_no_RA_clean.png</code></p><a href='4obs_no_RA_clean/live_plots_GNN_4obs_no_RA_clean.png' target='_blank'><img src='4obs_no_RA_clean/live_plots_GNN_4obs_no_RA_clean.png' alt='live_plots_GNN_4obs_no_RA_clean.png' loading='lazy' /></a></div></div></div>
+<div class='exp-block pending-block'><h3>⏳ 🟣 Ablation 4D : 4obs_no_DEC_clean (<code>4obs_no_DEC_clean</code>)</h3><p class='subtitle'>Leave-One-Observable-Out (Sans Déclinaison (δ / Dec) — Indices [0,2,3,4]) — Transfert 5D→4D depuis best_gat_clean.pth (93.04%). — <b>En file d'attente SLURM (Pending)</b></p></div>
+<div class='exp-block pending-block'><h3>⏳ 🟣 Ablation 4D : 4obs_no_parallax_clean (<code>4obs_no_parallax_clean</code>)</h3><p class='subtitle'>Leave-One-Observable-Out (Sans Parallaxe (ϖ) — Indices [0,1,3,4]) — Transfert 5D→4D depuis best_gat_clean.pth (93.04%). — <b>En file d'attente SLURM (Pending)</b></p></div>
+<div class='exp-block pending-block'><h3>⏳ 🟣 Ablation 4D : 4obs_no_pmra_clean (<code>4obs_no_pmra_clean</code>)</h3><p class='subtitle'>Leave-One-Observable-Out (Sans Mouvement Propre μ_α* — Indices [0,1,2,4]) — Transfert 5D→4D depuis best_gat_clean.pth (93.04%). — <b>En file d'attente SLURM (Pending)</b></p></div>
+<div class='exp-block pending-block'><h3>⏳ 🟣 Ablation 4D : 4obs_no_pmdec_clean (<code>4obs_no_pmdec_clean</code>)</h3><p class='subtitle'>Leave-One-Observable-Out (Sans Mouvement Propre μ_δ — Indices [0,1,2,3]) — Transfert 5D→4D depuis best_gat_clean.pth (93.04%). — <b>En file d'attente SLURM (Pending)</b></p></div>
+    </section>
+
+    <!-- TAB 5: STUDY 2 V2 -->
+    <section id="tab-v2" class="tab-section">
+      <div class='exp-block pending-block'><h3>🔵 Study 2 V2 — Domaine Réel Gaia DR3 (En file d'attente SLURM : Jobs 41185009–41185012)</h3><p class='subtitle'>Cette section se remplira automatiquement dès le démarrage des jobs V2 (Génération covariances Gaia DR3, Graphes à échelle physique préservée, GAT/GCN 3 classes : Bound Core / Potential Escaper / Unbound).</p></div>
+    </section>
+
+    <!-- TAB 6: WEIGHTS & SLURM -->
+    <section id="tab-weights" class="tab-section">
+      <h2>💾 Registre des Poids Sauvegardés (.pth Checkpoints)</h2>
+      <table>
+        <thead>
+          <tr><th>Checkpoint</th><th>Taille</th><th>Dossier Expérience</th><th>Archive Centrale</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>best_gat_4obs_no_RA_clean.pth</code></td><td>357.9 KB</td><td><code>GNN-jed/trained_models/study2/4obs_no_RA_clean/best_gat_4obs_no_RA_clean.pth</code></td><td><code>GNN-jed/trained_models/study2/weights/best_gat_4obs_no_RA_clean.pth</code></td></tr>
+<tr><td><code>best_gat_clean.pth</code></td><td>361.2 KB</td><td><code>GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth</code></td><td><code>GNN-jed/trained_models/study2/weights/best_gat_clean.pth</code></td></tr>
+<tr><td><code>best_gcn_clean.pth</code></td><td>120.0 KB</td><td><code>GNN-jed/trained_models/study2/clean_5obs/best_gcn_clean.pth</code></td><td><code>GNN-jed/trained_models/study2/weights/best_gcn_clean.pth</code></td></tr>
+<tr><td><code>best_gat_noisy.pth</code></td><td>361.2 KB</td><td><code>GNN-jed/trained_models/study2/noisy_5obs/best_gat_noisy.pth</code></td><td><code>GNN-jed/trained_models/study2/weights/best_gat_noisy.pth</code></td></tr>
+        </tbody>
+      </table>
+      <h2>🖥️ État du Pipeline & Queue SLURM sur Jed</h2>
+      <pre class="status-box">[2026-11-14 18:46:40] Study 2 Pipeline Status on Jed
+- Step 1 (Plummer ICs): 81 / 81 ready
+- Step 2 (SWIFT Runs): 0 / 81 completed (101 snapshots)
+- Step 3 (Observables): Labels=0/81 | Clean=0/81 | GaiaNoisy=0/81
+- Step 4 (5D Graphs): Clean=0/81 | GaiaNoisy=0/81
+- Step 5/6 Live GNN Training Progress:
+  * 4obs_no_RA_clean/training_metrics_gat_4obs_no_RA_clean.log: Ep 002 | Train 0.1752 (92.98%) | Val 0.2404 (90.04%, Best=90.04%) | CoreFNR: 15.56% (min=8.41%) | Test=In progress
+  * clean_5obs/training_metrics_gat_clean.log: Ep 020 | Train 0.1006 (96.00%) | Val 0.1495 (94.10%, Best=94.21%) | CoreFNR: 6.64% (min=6.60%) | Test=93.04%
+  * clean_5obs/training_metrics_gcn_clean.log: Ep 025 | Train 0.1136 (95.42%) | Val 0.1820 (92.33%, Best=92.33%) | Test=92.17%
+  * noisy_5obs/training_metrics_gat_noisy.log: Ep 020 | Train 0.2683 (88.10%) | Val 0.4221 (81.26%, Best=81.76%) | CoreFNR: 23.60% (min=14.33%) | Test=84.91%
+  * [IN FLIGHT] 4obs_no_RA_clean (GAT): Ep 003 | Batch 0020/0103 (19.4%) | Batch Loss 0.1068 | LR: 1.79e-04 | RAM: 1.6G
+- Saved Model Checkpoints (.pth): 4 mirrored in GNN-jed/trained_models/study2/weights/
+
+SLURM Queue:
+Unable to query squeue: Command '['squeue', '-u', 'cozma', '-o', '%.14i %.10P %.22j %.4t %.10M %.6D %R']' timed out after 10 seconds</pre>
+    </section>
+  </main>
+
+  <script>
+    function switchTab(tabId, btnEl) {
+      document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      const target = document.getElementById(tabId);
+      if (target) target.classList.add('active');
+      if (btnEl) btnEl.classList.add('active');
+    }
+    function openInViewer(url, label) {
+      const viewer = document.getElementById('plotly-viewer');
+      const lbl = document.getElementById('viewer-label');
+      const ext = document.getElementById('viewer-ext-link');
+      viewer.style.display = 'block';
+      viewer.src = url;
+      lbl.textContent = '🔍 Lecteur Interactif Plotly : ' + label;
+      ext.href = url;
+      document.getElementById('viewer-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    function toggleViewer() {
+      const viewer = document.getElementById('plotly-viewer');
+      viewer.style.display = (viewer.style.display === 'none') ? 'block' : 'none';
+    }
+  </script>
+</body>
+</html>
