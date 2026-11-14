@@ -5,5 +5,5 @@ All best model checkpoints (`.pth`) are saved both in their respective experimen
 | Checkpoint File | Architecture | Features | Best Epoch | Val Loss | Val Acc | Core FNR | Test Acc | Test F1 | Size | Experiment Path |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
 | `best_gat_clean.pth` | **GAT** | 5D | 35 | 0.2071 | **91.89%** | 9.22% | **91.43%** | 0.8807 | 361.2 KB | `GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth` |
-| `best_gat_noisy.pth` | **GAT** | 5D | 12 | 0.4014 | **81.76%** | 25.34% | **Pending** | - | 361.2 KB | `GNN-jed/trained_models/study2/noisy_5obs/best_gat_noisy.pth` |
+| `best_gat_noisy.pth` | **GAT** | 5D | 12 | 0.4014 | **81.76%** | 19.52% | **84.91%** | 0.7879 | 361.2 KB | `GNN-jed/trained_models/study2/noisy_5obs/best_gat_noisy.pth` |
 | `best_gcn_clean.pth` | **GCN** | 5D | 24 | 0.1817 | **92.32%** | - | **92.17%** | 0.8886 | 120.0 KB | `GNN-jed/trained_models/study2/clean_5obs/best_gcn_clean.pth` |

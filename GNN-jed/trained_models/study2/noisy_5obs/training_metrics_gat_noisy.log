@@ -22,3 +22,6 @@ Epoch | Train Loss | Train Acc | Val Loss | Val Acc | LR | CoreFNR (CoreRec)
 018    | 0.2717     | 87.94%   | 0.4173   | 81.29%  | 2.3e-04 | CoreFNR: 23.60% (CoreRec: 76.40%)
 019    | 0.2678     | 88.17%   | 0.4138   | 81.65%  | 2.0e-04 | CoreFNR: 24.70% (CoreRec: 75.30%)
 020    | 0.2683     | 88.10%   | 0.4221   | 81.26%  | 1.7e-04 | CoreFNR: 23.60% (CoreRec: 76.40%)
+--------------------------------------------------
+Final Test Loss : 0.3181 | Acc: 84.91% | BalAcc: 83.88% | F1: 0.7879 | Prec: 0.7718 | Rec: 0.8048 | CoreFNR: 19.52% | CoreRec: 80.48%
+=== END OF TRAINING ===
