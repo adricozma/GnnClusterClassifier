@@ -127,3 +127,41 @@ Bulk simulation outputs, extracted observable matrices, and PyTorch Geometric `.
 | **Study 2 V2 Observables** | `/scratch/cozma/study2_v2/obs_unbiased/` | Gaia DR3 *G* <= 20.7 linear-parallax & MW contaminant `.npz` archives |
 | **Study 2 V2 Sky Graphs** | `/scratch/cozma/study2_v2/graphs_<clean\|noisy>/` | Pure 2D-sky *k*-NN PyG graphs (`edge_attr`, `err_x`, 3-class `y`) |
 | **Study 2 V2 Models & Logs** | `GNN-jed/trained_models/study2_v2/` | Best-4D config, V2 5D/4D checkpoints, logs & Gaia DR3 inference outputs |
+
+---
+
+## 3. Hardware Constraints & Execution Architecture (Jed HPC Cluster)
+
+- **Allocation Ceiling:** Maximum **2 nodes $\times$ 36 physical cores/node = 72 CPUs total**, with **246 GB RAM/node (492 GB RAM total)** under `--qos=academic --partition=academic` (Dual-socket Intel Xeon Platinum 8360Y Ice Lake-SP, 4 NUMA domains of 18 cores per node, no hardware `avx512_bf16`).
+- **Scratch Storage Warning:** Heavy intermediates live on `/scratch/cozma/study2` and `/scratch/cozma/study2_v2`. All converged model checkpoints (`.pth`), manifests (`weights_manifest.json`), and training logs (`.log`) are mirrored inside the Git repository under `GNN-jed/trained_models/`.
+
+---
+
+## 4. Completed Runs & Preserved Assets (DO NOT RE-RUN OR OVERWRITE)
+
+1. **Step 1 & Step 2 (`SWIFT` N-Body Simulations):** `81 / 81` unbiased streams (`101` HDF5 snapshots each, $2.0\text{ Gyr}$) complete in `/scratch/cozma/study2/outputs_unbiased/`.
+2. **Step 3 & Step 4 (Study 2 V1 Observables, Labels & $k=20$ Graphs):**
+   - `81 / 81` exact Küpper bound labels (`labels_clean/`), clean observables (`obs_clean/`), and noisy observables (`obs_gaia_noisy/`).
+   - `40,905` 5D `.pt` graphs each in `/scratch/cozma/graph_data_clean` and `/scratch/cozma/graph_data_noisy`.
+   - All 10 pre-built 4D ablation graph directories (`graph_data_4obs_no_{RA,Dec,Parallax,pmRA,pmDec}_{clean,noisy}`, `40,905` `.pt` graphs each) are already built on `/scratch/cozma/`.
+3. **Completed Study 2 V1 Model Checkpoints (`GNN-jed/trained_models/study2/weights/`):**
+   - `best_gcn_clean.pth` (Static 5-rot, `dropout=0.2`, Ep 24/25): `Val Loss = 0.1817 (92.32%)`, **`Test Acc = 92.17%`, `BalAcc = 91.59%`, `Test F1 = 0.8886`**.
+   - `best_gat_clean_ep18_backup.pth` (Static 5-rot, `dropout=0.2`, Ep 18/22): `Val Loss = 0.1470 (94.20%)`, **`Test Acc = 93.04%`, `BalAcc = 93.15%`, `Test F1 = 0.9035`, `CoreFNR = 6.49%`**.
+   - `best_gat_clean.pth` (Stochastic 5-rot, `dropout=0.4`, Ep 35/45): `Val Loss = 0.2071 (91.89%)`, **`Test Acc = 91.43%`, `BalAcc = 91.28%`, `Test F1 = 0.8807`, `CoreFNR = 9.22%`**.
+   - `best_gat_noisy.pth` (Stochastic 5-rot Curriculum on V1 Gaia DR3 noise, `dropout=0.4`, Best Ep 12): `Val Loss = 0.4014 (81.76%)`, `Val CoreFNR = 25.34%` (min `CoreFNR = 14.33%` at Ep 5).
+
+---
+
+## 5. V1 vs. V2 Pipeline Map & Technical Audit Notes for Agentic Sessions
+
+- **Study 2 V1 (`src/observables_matrix.py`, `src/gnn_models.py`, `scripts/distributed_trainer.py`):**
+  - Uses monochromatic $M_G = 4.5$, clipped inverse parallax $D = 1/\operatorname{clip}(\varpi_{\mathrm{obs}}, 0.005, 10.0)\text{ kpc}$, `zscore` ($6\sigma_{\mathrm{MAD}}$ winsorized) standardization, and 5D Euclidean `cKDTree` $k$-NN graphs ($k=20$) with binary `is_bound` labels.
+  - At $D \gtrsim 15\text{ kpc}$, $\varpi/\sigma_\varpi \ll 1$ causes bimodal $D_{\mathrm{obs}}$ pile-up at $200\text{ kpc}$ and $<2\text{ kpc}$, scrambling 5D $k$-NN graph topology and creating an intrinsic noisy validation plateau around `Val Loss ~ 0.40`, `Val Acc ~ 81.8%`.
+- **Study 2 V2 (`src/gaia_v2.py`, `src/gnn_models_v2.py`, `scripts/v2_*.py`, `slurm/v2_*.sh`):**
+  - Introduces Kroupa IMF + RGB luminosity function, $G \le 20.7$ cut, linear signed parallax $\varpi_{\mathrm{obs}}$ (mas), 4 uncertainty/SNR features (`err_x`), 2D sky tangent-plane $k$-NN topology (`edge_attr = [dRA*, dDec, theta_sky]`), $N$-invariant surface density normalization, Milky Way field contaminants, and 3-class labels (`0: Unbound/Field`, `1: Potential Escaper`, `2: Bound Core`).
+  - **Key V2 items tracked for refinement:**
+    1. Extend RGB tip in `sample_cluster_abs_magnitudes_g` (`src/gaia_v2.py:117`) from `M_G = -0.6` to `-2.5` (TRGB) and cap `g_app_vis` noise evaluation at `g_max` when `cut_relaxed` triggers on ultra-distant halo clusters ($D > 100\text{ kpc}$).
+    2. Center parallax (`out[:, 2]`) on the stream median and compute standardization medians robustly against high field contamination (`src/gaia_v2.py:434-478`).
+    3. Separate feature dropout (`0.2`) from `GATConv` attention edge dropout (`0.0–0.1`), and remove attention dropout on the final output layer (`src/gnn_models.py:132`, `src/gnn_models_v2.py:158`).
+    4. Use node-weighted gradient accumulation and in-RAM graph caching (`~7–15 GB` out of `246 GB/node`) plus `torch.set_num_threads` in `scripts/v2_train_gat.py` to accelerate CPU epochs by $3\text{--}5\times$.
+
