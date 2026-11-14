@@ -225,7 +225,7 @@
   <header>
     <div class="header-top">
       <h1>🌌 Study 2 — Master Index Classifié des Entraînements GNN (GAT vs GCN)</h1>
-      <span class="timestamp">Mis à jour : 2026-11-14 18:46:40</span>
+      <span class="timestamp">Mis à jour : 2026-11-14 18:49:21</span>
     </div>
     <div class="nav-tabs">
       <button class="tab-btn active" onclick="switchTab('tab-overview', this)">📊 Vue Globale & Spectres RMT (Tous Modèles)</button>
@@ -274,7 +274,7 @@
 <tr><td><code>clean_5obs</code></td><td><span class='badge badge-gat'>GAT</span></td><td><b>20</b></td><td>0.1006</td><td>96.00%</td><td>0.1495</td><td>94.10%</td><td><b>94.21%</b></td><td>6.49% (val: 6.60%)</td><td><span class='status-done'>93.04%</span></td><td><b>0.9035</b></td></tr>
 <tr><td><code>clean_5obs</code></td><td><span class='badge badge-gcn'>GCN</span></td><td><b>25</b></td><td>0.1136</td><td>95.42%</td><td>0.1820</td><td>92.33%</td><td><b>92.33%</b></td><td>-</td><td><span class='status-done'>92.17%</span></td><td><b>0.8886</b></td></tr>
 <tr><td><code>noisy_5obs</code></td><td><span class='badge badge-gat'>GAT</span></td><td><b>20</b></td><td>0.2683</td><td>88.10%</td><td>0.4221</td><td>81.26%</td><td><b>81.76%</b></td><td>19.52% (val: 14.33%)</td><td><span class='status-done'>84.91%</span></td><td><b>0.7879</b></td></tr>
-<tr><td><code>4obs_no_RA_clean</code></td><td><span class='badge badge-live'>GAT (In Flight)</span></td><td><b>Ep 03 (19%)</b></td><td>0.1068</td><td>-</td><td>-</td><td>-</td><td><b>-</b></td><td>-</td><td><span class='status-live'>In progress</span></td><td><b>-</b></td></tr>
+<tr><td><code>4obs_no_RA_clean</code></td><td><span class='badge badge-live'>GAT (In Flight)</span></td><td><b>Ep 03 (39%)</b></td><td>0.1807</td><td>-</td><td>-</td><td>-</td><td><b>-</b></td><td>-</td><td><span class='status-live'>In progress</span></td><td><b>-</b></td></tr>
         </tbody>
       </table>
 
@@ -331,7 +331,7 @@
         </tbody>
       </table>
       <h2>🖥️ État du Pipeline & Queue SLURM sur Jed</h2>
-      <pre class="status-box">[2026-11-14 18:46:40] Study 2 Pipeline Status on Jed
+      <pre class="status-box">[2026-11-14 18:49:21] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 0 / 81 completed (101 snapshots)
 - Step 3 (Observables): Labels=0/81 | Clean=0/81 | GaiaNoisy=0/81
@@ -341,7 +341,7 @@
   * clean_5obs/training_metrics_gat_clean.log: Ep 020 | Train 0.1006 (96.00%) | Val 0.1495 (94.10%, Best=94.21%) | CoreFNR: 6.64% (min=6.60%) | Test=93.04%
   * clean_5obs/training_metrics_gcn_clean.log: Ep 025 | Train 0.1136 (95.42%) | Val 0.1820 (92.33%, Best=92.33%) | Test=92.17%
   * noisy_5obs/training_metrics_gat_noisy.log: Ep 020 | Train 0.2683 (88.10%) | Val 0.4221 (81.26%, Best=81.76%) | CoreFNR: 23.60% (min=14.33%) | Test=84.91%
-  * [IN FLIGHT] 4obs_no_RA_clean (GAT): Ep 003 | Batch 0020/0103 (19.4%) | Batch Loss 0.1068 | LR: 1.79e-04 | RAM: 1.6G
+  * [IN FLIGHT] 4obs_no_RA_clean (GAT): Ep 003 | Batch 0040/0103 (38.8%) | Batch Loss 0.1807 | LR: 1.76e-04 | RAM: 1.6G
 - Saved Model Checkpoints (.pth): 4 mirrored in GNN-jed/trained_models/study2/weights/
 
 SLURM Queue:
