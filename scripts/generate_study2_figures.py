@@ -35,7 +35,7 @@ from gnn_models import GCN as GCNModel, GAT as GATModel
 
 
 def _write_plotly_html(out_html, title, traces, layout):
-    """Write a standalone interactive Plotly HTML file."""
+    """Write a standalone interactive Plotly HTML file with a clean, sober white style."""
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -45,22 +45,23 @@ def _write_plotly_html(out_html, title, traces, layout):
   <style>
     body {{
       margin: 0;
-      padding: 20px;
-      background-color: #0f172a;
-      color: #f8fafc;
+      padding: 16px 20px;
+      background-color: #ffffff;
+      color: #111827;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }}
     h2 {{
-      margin-top: 0;
+      margin: 0 0 12px 0;
+      font-size: 1.05rem;
       font-weight: 600;
-      color: #e2e8f0;
+      color: #111827;
     }}
     #plot {{
       width: 100%;
-      height: 82vh;
-      background: #1e293b;
-      border-radius: 10px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      height: 85vh;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
     }}
   </style>
 </head>
@@ -70,12 +71,13 @@ def _write_plotly_html(out_html, title, traces, layout):
   <script>
     const traces = {json.dumps(traces)};
     const layout = Object.assign({{
-      paper_bgcolor: "#1e293b",
-      plot_bgcolor: "#0f172a",
-      font: {{ color: "#e2e8f0", size: 13 }},
+      template: "plotly_white",
+      paper_bgcolor: "#ffffff",
+      plot_bgcolor: "#ffffff",
+      font: {{ color: "#111827", size: 12 }},
       hovermode: "closest"
     }}, {json.dumps(layout)});
-    Plotly.newPlot("plot", traces, layout, {{responsive: true}});
+    Plotly.newPlot("plot", traces, layout, {{responsive: true, displaylogo: false}});
   </script>
 </body>
 </html>

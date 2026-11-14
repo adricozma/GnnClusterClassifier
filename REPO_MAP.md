@@ -155,7 +155,7 @@ Bulk simulation outputs, extracted observable matrices, and PyTorch Geometric `.
 ## 5. V1 vs. V2 Pipeline Map & Implemented Upgrades for Agentic Sessions
 
 - **Study 2 V1 (`src/observables_matrix.py`, `src/gnn_models.py`, `scripts/distributed_trainer.py`):**
-  - Uses monochromatic $M_G = 4.5$, clipped inverse parallax $D = 1/\operatorname{clip}(\varpi_{\mathrm{obs}}, 0.005, 10.0)\text{ kpc}$, `zscore` ($6\sigma_{\mathrm{MAD}}$ winsorized) standardization, and 5D Euclidean `cKDTree` $k$-NN graphs ($k=20$) with binary `is_bound` labels.
+  - Uses monochromatic $M_G = 4.5$, clipped inverse parallax $D = 1/\mathrm{clip}(\varpi_{\mathrm{obs}}, 0.005, 10.0)\text{ kpc}$, `zscore` ($6\sigma_{\mathrm{MAD}}$ winsorized) standardization, and 5D Euclidean `cKDTree` $k$-NN graphs ($k=20$) with binary `is_bound` labels.
   - **Step 5 (5D Clean + 5D Noisy) is 100% COMPLETED.**
   - **Step 6 (4D Ablations, `41146835_[0-4%1]`) is currently RUNNING** and **Step 7 (`41146836`, Stochastic Clean GCN)** is queued immediately after.
 - **Study 2 V2 (`src/gaia_v2.py`, `src/gnn_models_v2.py`, `scripts/v2_*.py`, `slurm/v2_*.sh`):**

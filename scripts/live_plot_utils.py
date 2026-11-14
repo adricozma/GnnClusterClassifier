@@ -96,8 +96,8 @@ def parse_log_file(log_path):
 
 
 def update_live_plots_for_log(log_path):
-    """Update both the per-experiment live training plot and the master Study 2 live dashboard PNG."""
-    if plt is None or not log_path or not os.path.exists(log_path):
+    """Update both the per-experiment live training plot (PNG + HTML) and the master Study 2 live dashboard PNG."""
+    if not log_path or not os.path.exists(log_path):
         return None
 
     exp_dir = os.path.dirname(os.path.abspath(log_path))
@@ -110,6 +110,66 @@ def update_live_plots_for_log(log_path):
     gat_data = parse_log_file(gat_logs[0]) if gat_logs else parse_log_file("")
 
     if not gcn_data["epochs"] and not gat_data["epochs"]:
+        return None
+
+    # Always write interactive Plotly HTML learning curve (pure stdlib json, no matplotlib dependency required)
+    try:
+        import json
+        traces_html = []
+        if gcn_data["epochs"]:
+            traces_html.extend([
+                {"x": gcn_data["epochs"], "y": gcn_data["train_loss"], "mode": "lines+markers", "name": "GCN Train Loss", "line": {"dash": "dash", "color": "#60a5fa"}, "xaxis": "x1", "yaxis": "y1"},
+                {"x": gcn_data["epochs"], "y": gcn_data["val_loss"], "mode": "lines+markers", "name": f"GCN Val Loss (min={min(gcn_data['val_loss']):.4f})", "line": {"width": 3, "color": "#2563eb"}, "xaxis": "x1", "yaxis": "y1"},
+                {"x": gcn_data["epochs"], "y": gcn_data["train_acc"], "mode": "lines+markers", "name": "GCN Train Acc (%)", "line": {"dash": "dash", "color": "#60a5fa"}, "xaxis": "x2", "yaxis": "y2"},
+                {"x": gcn_data["epochs"], "y": gcn_data["val_acc"], "mode": "lines+markers", "name": f"GCN Val Acc (best={max(gcn_data['val_acc']):.2f}%)", "line": {"width": 3, "color": "#2563eb"}, "xaxis": "x2", "yaxis": "y2"},
+            ])
+        if gat_data["epochs"]:
+            traces_html.extend([
+                {"x": gat_data["epochs"], "y": gat_data["train_loss"], "mode": "lines+markers", "name": "GAT Train Loss", "line": {"dash": "dash", "color": "#fb923c"}, "xaxis": "x1", "yaxis": "y1"},
+                {"x": gat_data["epochs"], "y": gat_data["val_loss"], "mode": "lines+markers", "name": f"GAT Val Loss (min={min(gat_data['val_loss']):.4f})", "line": {"width": 3, "color": "#ea580c"}, "xaxis": "x1", "yaxis": "y1"},
+                {"x": gat_data["epochs"], "y": gat_data["train_acc"], "mode": "lines+markers", "name": "GAT Train Acc (%)", "line": {"dash": "dash", "color": "#fb923c"}, "xaxis": "x2", "yaxis": "y2"},
+                {"x": gat_data["epochs"], "y": gat_data["val_acc"], "mode": "lines+markers", "name": f"GAT Val Acc (best={max(gat_data['val_acc']):.2f}%)", "line": {"width": 3, "color": "#ea580c"}, "xaxis": "x2", "yaxis": "y2"},
+            ])
+        layout_html = {
+            "title": f"Interactive GNN Learning Curves — Loss & Accuracy ({exp_tag})",
+            "template": "plotly_white",
+            "paper_bgcolor": "#ffffff",
+            "plot_bgcolor": "#ffffff",
+            "font": {"family": "Inter, system-ui, sans-serif", "size": 12, "color": "#111827"},
+            "grid": {"rows": 1, "columns": 2, "pattern": "independent"},
+            "xaxis1": {"title": "Epoch"},
+            "yaxis1": {"title": "Binary Cross-Entropy Loss"},
+            "xaxis2": {"title": "Epoch"},
+            "yaxis2": {"title": "Node Classification Accuracy [%]"},
+        }
+        out_exp_html = os.path.join(exp_dir, f"live_plots_GNN_{exp_tag}.html")
+        html_doc = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Live GNN Learning Curves ({exp_tag})</title>
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <style>
+    body {{ margin: 0; background: #ffffff; color: #111827; font-family: system-ui, sans-serif; }}
+    #plot {{ width: 100vw; height: 96vh; }}
+  </style>
+</head>
+<body>
+  <div id="plot"></div>
+  <script>
+    const traces = {json.dumps(traces_html)};
+    const layout = {json.dumps(layout_html)};
+    Plotly.newPlot('plot', traces, layout, {{responsive: true, displaylogo: false}});
+  </script>
+</body>
+</html>
+"""
+        with open(out_exp_html, "w", encoding="utf-8") as hf:
+            hf.write(html_doc)
+    except Exception:
+        pass
+
+    if plt is None:
         return None
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5), dpi=160)

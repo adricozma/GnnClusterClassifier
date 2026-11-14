@@ -19,8 +19,10 @@ This repository provides a complete numerical and deep-learning pipeline that:
 4. Projects the simulations into synthetic 5D *Gaia*-like astrometric observables with data augmentation over random observer orientations and physical-scale standardization.
 5. Trains **Residual Graph Convolutional Networks (GCN)** and **Multi-Head Residual Graph Attention Networks (GAT)** with local phase-space relational encoding (`3d + 3` invariants) on *k*-NN graphs $(k = 20)$, using **Two-Stage Curriculum Learning** (noiseless pre-training $\to$ *Gaia* DR3 magnitude-dependent noisy fine-tuning), **subspace-aligned $5\mathrm{D} \to 4\mathrm{D}$ weight transfer** for systematic observable ablations, and multi-node distributed training with micro-batch gradient accumulation and automatic disk activation offloading.
 
-> **Live Training Progress:**  
-> Real-time training metrics and learning curve figures (`latest_live_training.png` & `live_plots_GNN_*.png`) are tracked in [**`LIVE_STATUS.md`**](LIVE_STATUS.md), and pre-trained model checkpoints (`.pth`) are indexed in [**`GNN-jed/trained_models/study2/weights/MODEL_WEIGHTS_REGISTRY.md`**](GNN-jed/trained_models/study2/weights/MODEL_WEIGHTS_REGISTRY.md).
+> **Live Training Progress & Master Interactive HTML Dashboard:**  
+> - **Master Interactive HTML Index (All Trainings & Plotly Views in One Page):** [**`index.html`**](index.html) (also mirrored at [**`GNN-jed/trained_models/study2/index.html`**](GNN-jed/trained_models/study2/index.html))  
+> - **Real-Time Telemetry & RMT Candle Spectra Markdown:** [**`LIVE_STATUS.md`**](LIVE_STATUS.md)  
+> - **Model Checkpoints Registry (`.pth`):** [**`GNN-jed/trained_models/study2/weights/MODEL_WEIGHTS_REGISTRY.md`**](GNN-jed/trained_models/study2/weights/MODEL_WEIGHTS_REGISTRY.md)
 
 ---
 
@@ -159,7 +161,7 @@ To prevent extended, asymmetric tidal tails from biasing the cluster center-of-m
 For each snapshot, the 3D Galactocentric particle coordinates are rotated by $n_{\mathrm{rot}} = 5$ Haar-uniform 3D Euler matrices $\mathbf{R} \in \mathrm{SO}(3)$ to augment viewing angles, transformed into the heliocentric International Celestial Reference System (ICRS) via `astropy.coordinates.SkyCoord`, optionally perturbed with Lindegren et al. (2021) *Gaia* DR3 astrometric uncertainties at reference absolute magnitude $M_G = 4.5$ (`inject_gaia_dr3_noise`), and restricted to the 5D observable vector:
 
 $$
-\mathbf{x}_i = \left(\Delta\alpha_i\cos\delta_c,\; \Delta\delta_i,\; D_i,\; \mu_{\alpha^*,i},\; \mu_{\delta,i}\right) \in \mathbb{R}^5, \qquad D_i = \frac{1}{\operatorname{clip}(\varpi_{\mathrm{obs},i},\, 0.005,\, 10.0)}\text{ kpc}.
+\mathbf{x}_i = \left(\Delta\alpha_i\cos\delta_c,\; \Delta\delta_i,\; D_i,\; \mu_{\alpha^*,i},\; \mu_{\delta,i}\right) \in \mathbb{R}^5, \qquad D_i = \frac{1}{\mathrm{clip}(\varpi_{\mathrm{obs},i},\, 0.005,\, 10.0)}\text{ kpc}.
 $$
 
 In `src/observables_matrix.py`, Right Ascension is centered via the circular median on $\mathbb{S}^1$ and projected onto the local tangent plane. `standardise_matrix` supports both `mode="physical"` (fixed galactic scale factors) and `mode="zscore"` ($6\sigma_{\mathrm{MAD}}$ winsorization followed by per-snapshot Z-score standardization); the live Study 2 benchmark extraction (`slurm/step3_extract_observables.sh`) ran with `--norm_mode zscore --n_rotations 5 --abs_mag_g 4.5`. Directed *k*-nearest-neighbor graphs $(k = 20)$ are built in standardized 5D (or 4D ablation) feature space using `scipy.spatial.cKDTree` (`scripts/build_graph_dataset.py`).
@@ -182,11 +184,11 @@ We compare two 3-layer residual architectures across **81 unbiased *Gaia* DR3 pr
 2. **Anisotropic 3-Layer Multi-Head Residual GAT (`scripts/train_gat.py`):** `GATConv(3d+3, 32, heads=4)` $\to$ `GATConv(128, 64, heads=4)` $\to$ `GATConv(256, 1, heads=1)` with `LayerNorm`, `ELU` activations, linear residual skip connections (`skip1`, `skip2`), and dual ego-relational readout:
 
 $$
-e_{ij}^{(m)} = \operatorname{LeakyReLU}_{0.2}\!\left(\mathbf{a}_{\mathrm{src}}^{(m)\top}\mathbf{W}^{(m)}\mathbf{h}_i^{(l-1)} + \mathbf{a}_{\mathrm{dst}}^{(m)\top}\mathbf{W}^{(m)}\mathbf{h}_j^{(l-1)}\right), \qquad \alpha_{ij}^{(m)} = \frac{\exp(e_{ij}^{(m)})}{\sum_{u \in \mathcal{N}(i) \cup \{i\}} \exp(e_{iu}^{(m)})},
+e_{ij}^{(m)} = \mathrm{LeakyReLU}_{0.2}\!\left(\mathbf{a}_{\mathrm{src}}^{(m)\top}\mathbf{W}^{(m)}\mathbf{h}_i^{(l-1)} + \mathbf{a}_{\mathrm{dst}}^{(m)\top}\mathbf{W}^{(m)}\mathbf{h}_j^{(l-1)}\right), \qquad \alpha_{ij}^{(m)} = \frac{\exp(e_{ij}^{(m)})}{\sum_{u \in \mathcal{N}(i) \cup \{i\}} \exp(e_{iu}^{(m)})},
 $$
 
 $$
-\mathbf{h}_i^{(l)} = \operatorname{ELU}\!\left(\operatorname{LayerNorm}\!\left(\operatorname{Concat}_{m=1}^{4}\!\left[\sum_{j \in \mathcal{N}(i) \cup \{i\}} \alpha_{ij}^{(m)}\mathbf{W}^{(m)}\mathbf{h}_j^{(l-1)}\right] + \mathbf{W}_{\mathrm{skip},l}\,\mathbf{h}_i^{(l-1)}\right)\right), \qquad \hat{y}_i = \operatorname{conv3}(\mathbf{h}_i^{(2)}, \mathcal{E}) + \operatorname{MLP}_{\mathrm{ego}}\!\left([\mathbf{h}_i^{(2)} \;\Vert\; \mathbf{h}_i^{(0)}]\right).
+\mathbf{h}_i^{(l)} = \mathrm{ELU}\!\left(\mathrm{LayerNorm}\!\left(\mathrm{Concat}_{m=1}^{4}\!\left[\sum_{j \in \mathcal{N}(i) \cup \{i\}} \alpha_{ij}^{(m)}\mathbf{W}^{(m)}\mathbf{h}_j^{(l-1)}\right] + \mathbf{W}_{\mathrm{skip},l}\,\mathbf{h}_i^{(l-1)}\right)\right), \qquad \hat{y}_i = \mathrm{conv3}(\mathbf{h}_i^{(2)}, \mathcal{E}) + \mathrm{MLP}_{\mathrm{ego}}\!\left([\mathbf{h}_i^{(2)} \;\Vert\; \mathbf{h}_i^{(0)}]\right).
 $$
 
    - **Physical Role of Multi-Head Attention:** Unlike GCN, the $M=4$ attention heads learn **anisotropic weights** $\alpha_{ij}^{(m)}$ that suppress high-velocity escapers or phase-space outliers ($\alpha_{ij} \to 0$) while concentrating message passing onto kinematically coherent core members ($\|\boldsymbol{\mu}_j - \boldsymbol{\mu}_i\| \to 0$), preserving a sharp decision boundary right at $R_J$.
@@ -202,7 +204,7 @@ $$
 | **`best_gat_noisy.pth`** *(V1 5D Noisy)* | 5D Gaia DR3 Noisy | 1 rot/ep (stochastic) | `0.40 / 0.40` | 12 | `0.4014` / 81.76% | 0.3181 | **84.91%** | **83.88%** | **0.7879** | 19.52% (`CoreRec: 80.48%`) |
 
 > **Why V1 5D Noisy Drops to 84.91% (and How Step 6 `4obs_no_Parallax` & Study 2 V2 Solve It):**  
-> In V1 `noisy_5obs`, column 2 is the inverted distance $D_i = 1/\operatorname{clip}(\varpi_{\mathrm{obs},i}, 0.005, 10)\text{ kpc}$. At typical halo distances ($10\text{--}40\text{ kpc}$, where $\sigma_\varpi > \varpi_{\mathrm{true}}$ at $M_G=4.5$), $\sim 40\%$ of noisy parallax draws fall below $0.005\text{ mas}$ and pile up at $D_i = 200\text{ kpc}$, tearing apart the 5D $k$-NN graph topology before the GAT is even applied. Dropping parallax in **Step 6 (`4obs_no_Parallax`)** removes this corrupted axis in 4D, while **Study 2 V2 (`GAT_V2`)** builds $k$-NN edges strictly in **2D sky coordinates $(\Delta\alpha^*, \Delta\delta)$** and passes linear $\varpi_{\mathrm{obs}}$ alongside explicit measurement uncertainties $(\sigma_\varpi, \sigma_{\mu_{\alpha^*}}, \sigma_{\mu_\delta}, \mathrm{SNR}_\varpi)$.
+> In V1 `noisy_5obs`, column 2 is the inverted distance $D_i = 1/\mathrm{clip}(\varpi_{\mathrm{obs},i}, 0.005, 10)\text{ kpc}$. At typical halo distances ($10\text{--}40\text{ kpc}$, where $\sigma_\varpi > \varpi_{\mathrm{true}}$ at $M_G=4.5$), $\sim 40\%$ of noisy parallax draws fall below $0.005\text{ mas}$ and pile up at $D_i = 200\text{ kpc}$, tearing apart the 5D $k$-NN graph topology before the GAT is even applied. Dropping parallax in **Step 6 (`4obs_no_Parallax`)** removes this corrupted axis in 4D, while **Study 2 V2 (`GAT_V2`)** builds $k$-NN edges strictly in **2D sky coordinates $(\Delta\alpha^*, \Delta\delta)$** and passes linear $\varpi_{\mathrm{obs}}$ alongside explicit measurement uncertainties $(\sigma_\varpi, \sigma_{\mu_{\alpha^*}}, \sigma_{\mu_\delta}, \mathrm{SNR}_\varpi)$.
 
 #### Two-Stage Curriculum, Stochastic $\mathrm{SO}(3)$ Training & $5\mathrm{D} \to 4\mathrm{D}$ Subspace Weight Transfer
 - **Step 5 — 5-Observable Curriculum (`slurm/step5_train_curriculum_and_plot.sh`):** Both GCN (25 epochs, architectural baseline) and GAT (50 epochs, `--stochastic_rotation` sampling 1 random rotation per snapshot per epoch across $6\,565$ training graphs/epoch) are trained on noiseless 5D astrometric graphs (`clean_5obs`, $\mathrm{lr} = 10^{-3}$). The converged 5D Clean GAT checkpoint (`best_gat_clean.pth`) is then fine-tuned for up to 30 epochs (`patience = 8`) on *Gaia* DR3 noisy graphs (`noisy_5obs`, $\mathrm{lr} = 5\times 10^{-4}$, Lindegren et al. 2021).
@@ -467,7 +469,7 @@ While the active Study 2 (V1) pipeline cleanly isolates 5D vs. 4D astrometric in
 
 ### 1. Planned Observational Domain Fixes (V1 $\to$ V2)
 1. **Stellar Luminosity Function, Flux Limit ($G \le 20.7$) & Per-Star Error Inputs:** Replace the fixed $M_G = 4.5$ assumption with realistic IMF magnitude sampling (Kroupa 2001), drop faint stars below *Gaia* completeness ($G > G_{\max} \approx 20.7$), compute star-by-star Lindegren et al. (2021) uncertainties, and pass normalized per-star measurement errors $(\sigma_\varpi, \sigma_{\mu_{\alpha^*}}, \sigma_{\mu_\delta})$ and parallax SNR as explicit node channels.
-2. **Linear Parallax Representation:** Pass signed noisy parallax $\varpi_{\mathrm{obs}}$ [mas] directly instead of $D = 1/\operatorname{clip}(\varpi_{\mathrm{obs}}, 0.005, 10)$, eliminating non-linear Lutz–Kelker distance bias and $200\text{ kpc}$ boundary pile-ups (Bailer-Jones 2015; Luri et al. 2018).
+2. **Linear Parallax Representation:** Pass signed noisy parallax $\varpi_{\mathrm{obs}}$ [mas] directly instead of $D = 1/\mathrm{clip}(\varpi_{\mathrm{obs}}, 0.005, 10)$, eliminating non-linear Lutz–Kelker distance bias and $200\text{ kpc}$ boundary pile-ups (Bailer-Jones 2015; Luri et al. 2018).
 3. **2D On-Sky Tangential $k$-NN Topology:** Build `cKDTree` edges exclusively in the high-SNR 2D sky plane $(\Delta\alpha^*, \Delta\delta)$ rather than in noisy 4D/5D feature space.
 4. **Physical-Scale Normalization & $N$-Invariant Density:** Replace per-snapshot unit-variance Z-scores (`--norm_mode zscore`) with fixed galactic scale factors (`--norm_mode physical`) and surface-area/population-normalized local density invariants so compact cores and extended streams are distinguishable regardless of observed star count $N_{\mathrm{obs}}$.
 5. **Milky Way Field-Star Contamination:** Inject foreground/background Milky Way contaminants (`label = unbound`) into simulated cones so the classifier separates stream/cluster stars from unrelated field stars.

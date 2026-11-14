@@ -368,19 +368,666 @@ def write_live_status_markdown(report, prog):
 
     with open(status_md_path, "w", encoding="utf-8") as f:
         f.write("\n".join(md_lines) + "\n")
+    try:
+        write_master_html_index(report, prog)
+    except Exception:
+        pass
+
+
+def _friendly_plot_label(fname: str) -> str:
+    """Return a clean, sober French scientific label for a figure filename."""
+    base = fname.rsplit(".", 1)[0]
+    if base.startswith("spectral_analysis_GNN_"):
+        tag = base.replace("spectral_analysis_GNN_", "")
+        return f"Spectre RMT (Valeurs Singulières / Bâtons) — {tag}"
+    if base.startswith("live_plots_GNN_"):
+        tag = base.replace("live_plots_GNN_", "")
+        return f"Courbes d'Entraînement (Loss & Accuracy) — {tag}"
+    if base.startswith("surviving_core_fnr_by_perigalacticon_"):
+        rest = base.replace("surviving_core_fnr_by_perigalacticon_", "")
+        return f"Core FNR & Rappel par Péricentre R_p1 — {rest}"
+    if base.startswith("error_percentage_by_perigalacticon_"):
+        rest = base.replace("error_percentage_by_perigalacticon_", "")
+        return f"Erreur de Classification par Péricentre R_p1 — {rest}"
+    if base.startswith("prediction_"):
+        rest = base.replace("prediction_", "")
+        return f"Prédiction 3D Amas & Queues de Marée — {rest}"
+    if base == "R_vs_t_6panels_rp1":
+        return "Évolution Orbitale R(t) & Fraction Liée (6 Panneaux)"
+    if base == "seeds_positions_unbiased":
+        return "Distribution Galactocentrique des 81 Orbites (Seeds)"
+    return fname
+
+
+def _normalize_existing_plotly_html_to_white(study2_dir: str) -> None:
+    """Ensure existing standalone Plotly HTML files use a clean white background matching index.html."""
+    for hpath in glob.glob(os.path.join(study2_dir, "*", "*.html")):
+        if os.path.basename(hpath) == "index.html":
+            continue
+        try:
+            with open(hpath, "r", encoding="utf-8") as f:
+                txt = f.read()
+            if "#0f172a" in txt or "#1e293b" in txt or "plotly_dark" in txt:
+                new_txt = (
+                    txt.replace("background-color: #0f172a;", "background-color: #ffffff;")
+                    .replace("background: #0f172a;", "background: #ffffff;")
+                    .replace("background: #1e293b;", "background: #ffffff; border: 1px solid #e5e7eb;")
+                    .replace('paper_bgcolor: "#1e293b"', 'template: "plotly_white", paper_bgcolor: "#ffffff"')
+                    .replace('plot_bgcolor: "#0f172a"', 'plot_bgcolor: "#ffffff"')
+                    .replace('"paper_bgcolor": "#0f172a"', '"paper_bgcolor": "#ffffff"')
+                    .replace('"plot_bgcolor": "#1e293b"', '"plot_bgcolor": "#ffffff"')
+                    .replace('"template": "plotly_dark"', '"template": "plotly_white"')
+                    .replace('color: "#e2e8f0"', 'color: "#111827"')
+                    .replace('"color": "#f8fafc"', '"color": "#111827"')
+                    .replace("color: #f8fafc;", "color: #111827;")
+                    .replace("color: #e2e8f0;", "color: #111827;")
+                )
+                if new_txt != txt:
+                    with open(hpath, "w", encoding="utf-8") as f:
+                        f.write(new_txt)
+        except Exception:
+            pass
+
+
+def write_master_html_index(report, prog):
+    """Write a unified, single-page classified index.html at repo root and in study2/ with a sober white academic style."""
+    study2_dir = os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2")
+    os.makedirs(study2_dir, exist_ok=True)
+    _normalize_existing_plotly_html_to_white(study2_dir)
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    expected_ablations = [
+        ("4obs_no_RA_clean", "Sans Ascension Droite (α / RA) — Indices [1,2,3,4]"),
+        ("4obs_no_DEC_clean", "Sans Déclinaison (δ / Dec) — Indices [0,2,3,4]"),
+        ("4obs_no_parallax_clean", "Sans Parallaxe (ϖ) — Indices [0,1,3,4]"),
+        ("4obs_no_pmra_clean", "Sans Mouvement Propre μ_α* — Indices [0,1,2,4]"),
+        ("4obs_no_pmdec_clean", "Sans Mouvement Propre μ_δ — Indices [0,1,2,3]"),
+    ]
+
+    all_subdirs = sorted([
+        d for d in os.listdir(study2_dir)
+        if os.path.isdir(os.path.join(study2_dir, d)) and d not in ("weights", "legacy")
+    ])
+    v2_dirs = [d for d in all_subdirs if d.startswith("v2_")]
+    ablation_dirs = [d for d in all_subdirs if d.startswith("4obs_")]
+    for ab_name, _ in expected_ablations:
+        if ab_name not in ablation_dirs:
+            ablation_dirs.append(ab_name)
+
+    def _render_for_base(base_prefix: str) -> str:
+        def _url(rel_within_study2: str) -> str:
+            return f"{base_prefix}{rel_within_study2}"
+
+        rows_html = []
+        for row in prog.get("training_rows", []):
+            if len(row) == 11:
+                exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, core_str, test_str, f1_str = row
+            else:
+                exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, test_str, f1_str = row
+                core_str = "-"
+            tr_l_s = f"{tr_l:.4f}" if isinstance(tr_l, (int, float)) else str(tr_l)
+            tr_a_s = f"{tr_a:.2f}%" if isinstance(tr_a, (int, float)) else str(tr_a)
+            va_l_s = f"{va_l:.4f}" if isinstance(va_l, (int, float)) else str(va_l)
+            va_a_s = f"{va_a:.2f}%" if isinstance(va_a, (int, float)) else str(va_a)
+            best_va_s = f"{best_va:.2f}%" if isinstance(best_va, (int, float)) else str(best_va)
+
+            badge_cls = "badge-gat" if "GAT" in model_name else "badge-gcn"
+            if "In Flight" in model_name:
+                badge_cls = "badge-live"
+            status_cls = "status-live" if test_str == "In progress" else "status-done"
+            rows_html.append(
+                f"<tr>"
+                f"<td><code>{exp_name}</code></td>"
+                f"<td><span class='badge {badge_cls}'>{model_name}</span></td>"
+                f"<td>{ep}</td>"
+                f"<td>{tr_l_s}</td>"
+                f"<td>{tr_a_s}</td>"
+                f"<td>{va_l_s}</td>"
+                f"<td>{va_a_s}</td>"
+                f"<td><strong>{best_va_s}</strong></td>"
+                f"<td>{core_str}</td>"
+                f"<td><span class='{status_cls}'>{test_str}</span></td>"
+                f"<td><strong>{f1_str}</strong></td>"
+                f"</tr>"
+            )
+        metrics_table_body = "\n".join(rows_html) if rows_html else "<tr><td colspan='11'>Aucun entraînement trouvé</td></tr>"
+
+        rmt_cards = []
+        for exp_d in sorted(all_subdirs):
+            svd_png = os.path.join(study2_dir, exp_d, f"spectral_analysis_GNN_{exp_d}.png")
+            svd_html = os.path.join(study2_dir, exp_d, f"spectral_analysis_GNN_{exp_d}.html")
+            live_png = os.path.join(study2_dir, exp_d, f"live_plots_GNN_{exp_d}.png")
+            live_html = os.path.join(study2_dir, exp_d, f"live_plots_GNN_{exp_d}.html")
+            if os.path.exists(svd_png) or os.path.exists(live_png):
+                btns = []
+                if os.path.exists(svd_html):
+                    u_svd = _url(f"{exp_d}/spectral_analysis_GNN_{exp_d}.html")
+                    btns.append(f"<button class='btn-plot' onclick=\"openInViewer('{u_svd}', 'Spectre RMT — {exp_d}')\">Spectre RMT Interactif</button>")
+                    btns.append(f"<a class='btn-ext' href='{u_svd}' target='_blank'>Nouvel onglet ↗</a>")
+                if os.path.exists(live_html):
+                    u_live = _url(f"{exp_d}/live_plots_GNN_{exp_d}.html")
+                    btns.append(f"<button class='btn-plot' onclick=\"openInViewer('{u_live}', 'Courbes Loss/Acc — {exp_d}')\">Courbes Interactives</button>")
+                imgs_html = ""
+                if os.path.exists(svd_png):
+                    u_sp = _url(f"{exp_d}/spectral_analysis_GNN_{exp_d}.png")
+                    imgs_html += f"<div class='img-wrap'><h4>Spectre des Valeurs Singulières en Bâtons (Candles) vs Bulk Marchenko–Pastur</h4><a href='{u_sp}' target='_blank'><img src='{u_sp}' alt='SVD {exp_d}' /></a></div>"
+                if os.path.exists(live_png):
+                    u_lp = _url(f"{exp_d}/live_plots_GNN_{exp_d}.png")
+                    imgs_html += f"<div class='img-wrap'><h4>Évolution Loss & Accuracy</h4><a href='{u_lp}' target='_blank'><img src='{u_lp}' alt='Live {exp_d}' /></a></div>"
+                rmt_cards.append(
+                    f"<div class='exp-block'>"
+                    f"<div class='exp-header'><h3>Expérience : <code>{exp_d}</code></h3><div class='btn-row'>{''.join(btns)}</div></div>"
+                    f"<div class='dual-grid'>{imgs_html}</div>"
+                    f"</div>"
+                )
+        rmt_overview_html = "\n".join(rmt_cards) if rmt_cards else "<p>Aucun spectre RMT généré pour le moment.</p>"
+
+        def _build_experiment_section(exp_d: str, title: str, subtitle: str) -> str:
+            exp_path = os.path.join(study2_dir, exp_d)
+            if not os.path.isdir(exp_path):
+                return (
+                    f"<div class='exp-block pending-block'>"
+                    f"<h3>{title} (<code>{exp_d}</code>)</h3>"
+                    f"<p class='subtitle'>{subtitle} — <strong>En file d'attente SLURM (Pending)</strong></p>"
+                    f"</div>"
+                )
+            html_files = sorted([
+                f for f in os.listdir(exp_path)
+                if f.endswith(".html") and not f.startswith("study2_interactive_dashboard")
+            ])
+            def _sort_key(fn: str):
+                if fn.startswith("spectral_analysis"):
+                    return (0, fn)
+                if fn.startswith("live_plots"):
+                    return (1, fn)
+                if fn.startswith("surviving_core"):
+                    return (2, fn)
+                if fn.startswith("error_percentage"):
+                    return (3, fn)
+                if fn.startswith("R_vs_t"):
+                    return (4, fn)
+                if fn.startswith("seeds_"):
+                    return (5, fn)
+                return (6, fn)
+
+            html_files.sort(key=_sort_key)
+            png_files = sorted([f for f in os.listdir(exp_path) if f.endswith(".png")], key=_sort_key)
+
+            btn_items = []
+            for hf in html_files:
+                u_hf = _url(f"{exp_d}/{hf}")
+                lbl = _friendly_plot_label(hf)
+                btn_items.append(
+                    f"<div class='plot-pill'>"
+                    f"<button class='btn-plot' onclick=\"openInViewer('{u_hf}', '{lbl}')\">{lbl}</button>"
+                    f"<a class='btn-ext' href='{u_hf}' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a>"
+                    f"</div>"
+                )
+            btns_block = (
+                f"<div class='pills-container'>{''.join(btn_items)}</div>"
+                if btn_items
+                else "<p class='muted'>Aucun graphe HTML interactif disponible pour le moment.</p>"
+            )
+
+            png_cards = []
+            for pf in png_files:
+                u_pf = _url(f"{exp_d}/{pf}")
+                lbl = _friendly_plot_label(pf)
+                matching_html = pf.rsplit(".", 1)[0] + ".html"
+                open_interactive_btn = ""
+                if matching_html in html_files:
+                    u_mh = _url(f"{exp_d}/{matching_html}")
+                    open_interactive_btn = f"<button class='btn-card-action' onclick=\"openInViewer('{u_mh}', '{lbl}')\">Vue Interactive Plotly</button>"
+                png_cards.append(
+                    f"<div class='card'>"
+                    f"<div class='card-top'><h4>{lbl}</h4>{open_interactive_btn}</div>"
+                    f"<p class='filename'><code>{exp_d}/{pf}</code></p>"
+                    f"<a href='{u_pf}' target='_blank'><img src='{u_pf}' alt='{pf}' loading='lazy' /></a>"
+                    f"</div>"
+                )
+            png_grid = (
+                f"<div class='grid'>{''.join(png_cards)}</div>"
+                if png_cards
+                else "<p class='muted'>Figures PNG en cours de génération...</p>"
+            )
+
+            return (
+                f"<div class='exp-block'>"
+                f"<h3>{title} — <code>{exp_d}</code></h3>"
+                f"<p class='subtitle'>{subtitle}</p>"
+                f"<h4>Graphes Interactifs Plotly (Cliquer pour afficher dans le lecteur intégré ou ↗ pour nouvel onglet)</h4>"
+                f"{btns_block}"
+                f"<h4>Figures Statiques Haute Résolution (PNG)</h4>"
+                f"{png_grid}"
+                f"</div>"
+            )
+
+        clean_section_html = _build_experiment_section(
+            "clean_5obs",
+            "1. Baseline 5D Sans Bruit (Observables Exactes)",
+            "Comparaison directe GAT (3 couches, 4 têtes, résiduel, Test Acc = 93.04%, Core FNR = 6.49%) vs GCN (Baseline isotrope, Test Acc = 92.17%).",
+        )
+        noisy_section_html = _build_experiment_section(
+            "noisy_5obs",
+            "2. Modèle 5D Bruité Gaia DR3 (Curriculum Fine-Tuning)",
+            "Évaluation de la robustesse face aux incertitudes astrométriques dépendantes de la magnitude G (Gaia DR3).",
+        )
+
+        ablation_blocks = []
+        for ab_dir, ab_desc in expected_ablations:
+            ablation_blocks.append(
+                _build_experiment_section(
+                    ab_dir,
+                    f"Ablation 4D : {ab_dir}",
+                    f"Leave-One-Observable-Out ({ab_desc}) — Transfert 5D→4D depuis best_gat_clean.pth (93.04%).",
+                )
+            )
+        ablations_section_html = "\n".join(ablation_blocks)
+
+        v2_blocks = []
+        if v2_dirs:
+            for v2_d in v2_dirs:
+                v2_blocks.append(
+                    _build_experiment_section(
+                        v2_d,
+                        f"Study 2 V2 : {v2_d}",
+                        "Adaptation au domaine réel Gaia DR3 (Matrice de covariance 5×5 + Normalisation d'échelle physique + Pondération 3 classes).",
+                    )
+                )
+        else:
+            v2_blocks.append(
+                "<div class='exp-block pending-block'>"
+                "<h3>Study 2 V2 — Domaine Réel Gaia DR3 (En file d'attente SLURM : Jobs 41185009–41185012)</h3>"
+                "<p class='subtitle'>Cette section se remplira automatiquement dès le démarrage des jobs V2 (Génération covariances Gaia DR3, Graphes à échelle physique préservée, GAT/GCN 3 classes : Bound Core / Potential Escaper / Unbound).</p>"
+                "</div>"
+            )
+        v2_section_html = "\n".join(v2_blocks)
+
+        weights_rows = []
+        for fname, rel_pth, rel_central, size_kb in prog.get("saved_weights", []):
+            weights_rows.append(
+                f"<tr><td><code>{fname}</code></td><td>{size_kb:.1f} KB</td><td><code>{rel_pth}</code></td><td><code>{rel_central}</code></td></tr>"
+            )
+        weights_table_html = "\n".join(weights_rows) if weights_rows else "<tr><td colspan='4'>Aucun fichier .pth</td></tr>"
+
+        master_live_url = _url("latest_live_training.png")
+        default_iframe_url = _url("clean_5obs/spectral_analysis_GNN_clean_5obs.html")
+
+        return f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Study 2 — Index des Entraînements & Figures GNN</title>
+  <style>
+    :root {{
+      --bg: #ffffff;
+      --panel: #ffffff;
+      --panel-alt: #f9fafb;
+      --border: #e5e7eb;
+      --border-strong: #d1d5db;
+      --text: #111827;
+      --muted: #4b5563;
+      --accent: #1d4ed8;
+      --accent-soft: #eff6ff;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      line-height: 1.5;
+    }}
+    header {{
+      background: #f9fafb;
+      border-bottom: 1px solid var(--border);
+      padding: 18px 28px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }}
+    .header-top {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }}
+    h1 {{ margin: 0; font-size: 1.25rem; font-weight: 600; color: #111827; }}
+    h2 {{ font-size: 1.15rem; font-weight: 600; color: #111827; margin-top: 24px; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }}
+    h3 {{ font-size: 1.02rem; font-weight: 600; color: #111827; margin: 0; }}
+    h4 {{ font-size: 0.9rem; font-weight: 600; color: #374151; margin: 14px 0 8px 0; }}
+    .timestamp {{ font-size: 0.82rem; color: var(--muted); background: #ffffff; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border); }}
+    .nav-tabs {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 12px auto 0;
+      max-width: 1600px;
+    }}
+    .tab-btn {{
+      background: #ffffff;
+      color: #374151;
+      border: 1px solid var(--border-strong);
+      padding: 7px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.86rem;
+    }}
+    .tab-btn:hover {{ background: #f3f4f6; color: #111827; }}
+    .tab-btn.active {{
+      background: var(--accent);
+      color: #ffffff;
+      border-color: var(--accent);
+    }}
+    main {{ max-width: 1600px; margin: 0 auto; padding: 20px 28px 60px; }}
+    .tab-section {{ display: none; }}
+    .tab-section.active {{ display: block; }}
+    .viewer-box {{
+      background: #ffffff;
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 24px;
+    }}
+    .viewer-bar {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }}
+    .viewer-title {{ font-weight: 600; color: #111827; font-size: 0.94rem; }}
+    iframe#plotly-viewer {{
+      width: 100%;
+      height: 520px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #ffffff;
+    }}
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+      font-size: 0.88rem;
+    }}
+    th, td {{ padding: 8px 12px; text-align: center; border-bottom: 1px solid var(--border); }}
+    th {{ background: #f9fafb; color: #374151; font-weight: 600; font-size: 0.8rem; }}
+    td:first-child, th:first-child {{ text-align: left; }}
+    tr:hover td {{ background: #f9fafb; }}
+    code {{ background: #f3f4f6; padding: 2px 5px; border-radius: 3px; font-size: 0.84em; color: #1f2937; }}
+    .badge {{ padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.78rem; }}
+    .badge-gat {{ background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }}
+    .badge-gcn {{ background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }}
+    .badge-live {{ background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }}
+    .status-done {{ color: #15803d; font-weight: 600; }}
+    .status-live {{ color: #b45309; font-weight: 600; }}
+    .exp-block {{
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 18px;
+      margin-bottom: 20px;
+    }}
+    .pending-block {{ background: #f9fafb; border-style: dashed; }}
+    .exp-header {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }}
+    .btn-row {{ display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }}
+    .subtitle {{ color: var(--muted); margin-top: 4px; margin-bottom: 14px; font-size: 0.9rem; }}
+    .pills-container {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 16px;
+    }}
+    .plot-pill {{
+      display: inline-flex;
+      align-items: center;
+      background: #f9fafb;
+      border: 1px solid var(--border-strong);
+      border-radius: 4px;
+      overflow: hidden;
+    }}
+    .btn-plot {{
+      background: transparent;
+      color: #1f2937;
+      border: none;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 0.83rem;
+      font-weight: 500;
+    }}
+    .btn-plot:hover {{ background: var(--accent-soft); color: var(--accent); }}
+    .btn-ext {{
+      color: var(--accent);
+      padding: 6px 8px;
+      text-decoration: none;
+      border-left: 1px solid var(--border);
+      font-size: 0.8rem;
+      background: #ffffff;
+    }}
+    .btn-ext:hover {{ background: var(--accent-soft); }}
+    .dual-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 16px;
+    }}
+    .img-wrap {{
+      background: #ffffff;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }}
+    .img-wrap h4 {{ margin: 0 0 8px 0; font-size: 0.86rem; color: #374151; }}
+    .img-wrap img {{ width: 100%; height: auto; display: block; }}
+    .grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+      gap: 16px;
+    }}
+    .card {{
+      background: #ffffff;
+      border: 1px solid var(--border);
+      padding: 12px;
+      border-radius: 6px;
+    }}
+    .card-top {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }}
+    .card-top h4 {{ margin: 0; font-size: 0.9rem; color: #111827; }}
+    .btn-card-action {{
+      background: #ffffff;
+      color: var(--accent);
+      border: 1px solid var(--border-strong);
+      border-radius: 4px;
+      padding: 4px 9px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }}
+    .btn-card-action:hover {{ background: var(--accent-soft); border-color: var(--accent); }}
+    .filename {{ margin: 0 0 8px 0; font-size: 0.76rem; color: var(--muted); }}
+    .card img {{ width: 100%; height: auto; display: block; border-top: 1px solid #f3f4f6; padding-top: 6px; }}
+    pre.status-box {{
+      background: #f9fafb;
+      color: #1f2937;
+      padding: 14px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      overflow-x: auto;
+      font-size: 0.83rem;
+    }}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-top">
+      <h1>Study 2 — Index des Entraînements & Analyses GNN (GAT vs GCN)</h1>
+      <span class="timestamp">Dernière mise à jour : {now_str}</span>
+    </div>
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('tab-overview', this)">Vue Globale & Spectres RMT</button>
+      <button class="tab-btn" onclick="switchTab('tab-clean', this)">1. Baseline 5D Sans Bruit (clean_5obs)</button>
+      <button class="tab-btn" onclick="switchTab('tab-noisy', this)">2. Gaia DR3 5D Bruité (noisy_5obs)</button>
+      <button class="tab-btn" onclick="switchTab('tab-ablations', this)">3. Ablations 4D (4obs_*)</button>
+      <button class="tab-btn" onclick="switchTab('tab-v2', this)">4. Study 2 V2 (Domaine Gaia Réel)</button>
+      <button class="tab-btn" onclick="switchTab('tab-weights', this)">5. Poids (.pth) & Queue SLURM</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="viewer-box" id="viewer-container">
+      <div class="viewer-bar">
+        <span class="viewer-title" id="viewer-label">Lecteur Interactif Plotly : Spectre RMT à Bâtons (clean_5obs)</span>
+        <div class="btn-row">
+          <a id="viewer-ext-link" class="btn-card-action" href="{default_iframe_url}" target="_blank" style="text-decoration:none;">Ouvrir dans un nouvel onglet ↗</a>
+          <button class="btn-card-action" onclick="toggleViewer()">Masquer / Afficher le lecteur</button>
+        </div>
+      </div>
+      <iframe id="plotly-viewer" src="{default_iframe_url}"></iframe>
+    </div>
+
+    <!-- TAB 1: VUE GLOBALE & SPECTRES RMT -->
+    <section id="tab-overview" class="tab-section active">
+      <h2>Tableau Récapitulatif des Entraînements</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Expérience</th>
+            <th>Architecture</th>
+            <th>Époque</th>
+            <th>Train Loss</th>
+            <th>Train Acc</th>
+            <th>Val Loss</th>
+            <th>Val Acc</th>
+            <th>Best Val Acc</th>
+            <th>Core FNR</th>
+            <th>Test Acc</th>
+            <th>Test F1</th>
+          </tr>
+        </thead>
+        <tbody>
+          {metrics_table_body}
+        </tbody>
+      </table>
+
+      <div class="exp-block">
+        <h3>Courbes d'Apprentissage Globales (Tous Modèles Superposés)</h3>
+        <a href="{master_live_url}" target="_blank"><img src="{master_live_url}" alt="Master Live Training Curves" style="width:100%; max-height:520px; object-fit:contain; margin-top:10px;" /></a>
+      </div>
+
+      <h2>Comparaison des Spectres des Valeurs Singulières en Bâtons (Candles RMT vs Bulk Marchenko–Pastur)</h2>
+      <p class="subtitle">À gauche : densité spectrale empirique avec le bulk de bruit Marchenko–Pastur (zone ombrée) et les valeurs singulières qui s'en détachent (tiges verticales). À droite : spectre complet classé par rang.</p>
+      {rmt_overview_html}
+    </section>
+
+    <!-- TAB 2: CLEAN 5OBS -->
+    <section id="tab-clean" class="tab-section">
+      {clean_section_html}
+    </section>
+
+    <!-- TAB 3: NOISY 5OBS -->
+    <section id="tab-noisy" class="tab-section">
+      {noisy_section_html}
+    </section>
+
+    <!-- TAB 4: ABLATIONS 4D -->
+    <section id="tab-ablations" class="tab-section">
+      <h2>Études d'Ablation 4D (Leave-One-Observable-Out)</h2>
+      <p class="subtitle">Évaluation de l'importance physique de chaque observable astrométrique en retirant tour à tour α, δ, ϖ, μ_α*, μ_δ.</p>
+      {ablations_section_html}
+    </section>
+
+    <!-- TAB 5: STUDY 2 V2 -->
+    <section id="tab-v2" class="tab-section">
+      {v2_section_html}
+    </section>
+
+    <!-- TAB 6: WEIGHTS & SLURM -->
+    <section id="tab-weights" class="tab-section">
+      <h2>Registre des Poids Sauvegardés (.pth Checkpoints)</h2>
+      <table>
+        <thead>
+          <tr><th>Checkpoint</th><th>Taille</th><th>Dossier Expérience</th><th>Archive Centrale</th></tr>
+        </thead>
+        <tbody>
+          {weights_table_html}
+        </tbody>
+      </table>
+      <h2>État du Pipeline & Queue SLURM sur Jed</h2>
+      <pre class="status-box">{report}</pre>
+    </section>
+  </main>
+
+  <script>
+    function switchTab(tabId, btnEl) {{
+      document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      const target = document.getElementById(tabId);
+      if (target) target.classList.add('active');
+      if (btnEl) btnEl.classList.add('active');
+    }}
+    function openInViewer(url, label) {{
+      const viewer = document.getElementById('plotly-viewer');
+      const lbl = document.getElementById('viewer-label');
+      const ext = document.getElementById('viewer-ext-link');
+      viewer.style.display = 'block';
+      viewer.src = url;
+      lbl.textContent = 'Lecteur Interactif Plotly : ' + label;
+      ext.href = url;
+      document.getElementById('viewer-container').scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+    }}
+    function toggleViewer() {{
+      const viewer = document.getElementById('plotly-viewer');
+      viewer.style.display = (viewer.style.display === 'none') ? 'block' : 'none';
+    }}
+  </script>
+</body>
+</html>
+"""
+
+    root_index_path = os.path.join(ROOT_DIR, "index.html")
+    study2_index_path = os.path.join(study2_dir, "index.html")
+    with open(root_index_path, "w", encoding="utf-8") as f:
+        f.write(_render_for_base("GNN-jed/trained_models/study2/"))
+    with open(study2_index_path, "w", encoding="utf-8") as f:
+        f.write(_render_for_base(""))
 
 
 def auto_push_to_github():
-    """Stage LIVE_STATUS.md and any new Study 2 figures/logs/weights, commit, pull --rebase, and push to origin/main."""
+    """Stage LIVE_STATUS.md, index.html, and any new Study 2 figures/logs/weights, commit, pull --rebase, and push to origin/main."""
     try:
         subprocess.run(
             [
                 "git",
                 "add",
                 "-A",
+                "index.html",
                 "README.md",
                 "LIVE_STATUS.md",
                 "REPO_MAP.md",
+                "THEORETICAL_CORRECTIONS_LOG.md",
                 "src/",
                 "scripts/",
                 "slurm/",
@@ -510,8 +1157,8 @@ def main():
         )
         if args.once or state_signature != last_sent_report:
             send_ntfy_message(args.topic, report, title="EPFL Jed - Study 2 Live Update")
-            auto_push_to_github()
             last_sent_report = state_signature
+        auto_push_to_github()
 
         # Automatically push newly generated or updated PNG/HTML figures (including live training curves)
         new_files = glob.glob(
