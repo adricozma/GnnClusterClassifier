@@ -173,6 +173,8 @@ def collect_pipeline_progress():
     training_rows = []
     for lg in logs:
         rel = os.path.relpath(lg, os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2"))
+        if rel.startswith("legacy"):
+            continue
         d = parse_log_file(lg)
         if d["epochs"]:
             try:
@@ -224,6 +226,8 @@ def collect_pipeline_progress():
     saved_weights = []
     for pth_path in sorted(glob.glob(os.path.join(study2_base, "**", "*.pth"), recursive=True)):
         if os.path.dirname(os.path.abspath(pth_path)) == os.path.abspath(central_weights_dir):
+            continue
+        if "/legacy/" in pth_path.replace("\\", "/"):
             continue
         fname = os.path.basename(pth_path)
         if fname.startswith("last_"):

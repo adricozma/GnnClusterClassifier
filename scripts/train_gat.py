@@ -114,17 +114,12 @@ if __name__ == "__main__":
                 break
 
     # Automatically upgrade 5D clean pretrained reference to the superior Ep18 (93.04% Test Acc) checkpoint
-    _ep18_ckpt = os.path.join(ROOT_DIR, "GNN-jed/trained_models/study2/weights/best_gat_clean_ep18_backup.pth")
+    _ep18_ckpt = os.path.join(ROOT_DIR, "GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth")
     if (
         getattr(args, "pretrained_weights", "")
         and args.pretrained_weights.endswith("clean_5obs/best_gat_clean.pth")
         and os.path.isfile(_ep18_ckpt)
     ):
-        print(
-            f"[train_gat] Upgrading 5D pretrained reference from '{args.pretrained_weights}' "
-            f"to superior '{_ep18_ckpt}' (93.04% Test Acc, dropout=0.2).",
-            flush=True,
-        )
         args.pretrained_weights = _ep18_ckpt
 
     # Prevent over-regularization (underfitting) from legacy spooled SLURM flags (--dropout 0.4)
