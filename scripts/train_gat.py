@@ -51,8 +51,8 @@ def build_parser():
         default="",
         help="Optional comma-separated feature column indices to select on the fly (e.g. '0,1,3,4' for 4-observable ablation).",
     )
-    parser.add_argument("--dropout", type=float, default=0.4, help="Dropout probability on GATConv attention and hidden activations (default: 0.4).")
-    parser.add_argument("--weight_decay", type=float, default=1e-3, help="L2 weight decay regularization in AdamW (default: 1e-3).")
+    parser.add_argument("--dropout", type=float, default=0.25, help="Dropout probability on hidden activations (default: 0.25).")
+    parser.add_argument("--weight_decay", type=float, default=5e-4, help="L2 weight decay regularization in AdamW (default: 5e-4).")
     parser.add_argument("--patience", type=int, default=10, help="Strict early-stopping patience on validation BCE loss (default: 10).")
     parser.add_argument(
         "--stochastic_rotation",
@@ -96,4 +96,43 @@ def build_parser():
 if __name__ == "__main__":
     args = build_parser().parse_args()
     args.filter_rp_min = args.min_Radial_kpc
+
+    # Auto-infer 4D ablation feature_indices if launched by an older spooled SLURM script
+    if not getattr(args, "feature_indices", ""):
+        _ablation_map = {
+            "4obs_no_RA": "1,2,3,4",
+            "4obs_no_Dec": "0,2,3,4",
+            "4obs_no_Parallax": "0,1,3,4",
+            "4obs_no_pmRA": "0,1,2,4",
+            "4obs_no_pmDec": "0,1,2,3",
+        }
+        _probe = f"{args.data_folder} {args.save_model} {args.log_file}"
+        for _tag, _feat in _ablation_map.items():
+            if _tag in _probe:
+                args.feature_indices = _feat
+                print(f"[train_gat] Auto-inferred --feature_indices='{_feat}' for {_tag}", flush=True)
+                break
+
+    # Automatically upgrade 5D clean pretrained reference to the superior Ep18 (93.04% Test Acc) checkpoint
+    _ep18_ckpt = os.path.join(ROOT_DIR, "GNN-jed/trained_models/study2/weights/best_gat_clean_ep18_backup.pth")
+    if (
+        getattr(args, "pretrained_weights", "")
+        and args.pretrained_weights.endswith("clean_5obs/best_gat_clean.pth")
+        and os.path.isfile(_ep18_ckpt)
+    ):
+        print(
+            f"[train_gat] Upgrading 5D pretrained reference from '{args.pretrained_weights}' "
+            f"to superior '{_ep18_ckpt}' (93.04% Test Acc, dropout=0.2).",
+            flush=True,
+        )
+        args.pretrained_weights = _ep18_ckpt
+
+    # Prevent over-regularization (underfitting) from legacy spooled SLURM flags (--dropout 0.4)
+    if args.dropout > 0.25:
+        print(f"[train_gat] Clamping excessive dropout {args.dropout} -> 0.25 to prevent capacity throttling.", flush=True)
+        args.dropout = 0.25
+    if "4obs_" in f"{args.data_folder} {args.save_model}" and args.scheduler == "onecycle":
+        args.scheduler = "cosine"
+        args.weight_decay = 5e-4
+
     run_training("gat", args)

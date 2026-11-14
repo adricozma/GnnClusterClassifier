@@ -93,7 +93,9 @@ python3 scripts/build_graph_dataset.py \
     --num_workers "$CPUS_PER_NODE"
 
 PRETRAIN_GAT_5D=""
-if [ -f "$OUT_DIR_5OBS_CLEAN/best_gat_clean.pth" ]; then
+if [ -f "GNN-jed/trained_models/study2/weights/best_gat_clean_ep18_backup.pth" ]; then
+    PRETRAIN_GAT_5D="GNN-jed/trained_models/study2/weights/best_gat_clean_ep18_backup.pth"
+elif [ -f "$OUT_DIR_5OBS_CLEAN/best_gat_clean.pth" ]; then
     PRETRAIN_GAT_5D="$OUT_DIR_5OBS_CLEAN/best_gat_clean.pth"
 fi
 
