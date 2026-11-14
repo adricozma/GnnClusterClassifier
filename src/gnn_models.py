@@ -93,8 +93,9 @@ class GCN(nn.Module):
 
     def forward(self, data) -> torch.Tensor:
         x, edge_index = data.x, data.edge_index
+        in_rel = 3 * x.shape[1] + 3
         h0 = getattr(data, "h0", None)
-        if h0 is None or h0.shape[0] != x.shape[0]:
+        if h0 is None or h0.shape[0] != x.shape[0] or h0.shape[1] != in_rel:
             h0 = compute_node_relational_features(x, edge_index)
 
         h1 = F.gelu(self.norm1(self.conv1(h0, edge_index) + self.skip1(h0)))
@@ -114,11 +115,11 @@ class GCN(nn.Module):
 class GAT(nn.Module):
     """Three-layer Multi-Head Residual Graph Attention Network with local phase-space relational features."""
 
-    def __init__(self, in_channels: int = 5, dropout: float = 0.4, edge_dropout: float | None = None):
+    def __init__(self, in_channels: int = 5, dropout: float = 0.2, edge_dropout: float | None = None):
         super().__init__()
         self.in_channels = in_channels
         self.dropout = float(dropout)
-        self.edge_dropout = float(dropout if edge_dropout is None else edge_dropout)
+        self.edge_dropout = float(min(self.dropout, 0.15) if edge_dropout is None else edge_dropout)
         in_rel = 3 * in_channels + 3
 
         self.conv1 = GATConv(in_rel, 32, heads=4, concat=True, dropout=self.edge_dropout)
@@ -129,7 +130,8 @@ class GAT(nn.Module):
         self.skip2 = nn.Linear(128, 256)
         self.norm2 = nn.LayerNorm(256)
 
-        self.conv3 = GATConv(256, 1, heads=1, concat=False, dropout=self.edge_dropout)
+        # Final 1-head scalar logit readout layer: keep edge_dropout=0.0 to avoid randomly zeroing final logits
+        self.conv3 = GATConv(256, 1, heads=1, concat=False, dropout=0.0)
         self.ego_head = nn.Sequential(
             nn.Linear(256 + in_rel, 64),
             nn.ELU(),
@@ -138,8 +140,9 @@ class GAT(nn.Module):
 
     def forward(self, data) -> torch.Tensor:
         x, edge_index = data.x, data.edge_index
+        in_rel = 3 * x.shape[1] + 3
         h0 = getattr(data, "h0", None)
-        if h0 is None or h0.shape[0] != x.shape[0]:
+        if h0 is None or h0.shape[0] != x.shape[0] or h0.shape[1] != in_rel:
             h0 = compute_node_relational_features(x, edge_index)
 
         h1 = F.elu(self.norm1(self.conv1(h0, edge_index) + self.skip1(h0)))
