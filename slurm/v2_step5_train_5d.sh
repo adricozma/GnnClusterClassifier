@@ -70,8 +70,8 @@ run_ddp_with_oom_fallback scripts/v2_train_gat.py 8 \
     --lr 0.001 \
     --bs 64 \
     --epochs 45 \
-    --dropout 0.4 \
-    --weight_decay 0.001 \
+    --dropout 0.25 \
+    --weight_decay 0.0005 \
     --patience 10 \
     --scheduler onecycle \
     --save_model "${OUT_CLEAN}/best_v2_clean_5obs.pth" \
@@ -85,8 +85,8 @@ run_ddp_with_oom_fallback scripts/v2_train_gat.py 8 \
     --lr 0.0005 \
     --bs 64 \
     --epochs 40 \
-    --dropout 0.4 \
-    --weight_decay 0.001 \
+    --dropout 0.25 \
+    --weight_decay 0.0005 \
     --patience 10 \
     --scheduler cosine \
     --pretrained_weights "${OUT_CLEAN}/best_v2_clean_5obs.pth" \

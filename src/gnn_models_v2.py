@@ -124,7 +124,8 @@ class GAT_V2(nn.Module):
         heads: int = 4,
         out_channels: int = 3,
         edge_dim: int = 3,
-        dropout: float = 0.4,
+        dropout: float = 0.2,
+        edge_dropout: Optional[float] = None,
     ) -> None:
         super().__init__()
         self.in_features = int(in_features)
@@ -134,6 +135,7 @@ class GAT_V2(nn.Module):
         self.out_channels = int(out_channels)
         self.edge_dim = int(edge_dim)
         self.dropout = float(dropout)
+        self.edge_dropout = float(min(self.dropout, 0.15) if edge_dropout is None else edge_dropout)
 
         if hidden_channels % heads != 0:
             raise ValueError(
@@ -141,6 +143,7 @@ class GAT_V2(nn.Module):
             )
         head_dim = hidden_channels // heads
         rel_dim = 3 * self.in_features + 3 + self.err_features
+        self.rel_dim = rel_dim
 
         self.lin_in = nn.Sequential(
             nn.Linear(rel_dim, hidden_channels),
@@ -149,13 +152,14 @@ class GAT_V2(nn.Module):
         )
 
         conv_edge_dim = self.edge_dim if self.edge_dim > 0 else None
-        self.conv1 = GATConv(hidden_channels, head_dim, heads=heads, dropout=dropout, edge_dim=conv_edge_dim)
+        self.conv1 = GATConv(hidden_channels, head_dim, heads=heads, dropout=self.edge_dropout, edge_dim=conv_edge_dim)
         self.norm1 = nn.LayerNorm(hidden_channels)
 
-        self.conv2 = GATConv(hidden_channels, head_dim, heads=heads, dropout=dropout, edge_dim=conv_edge_dim)
+        self.conv2 = GATConv(hidden_channels, head_dim, heads=heads, dropout=self.edge_dropout, edge_dim=conv_edge_dim)
         self.norm2 = nn.LayerNorm(hidden_channels)
 
-        self.conv3 = GATConv(hidden_channels, head_dim, heads=heads, dropout=dropout, edge_dim=conv_edge_dim)
+        # Final message-passing layer: keep attention edge_dropout=0.0 to preserve neighborhood aggregation
+        self.conv3 = GATConv(hidden_channels, head_dim, heads=heads, dropout=0.0, edge_dim=conv_edge_dim)
         self.norm3 = nn.LayerNorm(hidden_channels)
 
         self.head = nn.Sequential(
@@ -174,16 +178,20 @@ class GAT_V2(nn.Module):
         err_x: Optional[torch.Tensor] = None,
         batch: Optional[torch.Tensor] = None,
         ptr: Optional[torch.Tensor] = None,
+        h0: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Forward pass computing per-star class logits of shape (N, out_channels)."""
-        h = compute_node_relational_features_v2(
-            x,
-            edge_index,
-            edge_attr=edge_attr,
-            err_x=err_x,
-            batch=batch,
-            ptr=ptr,
-        )
+        if h0 is not None and h0.shape[0] == x.shape[0] and h0.shape[1] == self.rel_dim:
+            h = h0
+        else:
+            h = compute_node_relational_features_v2(
+                x,
+                edge_index,
+                edge_attr=edge_attr,
+                err_x=err_x,
+                batch=batch,
+                ptr=ptr,
+            )
         h = self.lin_in(h)
 
         conv_attr = edge_attr if (edge_attr is not None and self.edge_dim > 0) else None

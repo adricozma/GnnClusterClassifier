@@ -148,20 +148,21 @@ Bulk simulation outputs, extracted observable matrices, and PyTorch Geometric `.
    - `best_gcn_clean.pth` (Static 5-rot, `dropout=0.2`, Ep 24/25): `Val Loss = 0.1817 (92.32%)`, **`Test Acc = 92.17%`, `BalAcc = 91.59%`, `Test F1 = 0.8886`**.
    - `best_gat_clean_ep18_backup.pth` (Static 5-rot, `dropout=0.2`, Ep 18/22): `Val Loss = 0.1470 (94.20%)`, **`Test Acc = 93.04%`, `BalAcc = 93.15%`, `Test F1 = 0.9035`, `CoreFNR = 6.49%`**.
    - `best_gat_clean.pth` (Stochastic 5-rot, `dropout=0.4`, Ep 35/45): `Val Loss = 0.2071 (91.89%)`, **`Test Acc = 91.43%`, `BalAcc = 91.28%`, `Test F1 = 0.8807`, `CoreFNR = 9.22%`**.
-   - `best_gat_noisy.pth` (Stochastic 5-rot Curriculum on V1 Gaia DR3 noise, `dropout=0.4`, Best Ep 12): `Val Loss = 0.4014 (81.76%)`, `Val CoreFNR = 25.34%` (min `CoreFNR = 14.33%` at Ep 5).
+   - `best_gat_noisy.pth` (Stochastic 5-rot Curriculum on V1 Gaia DR3 noise, `dropout=0.4`, Best Ep 12/20): `Val Loss = 0.4014 (81.76%)`, **`Test Loss = 0.3181`, `Test Acc = 84.91%`, `BalAcc = 83.88%`, `Test F1 = 0.7879`, `CoreFNR = 19.52%` (`CoreRec = 80.48%`)** — **COMPLETED** (all Stage 2 PNG/HTML figures generated in `GNN-jed/trained_models/study2/noisy_5obs/`).
 
 ---
 
-## 5. V1 vs. V2 Pipeline Map & Technical Audit Notes for Agentic Sessions
+## 5. V1 vs. V2 Pipeline Map & Implemented Upgrades for Agentic Sessions
 
 - **Study 2 V1 (`src/observables_matrix.py`, `src/gnn_models.py`, `scripts/distributed_trainer.py`):**
   - Uses monochromatic $M_G = 4.5$, clipped inverse parallax $D = 1/\operatorname{clip}(\varpi_{\mathrm{obs}}, 0.005, 10.0)\text{ kpc}$, `zscore` ($6\sigma_{\mathrm{MAD}}$ winsorized) standardization, and 5D Euclidean `cKDTree` $k$-NN graphs ($k=20$) with binary `is_bound` labels.
-  - At $D \gtrsim 15\text{ kpc}$, $\varpi/\sigma_\varpi \ll 1$ causes bimodal $D_{\mathrm{obs}}$ pile-up at $200\text{ kpc}$ and $<2\text{ kpc}$, scrambling 5D $k$-NN graph topology and creating an intrinsic noisy validation plateau around `Val Loss ~ 0.40`, `Val Acc ~ 81.8%`.
+  - **Step 5 (5D Clean + 5D Noisy) is 100% COMPLETED.**
+  - **Step 6 (4D Ablations, `41146835_[0-4%1]`) is currently RUNNING** and **Step 7 (`41146836`, Stochastic Clean GCN)** is queued immediately after.
 - **Study 2 V2 (`src/gaia_v2.py`, `src/gnn_models_v2.py`, `scripts/v2_*.py`, `slurm/v2_*.sh`):**
   - Introduces Kroupa IMF + RGB luminosity function, $G \le 20.7$ cut, linear signed parallax $\varpi_{\mathrm{obs}}$ (mas), 4 uncertainty/SNR features (`err_x`), 2D sky tangent-plane $k$-NN topology (`edge_attr = [dRA*, dDec, theta_sky]`), $N$-invariant surface density normalization, Milky Way field contaminants, and 3-class labels (`0: Unbound/Field`, `1: Potential Escaper`, `2: Bound Core`).
-  - **Key V2 items tracked for refinement:**
-    1. Extend RGB tip in `sample_cluster_abs_magnitudes_g` (`src/gaia_v2.py:117`) from `M_G = -0.6` to `-2.5` (TRGB) and cap `g_app_vis` noise evaluation at `g_max` when `cut_relaxed` triggers on ultra-distant halo clusters ($D > 100\text{ kpc}$).
-    2. Center parallax (`out[:, 2]`) on the stream median and compute standardization medians robustly against high field contamination (`src/gaia_v2.py:434-478`).
-    3. Separate feature dropout (`0.2`) from `GATConv` attention edge dropout (`0.0–0.1`), and remove attention dropout on the final output layer (`src/gnn_models.py:132`, `src/gnn_models_v2.py:158`).
-    4. Use node-weighted gradient accumulation and in-RAM graph caching (`~7–15 GB` out of `246 GB/node`) plus `torch.set_num_threads` in `scripts/v2_train_gat.py` to accelerate CPU epochs by $3\text{--}5\times$.
+  - **Upgrades Applied (Active for Step 6, Step 7, and V2 Jobs `41185009–41185012`):**
+    1. **Extended RGB Tip ($M_G \in [-2.5, 4.2]$) & Relaxed-Cut Sigma Guard (`src/gaia_v2.py:114-121, 293`):** Ensures evolved red-giant branch stars remain visible out to $D \sim 300\text{ kpc}$ and caps `g_app_vis` noise evaluation at `g_max = 20.7` if `cut_relaxed` triggers.
+    2. **Stream-Referenced Centering & Heliocentric-Invariant Parallax (`src/gaia_v2.py:434-485`, `scripts/v2_extract_observables.py:189-195`):** Centers parallax and proper motions on the stream member reference distribution (`reference_mask=~is_field`), preventing high field-star contamination from shifting the coordinate origin.
+    3. **Decoupled Feature vs. Attention Dropout & Zero Final-Layer Edge Dropout (`src/gnn_models.py:117-135`, `src/gnn_models_v2.py:119-160`):** Caps internal `GATConv` attention `edge_dropout` at $\le 0.15$, sets `dropout=0.0` on the final output `conv3` layer, and sets `--dropout 0.25 --weight_decay 5e-4` across Step 6 and V2 scripts.
+    4. **In-RAM Graph + `h0` Relational Feature Caching & Node-Weighted Accumulation (`scripts/distributed_trainer.py:132-186, 406-438`, `scripts/v2_train_gat.py:128-165, 509-549`):** Caches loaded `.pt` graphs and precomputed `h0` relational features in RAM (up to 55% of the 246 GB/node ceiling) with single-threaded persistent DataLoader workers (`torch.set_num_threads(1)`), eliminating repeated `/scratch` GPFS I/O and $O(E)$ scatter recomputations after initial epochs.
 

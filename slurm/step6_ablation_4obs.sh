@@ -103,6 +103,7 @@ if grep -q "=== END OF TRAINING ===" "$OUT_DIR_CLEAN/training_metrics_gat_${TAG}
 else
     run_ddp_with_oom_fallback "scripts/train_gat.py" 32 \
         --data_folder "$GRAPH_DIR_CLEAN" \
+        --feature_indices "$FEAT" \
         --n 5 \
         --stochastic_rotation \
         --bf16 \
@@ -110,9 +111,9 @@ else
         --bs 64 \
         --epochs 20 \
         --patience 8 \
-        --dropout 0.4 \
-        --weight_decay 1e-3 \
-        --scheduler onecycle \
+        --dropout 0.25 \
+        --weight_decay 5e-4 \
+        --scheduler cosine \
         --split_mode ic \
         --pretrained_weights "$PRETRAIN_GAT_5D" \
         --save_model "$OUT_DIR_CLEAN/best_gat_${TAG}_clean.pth" \
@@ -135,6 +136,7 @@ if grep -q "=== END OF TRAINING ===" "$OUT_DIR_NOISY/training_metrics_gat_${TAG}
 else
     run_ddp_with_oom_fallback "scripts/train_gat.py" 32 \
         --data_folder "$GRAPH_DIR_NOISY" \
+        --feature_indices "$FEAT" \
         --n 5 \
         --stochastic_rotation \
         --bf16 \
@@ -142,9 +144,9 @@ else
         --bs 64 \
         --epochs 20 \
         --patience 8 \
-        --dropout 0.4 \
-        --weight_decay 1e-3 \
-        --scheduler onecycle \
+        --dropout 0.25 \
+        --weight_decay 5e-4 \
+        --scheduler cosine \
         --split_mode ic \
         --pretrained_weights "$OUT_DIR_CLEAN/best_gat_${TAG}_clean.pth" \
         --save_model "$OUT_DIR_NOISY/best_gat_${TAG}_noisy.pth" \

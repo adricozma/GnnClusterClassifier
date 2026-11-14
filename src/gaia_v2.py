@@ -112,13 +112,13 @@ def sample_cluster_abs_magnitudes_g(
         m_g[~is_giant] = np.clip(ms_mag, 4.0, 10.8)
 
     if n_giants > 0:
-        # Exponential luminosity function toward brighter RGB tip: p(M) ~ 10^{0.32 M} on [-0.6, 4.2]
+        # Exponential luminosity function toward brighter RGB tip: p(M) ~ 10^{0.32 M} on [-2.4, 4.2]
         beta = 0.32 * np.log(10.0)
-        lo, hi = -0.6, 4.2
+        lo, hi = -2.4, 4.2
         u = rng.uniform(0.0, 1.0, size=n_giants)
         e_lo, e_hi = np.exp(beta * lo), np.exp(beta * hi)
         giant_mag = np.log(e_lo + u * (e_hi - e_lo)) / beta
-        m_g[is_giant] = np.clip(giant_mag, -0.8, 4.2)
+        m_g[is_giant] = np.clip(giant_mag, -2.5, 4.2)
 
     return m_g
 
@@ -290,7 +290,7 @@ def apply_gaia_selection_and_noise_v2(
         vis_indices = np.arange(n_total, dtype=np.int64)
 
     obs_vis = convert_obs_v1_to_v2_linear_plx(obs_raw[vis_indices])
-    g_app_vis = g_app[vis_indices]
+    g_app_vis = np.minimum(g_app[vis_indices], float(g_max)) if cut_relaxed else g_app[vis_indices]
     sigmas = gaia_dr3_astrometric_sigmas(g_app_vis, obs_vis[:, 1])
 
     if add_noise:
@@ -435,22 +435,31 @@ def standardise_matrix_v2(
     matrix_plx: np.ndarray,
     ref_scales: Tuple[float, ...] = REF_SCALES_V2,
     sky_center: Optional[Tuple[float, float]] = None,
+    reference_mask: Optional[np.ndarray] = None,
 ) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
     """Standardize [RA_deg, Dec_deg, plx_mas, pmRA, pmDec, vlos] without parallax inversion.
 
     - RA/Dec are projected to tangent-plane offsets (dRA*cos(Dec_c), dDec) around
       the circular S^1 median sky coordinate (or explicit `sky_center`) and scaled
       by `ref_scales[0:2]`.
-    - Parallax is kept strictly linear and uncentered (`plx_mas / ref_scales[2]`),
-      preserving negative noisy measurements and avoiding contaminant-induced shifts.
+    - Parallax is median-centered and scaled (`(plx_mas - med_plx) / ref_scales[2]`),
+      preserving negative relative measurements and heliocentric distance invariance.
     - Proper motions and v_los are median-centered and scaled by `ref_scales[3:6]`.
+    - If `reference_mask` is provided (e.g., stream member mask during synthetic training),
+      centering statistics are computed on the reference subset to avoid field-star drift.
     """
     mat = np.asarray(matrix_plx, dtype=np.float64)
     n_cols = mat.shape[1]
     out = np.empty_like(mat, dtype=np.float32)
 
+    ref_mat = (
+        mat[reference_mask]
+        if (reference_mask is not None and np.any(reference_mask))
+        else mat
+    )
+
     if sky_center is None:
-        ra_c, dec_c = _circular_sky_center(mat[:, 0], mat[:, 1])
+        ra_c, dec_c = _circular_sky_center(ref_mat[:, 0], ref_mat[:, 1])
     else:
         ra_c, dec_c = float(sky_center[0]), float(sky_center[1])
 
@@ -458,17 +467,15 @@ def standardise_matrix_v2(
     d_ra = ((mat[:, 0] - ra_c + 180.0) % 360.0) - 180.0
     out[:, 0] = (d_ra * cos_dec_c / ref_scales[0]).astype(np.float32)
     out[:, 1] = ((mat[:, 1] - dec_c) / ref_scales[1]).astype(np.float32)
-    out[:, 2] = (mat[:, 2] / ref_scales[2]).astype(np.float32)
 
     medians = np.zeros(n_cols, dtype=np.float64)
     medians[0] = ra_c
     medians[1] = dec_c
-    medians[2] = 0.0
 
-    for col in range(3, n_cols):
-        med = float(np.median(mat[:, col]))
+    for col in range(2, n_cols):
+        med = float(np.median(ref_mat[:, col]))
         medians[col] = med
-        scale = ref_scales[col] if col < len(ref_scales) else float(np.std(mat[:, col]) + 1e-6)
+        scale = ref_scales[col] if col < len(ref_scales) else float(np.std(ref_mat[:, col]) + 1e-6)
         out[:, col] = ((mat[:, col] - med) / scale).astype(np.float32)
 
     meta = {

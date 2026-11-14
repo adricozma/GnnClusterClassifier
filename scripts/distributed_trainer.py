@@ -132,11 +132,13 @@ def _archive_and_register_weights(
 class AstroGraphDataset(Dataset):
     def __init__(self, file_items, feat_idx=None, stochastic=False, n_rot=5, fixed_rot=None):
         self.file_items = file_items
-        self.feat_idx = feat_idx
+        self.feat_idx = tuple(feat_idx) if feat_idx is not None else None
         self.stochastic = stochastic
         self.n_rot = n_rot
         self.fixed_rot = fixed_rot
         self.epoch = 0
+        self._cache = {}
+        self._mem_limit_gb = get_memory_limit_gb(246.0)
 
     def set_epoch(self, epoch: int):
         self.epoch = epoch
@@ -158,16 +160,28 @@ class AstroGraphDataset(Dataset):
         else:
             filepath = item
 
+        cached = self._cache.get(filepath)
+        if cached is not None:
+            return cached
+
         data = torch.load(filepath, weights_only=False)
         if self.feat_idx is not None and data.x.shape[1] > len(self.feat_idx):
-            data.x = data.x[:, self.feat_idx]
+            data.x = data.x[:, list(self.feat_idx)].contiguous()
 
         label_path = filepath.replace("graph_data_output", "label_output")
         target = torch.load(label_path, weights_only=False)
         data.y = target.float()
         with torch.no_grad():
             data.h0 = compute_node_relational_features(data.x, data.edge_index)
+
+        if len(self._cache) < 8192 and (len(self._cache) % 64 != 0 or get_process_and_cgroup_rss_gb() < 0.55 * self._mem_limit_gb):
+            self._cache[filepath] = data
         return data
+
+
+def _worker_init_single_thread(_worker_id: int) -> None:
+    """Prevent DataLoader workers from spawning 36 OpenMP threads each and contending with main rank."""
+    torch.set_num_threads(1)
 
 
 def _collate_as_list(data_list):
@@ -216,11 +230,16 @@ def run_training(arch: str, args):
     )
     math_threads = min(max(1, cpus_per_task), 72)
     torch.set_num_threads(math_threads)
+    try:
+        torch.set_num_interop_threads(1)
+    except RuntimeError:
+        pass
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    force_offload = bool(getattr(args, "force_disk_offload", False))
     per_rank_bs = max(1, effective_bs // world_size)
     mem_limit_gb = get_memory_limit_gb(246.0)
-    if mem_limit_gb >= 120.0 and arch == "gat" and micro_bs < 16:
+    if mem_limit_gb >= 120.0 and arch == "gat" and micro_bs < 16 and not force_offload:
         micro_bs = min(per_rank_bs, 16)
     micro_bs = min(micro_bs, per_rank_bs)
     eval_bs = min(per_rank_bs, max(micro_bs, 32))
@@ -392,6 +411,8 @@ def run_training(arch: str, args):
         num_workers=nb_workers,
         collate_fn=_collate_as_list,
         prefetch_factor=1,
+        persistent_workers=(nb_workers > 0),
+        worker_init_fn=_worker_init_single_thread,
     )
     val_loader = TorchDataLoader(
         val_set,
@@ -401,6 +422,8 @@ def run_training(arch: str, args):
         num_workers=nb_workers,
         collate_fn=Batch.from_data_list,
         prefetch_factor=1,
+        persistent_workers=(nb_workers > 0),
+        worker_init_fn=_worker_init_single_thread,
     )
     test_loader = TorchDataLoader(
         test_set,
@@ -410,6 +433,7 @@ def run_training(arch: str, args):
         num_workers=nb_workers,
         collate_fn=Batch.from_data_list,
         prefetch_factor=1,
+        worker_init_fn=_worker_init_single_thread,
     )
 
     base_model = (
@@ -585,14 +609,14 @@ def run_training(arch: str, args):
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
                 optimizer, T_0=max(5, epochs // 2), T_mult=1, eta_min=Lr * 0.02
             )
-            if "scheduler_state_dict" in ckpt:
+            if ckpt and "scheduler_state_dict" in ckpt:
                 try:
                     scheduler.load_state_dict(ckpt["scheduler_state_dict"])
                 except Exception:
                     pass
         else:  # plateau
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=2)
-            if "scheduler_state_dict" in ckpt:
+            if ckpt and "scheduler_state_dict" in ckpt:
                 try:
                     scheduler.load_state_dict(ckpt["scheduler_state_dict"])
                 except Exception:
@@ -668,7 +692,7 @@ def run_training(arch: str, args):
                     with DiskActivationOffloader(
                         offload_dir=offload_dir,
                         mem_threshold_fraction=0.70,
-                        force_enable=False,
+                        force_enable=force_offload,
                     ):
                         with autocast_ctx:
                             out = model(sub_batch).view(-1)

@@ -186,8 +186,13 @@ def _process_snapshot(task: Tuple) -> Tuple[str, bool]:
         y_comb = y_comb[perm]
         is_field = is_field[perm]
 
-        clean_x_std, _ = standardise_matrix_v2(clean_plx, ref_scales=REF_SCALES_V2)
-        noisy_x_std, _ = standardise_matrix_v2(noisy_plx, ref_scales=REF_SCALES_V2)
+        stream_mask = ~is_field
+        clean_x_std, _ = standardise_matrix_v2(
+            clean_plx, ref_scales=REF_SCALES_V2, reference_mask=stream_mask
+        )
+        noisy_x_std, _ = standardise_matrix_v2(
+            noisy_plx, ref_scales=REF_SCALES_V2, reference_mask=stream_mask
+        )
 
         payload[f"clean_x_{r}"] = clean_x_std.astype(np.float32)
         payload[f"clean_err_{r}"] = clean_err.astype(np.float32)

@@ -106,7 +106,7 @@ class DiskActivationOffloader:
         self._cached_over = False
 
     def _should_offload(self, tensor: torch.Tensor) -> bool:
-        if tensor.dtype not in (torch.float16, torch.bfloat16, torch.float32, torch.float64):
+        if tensor.dtype not in (torch.float16, torch.float32, torch.float64):
             return False
         if tensor.numel() * tensor.element_size() < self.min_tensor_bytes:
             return False

@@ -36,12 +36,20 @@ for _p in (ROOT_DIR, os.path.join(ROOT_DIR, "src")):
 from gnn_models_v2 import (
     CLASS_NAMES_3WAY,
     GAT_V2,
+    compute_node_relational_features_v2,
     load_pretrained_with_channel_adaptation_v2,
 )
-from oom_Pin_and_offload import DiskActivationOffloader, init_distributed
+from oom_Pin_and_offload import (
+    DiskActivationOffloader,
+    get_memory_limit_gb,
+    get_process_and_cgroup_rss_gb,
+    init_distributed,
+)
 
 
 SNAP_ROT_RE = re.compile(r"^graph_v2_(.+)_rot_(\d+)\.pt$")
+_GRAPH_RAM_CACHE: Dict[Tuple[str, Tuple[int, ...], int], Data] = {}
+_MEM_LIMIT_GB: float = get_memory_limit_gb(246.0)
 
 
 def parse_feature_indices(raw: str) -> List[int]:
@@ -122,7 +130,12 @@ def load_graph_item(
     feat_indices: Sequence[int],
     num_classes: int,
 ) -> Data:
-    """Load one PyG graph and apply feature slicing + uncertainty leakage masking."""
+    """Load one PyG graph, apply feature slicing + uncertainty masking, precompute `h0`, and cache in RAM."""
+    key = (path, tuple(int(i) for i in feat_indices), int(num_classes))
+    cached = _GRAPH_RAM_CACHE.get(key)
+    if cached is not None:
+        return cached
+
     data: Data = torch.load(path, map_location="cpu", weights_only=False)
     if data.x.shape[1] > len(feat_indices):
         data.x = data.x[:, feat_indices].contiguous()
@@ -132,6 +145,19 @@ def load_graph_item(
         data.y = (data.y == 2).to(torch.float32)
     else:
         data.y = data.y.to(torch.long)
+
+    with torch.no_grad():
+        data.h0 = compute_node_relational_features_v2(
+            data.x,
+            data.edge_index,
+            edge_attr=getattr(data, "edge_attr", None),
+            err_x=getattr(data, "err_x", None),
+        )
+
+    if len(_GRAPH_RAM_CACHE) < 16384 and (
+        len(_GRAPH_RAM_CACHE) % 64 != 0 or get_process_and_cgroup_rss_gb() < 0.55 * _MEM_LIMIT_GB
+    ):
+        _GRAPH_RAM_CACHE[key] = data
     return data
 
 
@@ -235,6 +261,7 @@ def evaluate_split(
                 err_x=getattr(batch, "err_x", None),
                 batch=batch.batch,
                 ptr=getattr(batch, "ptr", None),
+                h0=getattr(batch, "h0", None),
             )
             if num_classes == 1:
                 loss = criterion(logits.squeeze(-1), batch.y)
@@ -299,8 +326,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--bs", type=int, default=64)
     p.add_argument("--micro_bs", type=int, default=8)
     p.add_argument("--epochs", type=int, default=50)
-    p.add_argument("--dropout", type=float, default=0.4)
-    p.add_argument("--weight_decay", type=float, default=1e-3)
+    p.add_argument("--dropout", type=float, default=0.2)
+    p.add_argument("--weight_decay", type=float, default=5e-4)
     p.add_argument("--patience", type=int, default=12)
     p.add_argument("--class_weight_power", type=float, default=0.5)
     p.add_argument("--pretrained_weights", type=str, default="")
@@ -320,6 +347,18 @@ def main() -> None:
     is_distributed, rank, _, world_size = init_distributed()
     is_master = rank == 0
 
+    cpus_per_task = int(
+        os.environ.get(
+            "SLURM_CPUS_PER_TASK",
+            os.environ.get("OMP_NUM_THREADS", os.environ.get("SLURM_NTASKS", os.cpu_count() or 36)),
+        )
+    )
+    torch.set_num_threads(min(max(1, cpus_per_task), 72))
+    try:
+        torch.set_num_interop_threads(1)
+    except RuntimeError:
+        pass
+
     feat_indices = parse_feature_indices(args.feature_indices)
     in_features = len(feat_indices)
 
@@ -333,7 +372,7 @@ def main() -> None:
         raise RuntimeError(f"No graph_v2_*_rot_*.pt files found inside '{args.data_folder}'.")
 
     val_paths = val_by_rot.get(available_rots[0], sum(val_by_rot.values(), []))
-    test_paths = test_by_rot.get(available_rots[0], sum(test_by_rot.values(), []))
+    test_paths = sum(test_by_rot.values(), []) or test_by_rot.get(available_rots[0], [])
 
     model = GAT_V2(
         in_features=in_features,
@@ -468,10 +507,14 @@ def main() -> None:
             ] or [[]]
 
             n_micro = len(micro_chunks)
-            for m_idx, chunk_paths in enumerate(micro_chunks):
-                if not chunk_paths:
-                    continue
-                graphs = [load_graph_item(p, feat_indices, args.num_classes) for p in chunk_paths]
+            chunk_graphs = [
+                [load_graph_item(p, feat_indices, args.num_classes) for p in cp]
+                for cp in micro_chunks
+                if cp
+            ]
+            batch_total_nodes = float(max(sum(sum(g.num_nodes for g in gl) for gl in chunk_graphs), 1))
+            n_micro = len(chunk_graphs)
+            for m_idx, graphs in enumerate(chunk_graphs):
                 batch = Batch.from_data_list(graphs)
 
                 sync_ctx = (
@@ -487,7 +530,9 @@ def main() -> None:
                         err_x=getattr(batch, "err_x", None),
                         batch=batch.batch,
                         ptr=getattr(batch, "ptr", None),
+                        h0=getattr(batch, "h0", None),
                     )
+                    n_n = int(batch.y.numel())
                     if args.num_classes == 1:
                         loss = criterion(logits.squeeze(-1), batch.y)
                         preds = (torch.sigmoid(logits.squeeze(-1)) >= 0.5).to(torch.long)
@@ -496,9 +541,8 @@ def main() -> None:
                         loss = criterion(logits, batch.y)
                         preds = torch.argmax(logits, dim=-1)
                         targets = batch.y
-                    (loss / float(max(n_micro, 1))).backward()
+                    (loss * (float(n_n) / batch_total_nodes)).backward()
 
-                n_n = int(batch.y.numel())
                 tr_loss_sum += float(loss.item()) * n_n
                 tr_correct += int((preds == targets).sum().item())
                 tr_nodes += n_n

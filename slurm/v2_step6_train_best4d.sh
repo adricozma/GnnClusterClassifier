@@ -88,8 +88,8 @@ run_ddp_with_oom_fallback scripts/v2_train_gat.py 8 \
     --lr 0.0005 \
     --bs 64 \
     --epochs 35 \
-    --dropout 0.4 \
-    --weight_decay 0.001 \
+    --dropout 0.25 \
+    --weight_decay 0.0005 \
     --patience 10 \
     --scheduler cosine \
     --pretrained_weights "$PRETRAINED_5D_CLEAN" \
@@ -104,8 +104,8 @@ run_ddp_with_oom_fallback scripts/v2_train_gat.py 8 \
     --lr 0.0005 \
     --bs 64 \
     --epochs 40 \
-    --dropout 0.4 \
-    --weight_decay 0.001 \
+    --dropout 0.25 \
+    --weight_decay 0.0005 \
     --patience 10 \
     --scheduler cosine \
     --pretrained_weights "${OUT_4D_CLEAN}/best_v2_${BEST_4D_TAG}_clean.pth" \
