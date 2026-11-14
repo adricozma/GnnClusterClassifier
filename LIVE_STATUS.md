@@ -1,7 +1,7 @@
 # Live Pipeline Status on Jed
 
 ```text
-[2026-11-14 02:12:28] Study 2 Pipeline Status on Jed
+[2026-11-14 02:19:28] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
@@ -10,7 +10,8 @@
   * clean_5obs/training_metrics_gat_clean.log: Ep 045 | Train 0.1338 (94.72%) | Val 0.2092 (91.96%, Best=91.99%) | CoreFNR: 11.06% (min=8.41%) | Test=91.43%
   * clean_5obs/training_metrics_gcn_clean.log: Ep 025 | Train 0.1136 (95.42%) | Val 0.1820 (92.33%, Best=92.33%) | Test=92.17%
   * legacy/clean_5obs_static_5rot/training_metrics_gcn_clean.log: Ep 025 | Train 0.1136 (95.42%) | Val 0.1820 (92.33%, Best=92.33%) | Test=92.17%
-- Saved Model Checkpoints (.pth): 8 mirrored in GNN-jed/trained_models/study2/weights/
+  * noisy_5obs/training_metrics_gat_noisy.log: Ep 001 | Train 0.5517 (72.97%) | Val 0.4727 (73.65%, Best=73.65%) | CoreFNR: 29.02% (min=29.02%) | Test=In progress
+- Saved Model Checkpoints (.pth): 9 mirrored in GNN-jed/trained_models/study2/weights/
 
 SLURM Queue:
 JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
@@ -20,7 +21,7 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
 41146835_[0-4%   academic      Study2_Step6_4Obs   PD       0:00      2 (Dependency)
       41185010   academic Study2V2_Step4_BuildGr   PD       0:00      1 (Dependency)
 41185009_[0-80   academic Study2V2_Step3_Extract   PD       0:00      1 (Dependency)
-      41146834   academic   Study2_Step5_Train81    R 1-11:28:12      2 jst[317,320]
+      41146834   academic   Study2_Step5_Train81    R 1-11:34:37      2 jst[317,320]
 ```
 
 ## Live Neural Network Training Metrics
@@ -30,6 +31,7 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
 | `clean_5obs` | **GAT** | 45 | 0.1338 | 94.72% | 0.2092 | 91.96% | **91.99%** | 9.22% (val: 8.41%) | **91.43%** | 0.8807 |
 | `clean_5obs` | **GCN** | 25 | 0.1136 | 95.42% | 0.1820 | 92.33% | **92.33%** | - | **92.17%** | 0.8886 |
 | `clean_5obs_static_5rot` | **GCN** | 25 | 0.1136 | 95.42% | 0.1820 | 92.33% | **92.33%** | - | **92.17%** | 0.8886 |
+| `noisy_5obs` | **GAT** | 1 | 0.5517 | 72.97% | 0.4727 | 73.65% | **73.65%** | 29.02% (val min) | **In progress** | - |
 
 ## Saved Model Weights (`.pth` Checkpoints)
 
@@ -43,6 +45,7 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
 | `best_gat_clean.pth` | 361.2 KB | `GNN-jed/trained_models/study2/legacy/weights/best_gat_clean.pth` | `GNN-jed/trained_models/study2/weights/best_gat_clean.pth` |
 | `best_gat_clean_ep18_backup.pth` | 361.2 KB | `GNN-jed/trained_models/study2/legacy/weights/best_gat_clean_ep18_backup.pth` | `GNN-jed/trained_models/study2/weights/best_gat_clean_ep18_backup.pth` |
 | `best_gcn_clean.pth` | 120.0 KB | `GNN-jed/trained_models/study2/legacy/weights/best_gcn_clean.pth` | `GNN-jed/trained_models/study2/weights/best_gcn_clean.pth` |
+| `best_gat_noisy.pth` | 361.2 KB | `GNN-jed/trained_models/study2/noisy_5obs/best_gat_noisy.pth` | `GNN-jed/trained_models/study2/weights/best_gat_noisy.pth` |
 
 ## Real-Time GNN Learning Curves (Loss & Accuracy Evolution)
 

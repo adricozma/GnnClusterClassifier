@@ -30,5 +30,22 @@
     "test_f1": 0.8807,
     "test_core_fnr": 9.22,
     "updated_at": "2026-11-14 01:19:44"
+  },
+  "best_gat_noisy.pth": {
+    "filename": "best_gat_noisy.pth",
+    "architecture": "GAT",
+    "in_channels": 5,
+    "experiment_path": "GNN-jed/trained_models/study2/noisy_5obs/best_gat_noisy.pth",
+    "central_archive_path": "GNN-jed/trained_models/study2/weights/best_gat_noisy.pth",
+    "size_kb": 361.2,
+    "best_epoch": 1,
+    "val_loss": 0.4727,
+    "val_acc": 73.65,
+    "val_core_fnr": 29.02,
+    "test_loss": null,
+    "test_acc": null,
+    "test_f1": null,
+    "test_core_fnr": null,
+    "updated_at": "2026-11-14 02:17:44"
   }
 }
