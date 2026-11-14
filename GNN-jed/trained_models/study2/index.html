@@ -229,7 +229,7 @@
   <header>
     <div class="header-top">
       <h1>Study 2 — Index des Entraînements & Analyses GNN (GAT vs GCN)</h1>
-      <span class="timestamp">Dernière mise à jour : 2026-11-14 19:13:25</span>
+      <span class="timestamp">Dernière mise à jour : 2026-11-14 19:53:46</span>
     </div>
     <div class="nav-tabs">
       <button class="tab-btn active" onclick="switchTab('tab-overview', this)">Vue Globale & Spectres RMT</button>
@@ -273,11 +273,11 @@
           </tr>
         </thead>
         <tbody>
-          <tr><td><code>4obs_no_RA_clean</code></td><td><span class='badge badge-gat'>GAT</span></td><td>3</td><td>0.1719</td><td>93.11%</td><td>0.2446</td><td>90.00%</td><td><strong>90.04%</strong></td><td>8.41% (val min)</td><td><span class='status-live'>In progress</span></td><td><strong>-</strong></td></tr>
+          <tr><td><code>4obs_no_RA_clean</code></td><td><span class='badge badge-gat'>GAT</span></td><td>4</td><td>0.1702</td><td>93.18%</td><td>0.2415</td><td>90.12%</td><td><strong>90.12%</strong></td><td>8.41% (val min)</td><td><span class='status-live'>In progress</span></td><td><strong>-</strong></td></tr>
 <tr><td><code>clean_5obs</code></td><td><span class='badge badge-gat'>GAT</span></td><td>20</td><td>0.1006</td><td>96.00%</td><td>0.1495</td><td>94.10%</td><td><strong>94.21%</strong></td><td>6.49% (val: 6.60%)</td><td><span class='status-done'>93.04%</span></td><td><strong>0.9035</strong></td></tr>
 <tr><td><code>clean_5obs</code></td><td><span class='badge badge-gcn'>GCN</span></td><td>25</td><td>0.1136</td><td>95.42%</td><td>0.1820</td><td>92.33%</td><td><strong>92.33%</strong></td><td>-</td><td><span class='status-done'>92.17%</span></td><td><strong>0.8886</strong></td></tr>
 <tr><td><code>noisy_5obs</code></td><td><span class='badge badge-gat'>GAT</span></td><td>20</td><td>0.2683</td><td>88.10%</td><td>0.4221</td><td>81.26%</td><td><strong>81.76%</strong></td><td>19.52% (val: 14.33%)</td><td><span class='status-done'>84.91%</span></td><td><strong>0.7879</strong></td></tr>
-<tr><td><code>4obs_no_RA_clean</code></td><td><span class='badge badge-live'>GAT (In Flight)</span></td><td>Ep 03 (100%)</td><td>0.1855</td><td>-</td><td>-</td><td>-</td><td><strong>-</strong></td><td>-</td><td><span class='status-live'>In progress</span></td><td><strong>-</strong></td></tr>
+<tr><td><code>4obs_no_RA_clean</code></td><td><span class='badge badge-live'>GAT (In Flight)</span></td><td>Ep 04 (100%)</td><td>0.1592</td><td>-</td><td>-</td><td>-</td><td><strong>-</strong></td><td>-</td><td><span class='status-live'>In progress</span></td><td><strong>-</strong></td></tr>
         </tbody>
       </table>
 
@@ -334,17 +334,17 @@
         </tbody>
       </table>
       <h2>État du Pipeline & Queue SLURM sur Jed</h2>
-      <pre class="status-box">[2026-11-14 19:13:24] Study 2 Pipeline Status on Jed
+      <pre class="status-box">[2026-11-14 19:53:45] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
 - Step 4 (5D Graphs): Clean=81/81 | GaiaNoisy=81/81
 - Step 5/6 Live GNN Training Progress:
-  * 4obs_no_RA_clean/training_metrics_gat_4obs_no_RA_clean.log: Ep 003 | Train 0.1719 (93.11%) | Val 0.2446 (90.00%, Best=90.04%) | CoreFNR: 11.42% (min=8.41%) | Test=In progress
+  * 4obs_no_RA_clean/training_metrics_gat_4obs_no_RA_clean.log: Ep 004 | Train 0.1702 (93.18%) | Val 0.2415 (90.12%, Best=90.12%) | CoreFNR: 13.17% (min=8.41%) | Test=In progress
   * clean_5obs/training_metrics_gat_clean.log: Ep 020 | Train 0.1006 (96.00%) | Val 0.1495 (94.10%, Best=94.21%) | CoreFNR: 6.64% (min=6.60%) | Test=93.04%
   * clean_5obs/training_metrics_gcn_clean.log: Ep 025 | Train 0.1136 (95.42%) | Val 0.1820 (92.33%, Best=92.33%) | Test=92.17%
   * noisy_5obs/training_metrics_gat_noisy.log: Ep 020 | Train 0.2683 (88.10%) | Val 0.4221 (81.26%, Best=81.76%) | CoreFNR: 23.60% (min=14.33%) | Test=84.91%
-  * [IN FLIGHT] 4obs_no_RA_clean (GAT): Ep 003 | Batch 0103/0103 (100.0%) | Batch Loss 0.1855 | LR: 1.63e-04 | RAM: 1.4G
+  * [IN FLIGHT] 4obs_no_RA_clean (GAT): Ep 004 | Batch 0103/0103 (100.0%) | Batch Loss 0.1592 | LR: 1.38e-04 | RAM: 1.4G
 - Saved Model Checkpoints (.pth): 4 mirrored in GNN-jed/trained_models/study2/weights/
 
 SLURM Queue:
@@ -355,7 +355,7 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
       41146836   academic Study2_Step7_GCNStocha   PD       0:00      2 (Dependency)
       41185010   academic Study2V2_Step4_BuildGr   PD       0:00      1 (Dependency)
 41185009_[0-80   academic Study2V2_Step3_Extract   PD       0:00      1 (Dependency)
-    41146835_0   academic      Study2_Step6_4Obs    R    2:16:22      2 jst[292,312]</pre>
+    41146835_0   academic      Study2_Step6_4Obs    R    2:56:42      2 jst[292,312]</pre>
     </section>
   </main>
 

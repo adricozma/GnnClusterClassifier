@@ -4,7 +4,14 @@ __pycache__/
 *.pyc
 .qodo/
 .agents/
+.claude/
+.cursor/
+.codex/
+AGENTS.md
+GEMINI.md
+CLAUDE.md
 THEORETICAL_CORRECTIONS_LOG.md
+GNN-jed/trained_models/study2_legacy_archive/
 archive_study1/
 env_astro/
 slurm_logs/
