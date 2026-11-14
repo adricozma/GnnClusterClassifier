@@ -500,22 +500,33 @@ def main():
                             time.sleep(2.5)
                             os.kill(ppid, signal.SIGTERM)
 
-                # Hot-reload transition for active GAT clean_5obs process if it was started before the anti-overfitting update
-                gat_marker = os.path.join(
-                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "clean_5obs", ".gat_overfit_fix_transition_done"
+                # Hot-reload transition for active 4obs_no_RA_clean if it started before the dropout=0.25 & feature_indices=1,2,3,4 fix
+                ablation0_marker = os.path.join(
+                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "4obs_no_RA_clean", ".ablation0_ep18_reload_done"
                 )
-                gat_clean_log = os.path.join(
-                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "clean_5obs", "training_metrics_gat_clean.log"
+                ablation0_log = os.path.join(
+                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "4obs_no_RA_clean", "training_metrics_gat_4obs_no_RA_clean.log"
                 )
-                if os.path.exists(cmdline_file) and not os.path.exists(gat_marker):
+                if os.path.exists(cmdline_file) and not os.path.exists(ablation0_marker):
                     with open(cmdline_file, "rb") as cf:
                         cmd_str = cf.read().decode("utf-8", errors="ignore")
-                    if "train_gat.py" in cmd_str and "clean_5obs" in cmd_str and os.path.exists(gat_clean_log):
-                        d_gat = parse_log_file(gat_clean_log)
-                        if d_gat["epochs"] and d_gat["epochs"][-1] >= 18 and d_gat["test_acc"] is None:
-                            with open(gat_marker, "w", encoding="utf-8") as mf:
+                    if "train_gat.py" in cmd_str and "4obs_no_RA_clean" in cmd_str and os.path.exists(ablation0_log):
+                        with open(ablation0_log, "r", encoding="utf-8", errors="ignore") as lf:
+                            log_head = lf.read(512)
+                        if "dropout=0.4" in log_head:
+                            with open(ablation0_marker, "w", encoding="utf-8") as mf:
                                 mf.write("triggered\n")
-                            time.sleep(2.5)
+                            for stale_f in (
+                                os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2", "4obs_no_RA_clean", "last_gat_4obs_no_RA_clean.pth"),
+                                os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2", "4obs_no_RA_clean", "best_gat_4obs_no_RA_clean.pth"),
+                                ablation0_log,
+                            ):
+                                try:
+                                    if os.path.exists(stale_f):
+                                        os.remove(stale_f)
+                                except OSError:
+                                    pass
+                            time.sleep(2.0)
                             os.kill(ppid, signal.SIGTERM)
             except Exception:
                 pass

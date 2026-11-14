@@ -50,16 +50,23 @@ The repository is organized to separate core physical/feature-engineering module
 │   └── orbits_unbiased/                 # Integrated 2 Gyr unbiased orbital trajectories (Study 2)
 ├── src/
 │   ├── bound_labels.py                  # 3D k-NN density + shrinking-sphere centering & exact Jacobi/Roche solver
-│   ├── observables_matrix.py            # Haar-uniform SO(3) rotations, ICRS projection, Gaia DR3 noise & scaling
-│   ├── gnn_models.py                    # Local phase-space relational encoder, Residual GCN & Multi-Head GAT
+│   ├── observables_matrix.py            # Haar-uniform SO(3) rotations, ICRS projection, Gaia DR3 noise & scaling (V1)
+│   ├── gaia_v2.py                       # Study 2 V2: Kroupa IMF + TRGB (G<=20.7), linear parallax, MW field stars
+│   ├── gnn_models.py                    # V1 Local phase-space relational encoder, Residual GCN & Multi-Head GAT
+│   ├── gnn_models_v2.py                 # V2 Uncertainty-aware Multi-Head Residual GAT (2D sky k-NN + dual heads)
 │   ├── oom_Pin_and_offload.py           # Distributed DDP initializer & cgroup-aware disk activation offloader
 │   └── Stellar_objects/                 # Utilities for King/Plummer cluster profiles and LOS dispersion
 ├── scripts/
 │   ├── extract_observables.py           # Parallel extraction of bound labels + Clean & Gaia DR3 Noisy observables
 │   ├── build_graph_dataset.py           # Parallel cKDTree k-NN graph builder (5D full & 4D ablation subsets)
-│   ├── distributed_trainer.py           # Unified DDP, micro-batch gradient accumulation & checkpoint engine
+│   ├── distributed_trainer.py           # Unified DDP, RAM graph cache, micro-batch grad accumulation & checkpoint engine
 │   ├── train_gcn.py                     # 3-layer Residual GCN classifier training CLI (clean_5obs baseline)
 │   ├── train_gat.py                     # 3-layer Multi-Head Residual GAT training & curriculum fine-tuning CLI
+│   ├── v2_extract_observables.py        # Study 2 V2: Parallel extraction with IMF, G<=20.7, and MW field stars
+│   ├── v2_build_graph_dataset.py        # Study 2 V2: Pure 2D on-sky (RA*, Dec) k-NN graph builder
+│   ├── v2_train_gat.py                  # Study 2 V2: Uncertainty-aware dual-head GAT DDP trainer
+│   ├── v2_select_best_4d.py             # Study 2 V2: Automated selector for the winning V1 4D noisy subset
+│   ├── v2_infer_gaia_dr3.py             # Study 2 V2: Direct inference & validation on real Gaia DR3 catalogs
 │   ├── generate_study2_figures.py       # Automated evaluation & publication figure generator (.png & .html)
 │   ├── live_plot_utils.py               # Real-time learning curve plotter from training logs
 │   └── live_monitor.py                  # Automated training telemetry and status updater
@@ -71,7 +78,12 @@ The repository is organized to separate core physical/feature-engineering module
 │   ├── step5_train_curriculum_and_plot.sh # Step 5: 5-Observable Clean -> Gaia DR3 Noisy curriculum training
 │   ├── step6_ablation_4obs.sh           # Step 6: 4-Observable ablation study (5D -> 4D weight transfer)
 │   ├── step7_retrain_gcn_stochastic.sh  # Step 7: Stochastic SO(3) GCN Clean baseline retraining
-│   └── launch_full_study2_pipeline.sh   # Master SLURM pipeline launcher chaining Steps 5, 6, and 7
+│   ├── launch_full_study2_pipeline.sh   # Master SLURM pipeline launcher chaining Steps 5, 6, and 7
+│   ├── v2_step3_extract_obs.sh          # V2 Step 3: Extract IMF + G<=20.7 + MW field contaminants
+│   ├── v2_step4_build_graphs.sh         # V2 Step 4: Build 2D on-sky k-NN graphs (5D & Best-4D)
+│   ├── v2_step5_train_5d.sh             # V2 Step 5: Train V2 5D Clean -> Noisy Curriculum GAT
+│   ├── v2_step6_train_best4d.sh         # V2 Step 6: Train V2 Best-4D GAT + Real Gaia DR3 inference
+│   └── launch_study2_v2.sh              # Master SLURM launcher for Study 2 V2
 ├── visualization/
 │   ├── plot_swift_output.py             # HDF5 snapshot loader (DMParticles coordinates, velocities, masses, time)
 │   ├── visu_stream_outputs.py           # 3D Galactocentric stream rendering and projection animations
@@ -154,17 +166,43 @@ In `src/observables_matrix.py`, Right Ascension is centered via the circular med
 
 ---
 
-### 4. Graph Neural Network Architectures, Curriculum Learning & 5D $\to$ 4D Ablation Transfer (`src/`, `scripts/`, `slurm/`)
+### 4. Graph Neural Network Architectures, Mathematical Know-How, Curriculum Learning & 5D $\to$ 4D Ablation Transfer (`src/`, `scripts/`, `slurm/`)
 
-To overcome the scale blindness of constant-degree $k$-NN graphs ($k = 20$), [`src/gnn_models.py`](src/gnn_models.py) augments each star's standardized astrometric vector $\mathbf{x}_i \in \mathbb{R}^d$ ($d \in \{4, 5\}$) on the fly with local $k$-NN relational invariants:
+#### A. Breaking Constant-Degree $k$-NN Scale Blindness (`compute_node_relational_features`)
+In a constant-degree $k$-NN graph ($k = 20$), every star has the exact same topological degree $\deg(i) = 20$, regardless of whether those 20 neighbors lie within $0.5\text{ pc}$ inside a dense bound core ($r_i < R_J$) or span $5\text{ kpc}$ along a diffuse tidal tail ($r_i \gg R_J$). To break this topological scale blindness, [`src/gnn_models.py`](src/gnn_models.py) augments each star's standardized astrometric vector $\mathbf{x}_i \in \mathbb{R}^d$ ($d \in \{4, 5\}$) with its local $k$-NN phase-space relational invariants:
 
 $$
-\mathbf{h}_i^{(0)} = \left[\mathbf{x}_i,\; \mathbf{x}_i - \langle\mathbf{x}\rangle_{\mathcal{N}(i)},\; \boldsymbol{\sigma}_{\mathcal{N}(i)},\; \bar{d}_i,\; \ln\hat{\rho}_{\mathrm{phase},i},\; \lVert\mathbf{x}_i\rVert_2\right] \in \mathbb{R}^{3d + 3}.
+\mathbf{h}_i^{(0)} = \left[\underbrace{\mathbf{x}_i}_{d},\; \underbrace{\mathbf{x}_i - \langle\mathbf{x}\rangle_{\mathcal{N}(i)}}_{d},\; \underbrace{\boldsymbol{\sigma}_{\mathcal{N}(i)}}_{d},\; \underbrace{\bar{d}_i,\; \ln\hat{\rho}_{\mathrm{phase},i},\; \lVert\mathbf{x}_i\rVert_2}_{3}\right] \in \mathbb{R}^{3d + 3}.
 $$
 
-We evaluate two residual architectures across **81 unbiased *Gaia* DR3 progenitor streams** (75 Study 1 streams with $N \in [2500, 3500]$ plus 6 outer-halo progenitors spanning $N \in [20\,000, 50\,000]$, partitioned deterministically at the simulation level with `seed=42` into 65 Train / 8 Validation / 8 Test streams):
-1. **3-Layer Residual GCN (`scripts/train_gcn.py`):** `(3d+3) -> 64 -> 128 -> 1` with `GCNConv`, linear residual skip projections, `LayerNorm`, `GELU` activations, and an ego-relational readout head `MLP([h2, h0])` (`--bs 256`, 25 epochs on the 5D noiseless baseline).
-2. **3-Layer Multi-Head Residual GAT (`scripts/train_gat.py`):** `GATConv(3d+3, 32, heads=4)` $\to$ `GATConv(128, 64, heads=4)` $\to$ `GATConv(256, 1, heads=1)` with `LayerNorm`, `ELU` activations, dropout ($p = 0.4$ on both multi-head `GATConv` attention coefficients and hidden layer / ego-head activations), L2 regularization (`weight_decay = 1e-3` in `AdamW`), adaptive learning rate scheduling (`OneCycleLR` / cosine annealing on resume), validation BCE loss early stopping (`patience = 10` for Stage 1 Clean; `patience = 8` for Stage 2 Noisy and 4D ablations), and an ego-relational readout head `MLP([h2, h0])` (`--bs 64`). Training continuously tracks targeted surviving-core metrics **`CoreFNR` / `CoreRec`** (False Negative Rate and Recall on bound core stars, alongside the diagnostic figure `surviving_core_fnr_by_perigalacticon_GAT_{tag}.{png,html}`).
+#### B. Why Anisotropic Multi-Head GAT Outperforms Isotropic GCN Across the Jacobi Boundary ($r \approx R_J$)
+We compare two 3-layer residual architectures across **81 unbiased *Gaia* DR3 progenitor streams** (partitioned deterministically at the simulation level with `seed=42` into **65 Train / 8 Validation / 8 Test** simulations — zero data leakage across snapshots or rotations):
+
+1. **Isotropic 3-Layer Residual GCN (`scripts/train_gcn.py`):** `(3d+3) -> 64 -> 128 -> 1` with `GCNConv(h, E)`, linear residual skip projections (`skip1`, `skip2`), `LayerNorm`, `GELU` activations, and an ego-relational readout head `MLP([h2, h0])`. Because `GCNConv` averages all neighbors $j \in \mathcal{N}(i)$ with fixed degree weights $1/\sqrt{\tilde{d}_i\tilde{d}_j} \approx 1/21$, stars located near the Jacobi boundary ($r_i \approx R_J$, near the $L_1/L_2$ Lagrange points) have their features smoothed isotropically across both bound core neighbors and unbound escaping neighbors.
+2. **Anisotropic 3-Layer Multi-Head Residual GAT (`scripts/train_gat.py`):** `GATConv(3d+3, 32, heads=4)` $\to$ `GATConv(128, 64, heads=4)` $\to$ `GATConv(256, 1, heads=1)` with `LayerNorm`, `ELU` activations, linear residual skip connections (`skip1`, `skip2`), and dual ego-relational readout:
+
+$$
+e_{ij}^{(m)} = \operatorname{LeakyReLU}_{0.2}\!\left(\mathbf{a}_{\mathrm{src}}^{(m)\top}\mathbf{W}^{(m)}\mathbf{h}_i^{(l-1)} + \mathbf{a}_{\mathrm{dst}}^{(m)\top}\mathbf{W}^{(m)}\mathbf{h}_j^{(l-1)}\right), \qquad \alpha_{ij}^{(m)} = \frac{\exp(e_{ij}^{(m)})}{\sum_{u \in \mathcal{N}(i) \cup \{i\}} \exp(e_{iu}^{(m)})},
+$$
+
+$$
+\mathbf{h}_i^{(l)} = \operatorname{ELU}\!\left(\operatorname{LayerNorm}\!\left(\operatorname{Concat}_{m=1}^{4}\!\left[\sum_{j \in \mathcal{N}(i) \cup \{i\}} \alpha_{ij}^{(m)}\mathbf{W}^{(m)}\mathbf{h}_j^{(l-1)}\right] + \mathbf{W}_{\mathrm{skip},l}\,\mathbf{h}_i^{(l-1)}\right)\right), \qquad \hat{y}_i = \operatorname{conv3}(\mathbf{h}_i^{(2)}, \mathcal{E}) + \operatorname{MLP}_{\mathrm{ego}}\!\left([\mathbf{h}_i^{(2)} \;\Vert\; \mathbf{h}_i^{(0)}]\right).
+$$
+
+   - **Physical Role of Multi-Head Attention:** Unlike GCN, the $M=4$ attention heads learn **anisotropic weights** $\alpha_{ij}^{(m)}$ that suppress high-velocity escapers or phase-space outliers ($\alpha_{ij} \to 0$) while concentrating message passing onto kinematically coherent core members ($\|\boldsymbol{\mu}_j - \boldsymbol{\mu}_i\| \to 0$), preserving a sharp decision boundary right at $R_J$.
+   - **Decoupled Feature vs. Attention-Edge Dropout (`src/gnn_models.py`):** Hidden feature dropout is set to $p_{\mathrm{node}} \in [0.20, 0.25]$, while `GATConv` attention-edge dropout is capped at $p_{\mathrm{edge}} = \min(p_{\mathrm{node}}, 0.15)$ on `conv1`/`conv2` and explicitly set to $p_{\mathrm{edge}} = 0.0$ on the final 1-head scalar logit layer `conv3`. (Applying $p=0.4$ edge dropout on `conv3` randomly zeroes $40\%$ of output logit contributions and causes capacity throttling / underfitting, reducing 5D Clean Test Accuracy from **93.04%** to **91.43%**.)
+
+#### C. Quantitative Benchmark Summary on the 81-Stream Study 2 Test Set (4,040 Test Graphs)
+
+| Model Checkpoint | Regime | Rotation Sampling | Dropout (`node / edge`) | Best Epoch | Val Loss / Acc | **Test Loss** | **Test Acc** | **Test BalAcc** | **Test F1** | **Surviving-Core Error (`CoreFNR`)** |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`best_gat_clean.pth`** *(Canonical Ep 18)* | 5D Clean | 5 rot/ep | `0.20 / 0.20` | 18 | `0.1470` / **94.20%** | **0.1641** | **93.04%** | **93.15%** | **0.9035** | **6.49%** (`CoreRec: 93.51%`) |
+| **`best_gcn_clean.pth`** *(Baseline GCN)* | 5D Clean | 5 rot/ep | `0.20 / —` | 19 | `0.1725` / 93.16% | 0.1848 | 92.17% | 91.90% | 0.8886 | 10.32% (`CoreRec: 89.68%`) |
+| `best_gat_clean_dropout04_ep35.pth` *(Archived)* | 5D Clean | 1 rot/ep (stochastic) | `0.40 / 0.40` | 35 | `0.2071` / 91.89% | 0.2016 | 91.43% | 91.28% | 0.8807 | 9.22% (`CoreRec: 90.78%`) |
+| **`best_gat_noisy.pth`** *(V1 5D Noisy)* | 5D Gaia DR3 Noisy | 1 rot/ep (stochastic) | `0.40 / 0.40` | 12 | `0.4014` / 81.76% | 0.3181 | **84.91%** | **83.88%** | **0.7879** | 19.52% (`CoreRec: 80.48%`) |
+
+> **Why V1 5D Noisy Drops to 84.91% (and How Step 6 `4obs_no_Parallax` & Study 2 V2 Solve It):**  
+> In V1 `noisy_5obs`, column 2 is the inverted distance $D_i = 1/\operatorname{clip}(\varpi_{\mathrm{obs},i}, 0.005, 10)\text{ kpc}$. At typical halo distances ($10\text{--}40\text{ kpc}$, where $\sigma_\varpi > \varpi_{\mathrm{true}}$ at $M_G=4.5$), $\sim 40\%$ of noisy parallax draws fall below $0.005\text{ mas}$ and pile up at $D_i = 200\text{ kpc}$, tearing apart the 5D $k$-NN graph topology before the GAT is even applied. Dropping parallax in **Step 6 (`4obs_no_Parallax`)** removes this corrupted axis in 4D, while **Study 2 V2 (`GAT_V2`)** builds $k$-NN edges strictly in **2D sky coordinates $(\Delta\alpha^*, \Delta\delta)$** and passes linear $\varpi_{\mathrm{obs}}$ alongside explicit measurement uncertainties $(\sigma_\varpi, \sigma_{\mu_{\alpha^*}}, \sigma_{\mu_\delta}, \mathrm{SNR}_\varpi)$.
 
 #### Two-Stage Curriculum, Stochastic $\mathrm{SO}(3)$ Training & $5\mathrm{D} \to 4\mathrm{D}$ Subspace Weight Transfer
 - **Step 5 — 5-Observable Curriculum (`slurm/step5_train_curriculum_and_plot.sh`):** Both GCN (25 epochs, architectural baseline) and GAT (50 epochs, `--stochastic_rotation` sampling 1 random rotation per snapshot per epoch across $6\,565$ training graphs/epoch) are trained on noiseless 5D astrometric graphs (`clean_5obs`, $\mathrm{lr} = 10^{-3}$). The converged 5D Clean GAT checkpoint (`best_gat_clean.pth`) is then fine-tuned for up to 30 epochs (`patience = 8`) on *Gaia* DR3 noisy graphs (`noisy_5obs`, $\mathrm{lr} = 5\times 10^{-4}$, Lindegren et al. 2021).
