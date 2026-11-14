@@ -364,8 +364,17 @@ def plot_spectral_analysis(gcn_weights_path, gat_weights_path, output_dir, tag, 
 
     plt.tight_layout()
     os.makedirs(output_dir, exist_ok=True)
-    plt.savefig(os.path.join(output_dir, f"spectral_analysis_GNN_{tag}.png"))
+    out_png = os.path.join(output_dir, f"spectral_analysis_GNN_{tag}.png")
+    plt.savefig(out_png)
     plt.close(fig)
+    if tag == "clean_5obs":
+        try:
+            import shutil
+            assets_png = os.path.join(ROOT_DIR, "assets", "figures", "spectral_analysis_GNN.png")
+            if os.path.isdir(os.path.dirname(assets_png)):
+                shutil.copyfile(out_png, assets_png)
+        except Exception:
+            pass
 
     _write_plotly_html(
         os.path.join(output_dir, f"spectral_analysis_GNN_{tag}.html"),

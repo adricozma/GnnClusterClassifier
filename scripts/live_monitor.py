@@ -10,6 +10,7 @@ or smartphone without SSH access to Jed.
 import argparse
 import glob
 import os
+import re
 import subprocess
 import sys
 import time
@@ -67,16 +68,33 @@ def get_slurm_queue():
 
 
 def get_in_flight_training_progress():
-    """Detect active batch progress from the most recent SLURM output log."""
+    """Detect active batch progress (including 4D ablations and V2 runs) from the most recent SLURM output log."""
     out_files = sorted(
         glob.glob(os.path.join(ROOT_DIR, "slurm_logs", "*.out")),
         key=os.path.getmtime,
         reverse=True,
     )
-    for out_f in out_files[:3]:
+    for out_f in out_files[:4]:
+        # Only consider logs updated within the last 90 minutes
         try:
+            if (time.time() - os.path.getmtime(out_f)) > 5400:
+                continue
             with open(out_f, "r", encoding="utf-8", errors="ignore") as f:
-                lines = f.readlines()[-40:]
+                lines = f.readlines()[-160:]
+            exp_tag = "clean_5obs"
+            arch_lbl = "GAT"
+            for ln in lines:
+                m_idx = re.search(r"graph_data_([A-Za-z0-9_]+)", ln)
+                if m_idx:
+                    exp_tag = m_idx.group(1)
+                m_save = re.search(r"study2/([A-Za-z0-9_]+)/", ln)
+                if m_save and m_save.group(1) != "weights":
+                    exp_tag = m_save.group(1)
+                if "train_gcn.py" in ln or "[GCN]" in ln:
+                    arch_lbl = "GCN"
+                elif "train_gat.py" in ln or "[GAT]" in ln:
+                    arch_lbl = "GAT"
+
             for line in reversed(lines):
                 m = re.search(
                     r"Epoch\s+(\d+)\s*\|\s*Batch\s+(\d+)/(\d+)\s*\|\s*Batch Loss:\s*([0-9.]+)\s*\|\s*LR:\s*([0-9.eE+-]+)\s*\|\s*RAM:\s*([0-9.]+[GM])",
@@ -91,8 +109,8 @@ def get_in_flight_training_progress():
                     lr = m.group(5)
                     ram = m.group(6)
                     return {
-                        "summary": f"[IN FLIGHT] GAT Clean: Ep {ep:03d} | Batch {b_cur:04d}/{b_tot:04d} ({pct:.1f}%) | Batch Loss {loss:.4f} | LR: {lr} | RAM: {ram}",
-                        "row": ("clean_5obs", "GAT (In Flight)", f"Ep {ep:02d} ({pct:.0f}%)", loss, "-", "-", "-", "-", "-", "In progress", "-"),
+                        "summary": f"[IN FLIGHT] {exp_tag} ({arch_lbl}): Ep {ep:03d} | Batch {b_cur:04d}/{b_tot:04d} ({pct:.1f}%) | Batch Loss {loss:.4f} | LR: {lr} | RAM: {ram}",
+                        "row": (exp_tag, f"{arch_lbl} (In Flight)", f"Ep {ep:02d} ({pct:.0f}%)", loss, "-", "-", "-", "-", "-", "In progress", "-"),
                     }
         except Exception:
             pass
@@ -346,6 +364,7 @@ def auto_push_to_github():
                 "scripts/",
                 "slurm/",
                 "tests/",
+                "assets/figures/",
                 "GNN-jed/trained_models/study2/",
             ],
             cwd=ROOT_DIR,
@@ -440,8 +459,19 @@ def main():
 
     last_sent_report = None
     uploaded_plots = _load_uploaded_plots()
+    watched_scripts = [
+        os.path.abspath(__file__),
+        os.path.join(ROOT_DIR, "scripts", "live_plot_utils.py"),
+        os.path.join(ROOT_DIR, "scripts", "generate_study2_figures.py"),
+    ]
+    initial_mtimes = {p: os.path.getmtime(p) for p in watched_scripts if os.path.exists(p)}
 
     while True:
+        # Auto-reload daemon via os.execv if any monitoring/plotting script was updated on disk
+        if not args.once:
+            for p, old_mt in list(initial_mtimes.items()):
+                if os.path.exists(p) and os.path.getmtime(p) > old_mt:
+                    os.execv(sys.executable, [sys.executable] + sys.argv)
         auto_heal_slurm_jobs(args.topic)
         squeue_str = get_slurm_queue()
         prog = collect_pipeline_progress()

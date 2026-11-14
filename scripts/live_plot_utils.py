@@ -183,6 +183,23 @@ def update_live_plots_for_log(log_path):
     plt.savefig(out_exp_png)
     plt.close(fig)
 
+    # Automatically refresh the RMT candle singular value spectrum if best weights exist in exp_dir
+    try:
+        from generate_study2_figures import plot_spectral_analysis
+        gcn_w = sorted(glob.glob(os.path.join(exp_dir, "best_gcn*.pth")))
+        gat_w = sorted(glob.glob(os.path.join(exp_dir, "best_gat*.pth")))
+        if gcn_w or gat_w:
+            in_ch = 4 if "4obs_" in exp_tag else 5
+            plot_spectral_analysis(
+                gcn_w[0] if gcn_w else "",
+                gat_w[0] if gat_w else "",
+                exp_dir,
+                exp_tag,
+                in_channels=in_ch,
+            )
+    except Exception:
+        pass
+
     update_master_study2_live_plot()
     return out_exp_png
 
@@ -199,6 +216,8 @@ def update_master_study2_live_plot():
 
     parsed_runs = []
     for lg in all_logs:
+        if "/legacy/" in lg.replace("\\", "/"):
+            continue
         d = parse_log_file(lg)
         if d["epochs"]:
             exp_name = os.path.basename(os.path.dirname(lg))
