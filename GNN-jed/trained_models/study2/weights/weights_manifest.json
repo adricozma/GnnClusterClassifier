@@ -38,14 +38,14 @@
     "experiment_path": "GNN-jed/trained_models/study2/noisy_5obs/best_gat_noisy.pth",
     "central_archive_path": "GNN-jed/trained_models/study2/weights/best_gat_noisy.pth",
     "size_kb": 361.2,
-    "best_epoch": 2,
-    "val_loss": 0.4594,
-    "val_acc": 76.75,
-    "val_core_fnr": 16.27,
+    "best_epoch": 3,
+    "val_loss": 0.4351,
+    "val_acc": 78.58,
+    "val_core_fnr": 17.71,
     "test_loss": null,
     "test_acc": null,
     "test_f1": null,
     "test_core_fnr": null,
-    "updated_at": "2026-11-14 03:03:10"
+    "updated_at": "2026-11-14 03:48:03"
   }
 }
