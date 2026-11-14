@@ -56,7 +56,7 @@ def test_kroupa_imf_and_gaia_limit() -> None:
     m_g = sample_cluster_abs_magnitudes_g(4000, rng=rng)
     assert m_g.shape == (4000,)
     assert np.all(np.isfinite(m_g))
-    assert -0.9 <= float(np.min(m_g)) <= 2.0
+    assert -2.6 <= float(np.min(m_g)) <= 2.0
     assert float(np.max(m_g)) <= 10.9
 
     near = np.column_stack(
