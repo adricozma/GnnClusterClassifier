@@ -66,8 +66,10 @@ run_ddp_with_oom_fallback() {
                 return 0
             fi
         fi
-        echo "  [OOM / Crash Fallback] Execution interrupted with --micro_bs $micro; enabling disk activation offload and retrying with smaller micro-batch from latest epoch checkpoint..."
-        extra_args+=("--force_disk_offload")
+        echo "  [OOM / Crash Fallback] Execution interrupted with --micro_bs $micro; retrying with smaller micro-batch from latest epoch checkpoint..."
+        if [ "$micro" -le 4 ]; then
+            extra_args+=("--force_disk_offload")
+        fi
     done
     return 1
 }

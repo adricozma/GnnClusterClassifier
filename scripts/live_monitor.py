@@ -1024,6 +1024,7 @@ def auto_push_to_github():
                 "add",
                 "-A",
                 ".gitignore",
+                ".gitattributes",
                 "index.html",
                 "README.md",
                 "LIVE_STATUS.md",
@@ -1229,6 +1230,22 @@ def main():
                                         os.remove(stale_f)
                                 except OSError:
                                     pass
+                            time.sleep(2.0)
+                            os.kill(ppid, signal.SIGTERM)
+                # Fast-reload transition for active 4obs_no_RA_clean if stuck in micro_bs=8 / force_disk_offload after Epoch 13
+                fast_reload_marker = os.path.join(
+                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "4obs_no_RA_clean", ".ablation0_ep13_fast_reload_done"
+                )
+                resume_pt = os.path.join(
+                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "4obs_no_RA_clean", "best_gat_4obs_no_RA_clean_resume_state.pt"
+                )
+                if os.path.exists(cmdline_file) and not os.path.exists(fast_reload_marker):
+                    with open(cmdline_file, "rb") as cf:
+                        cmd_str = cf.read().decode("utf-8", errors="ignore").replace("\x00", " ")
+                    if "train_gat.py" in cmd_str and "4obs_no_RA_clean" in cmd_str and ("--force_disk_offload" in cmd_str or "--micro_bs 8" in cmd_str):
+                        if os.path.exists(resume_pt):
+                            with open(fast_reload_marker, "w", encoding="utf-8") as mf:
+                                mf.write("triggered_fast_reload\n")
                             time.sleep(2.0)
                             os.kill(ppid, signal.SIGTERM)
             except Exception:

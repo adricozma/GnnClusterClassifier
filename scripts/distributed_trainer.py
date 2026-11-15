@@ -382,8 +382,9 @@ def run_training(arch: str, args):
     if is_main:
         print(f"Detected input node feature dimension: in_channels = {in_channels}")
 
-    # Keep DataLoader worker count conservative (4 workers, prefetch_factor=1) to prevent worker RAM bloat
-    nb_workers = min(4, max(2, math_threads // 16))
+    # Use in-process loading (nb_workers=0) on high-RAM nodes (>=120 GB) so AstroGraphDataset._cache
+    # lives directly in the main rank process: zero 4x worker RAM duplication and zero IPC pickling per batch.
+    nb_workers = 0 if mem_limit_gb >= 120.0 else min(2, max(1, math_threads // 16))
 
     train_sampler = (
         DistributedSampler(train_set, num_replicas=world_size, rank=rank, shuffle=True, seed=42)
@@ -403,6 +404,16 @@ def run_training(arch: str, args):
 
     from torch.utils.data import DataLoader as TorchDataLoader
 
+    loader_kwargs = (
+        {
+            "prefetch_factor": 1,
+            "persistent_workers": True,
+            "worker_init_fn": _worker_init_single_thread,
+        }
+        if nb_workers > 0
+        else {}
+    )
+
     train_loader = TorchDataLoader(
         train_set,
         batch_size=per_rank_bs,
@@ -410,9 +421,7 @@ def run_training(arch: str, args):
         sampler=train_sampler,
         num_workers=nb_workers,
         collate_fn=_collate_as_list,
-        prefetch_factor=1,
-        persistent_workers=(nb_workers > 0),
-        worker_init_fn=_worker_init_single_thread,
+        **loader_kwargs,
     )
     val_loader = TorchDataLoader(
         val_set,
@@ -421,9 +430,7 @@ def run_training(arch: str, args):
         sampler=val_sampler,
         num_workers=nb_workers,
         collate_fn=Batch.from_data_list,
-        prefetch_factor=1,
-        persistent_workers=(nb_workers > 0),
-        worker_init_fn=_worker_init_single_thread,
+        **loader_kwargs,
     )
     test_loader = TorchDataLoader(
         test_set,
@@ -432,8 +439,11 @@ def run_training(arch: str, args):
         sampler=test_sampler,
         num_workers=nb_workers,
         collate_fn=Batch.from_data_list,
-        prefetch_factor=1,
-        worker_init_fn=_worker_init_single_thread,
+        **(
+            {"prefetch_factor": 1, "worker_init_fn": _worker_init_single_thread}
+            if nb_workers > 0
+            else {}
+        ),
     )
 
     base_model = (
@@ -566,8 +576,8 @@ def run_training(arch: str, args):
                 final_div_factor=50.0,
             )
         elif scheduler_type == "cosine":
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                optimizer, T_0=max(5, epochs // 2), T_mult=1, eta_min=Lr * 0.02
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, T_max=max(1, epochs * max(1, len(train_loader))), eta_min=Lr * 0.02
             )
         else:  # plateau
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=2)
@@ -606,14 +616,21 @@ def run_training(arch: str, args):
                         f"({remaining_epochs} epochs) from {current_lr:.2e} to {Lr * 0.02:.2e}."
                     )
         elif scheduler_type == "cosine":
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                optimizer, T_0=max(5, epochs // 2), T_mult=1, eta_min=Lr * 0.02
+            total_cosine_steps = max(1, epochs * max(1, len(train_loader)))
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, T_max=total_cosine_steps, eta_min=Lr * 0.02
             )
-            if ckpt and "scheduler_state_dict" in ckpt:
+            saved_sd = ckpt.get("scheduler_state_dict", {}) if ckpt else {}
+            if "T_max" in saved_sd:
                 try:
-                    scheduler.load_state_dict(ckpt["scheduler_state_dict"])
+                    scheduler.load_state_dict(saved_sd)
                 except Exception:
                     pass
+            else:
+                remaining_steps = max(1, (epochs - start_epoch) * max(1, len(train_loader)))
+                scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer, T_max=remaining_steps, eta_min=Lr * 0.02
+                )
         else:  # plateau
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=2)
             if ckpt and "scheduler_state_dict" in ckpt:
@@ -712,13 +729,11 @@ def run_training(arch: str, args):
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0)
             optimizer.step()
-            if scheduler_type == "onecycle":
+            if scheduler_type in ("onecycle", "cosine"):
                 try:
                     scheduler.step()
                 except Exception:
                     pass
-            elif scheduler_type == "cosine":
-                scheduler.step(epoch + (batch_idx + 1) / max(1, len(train_loader)))
 
             if is_main and ((batch_idx + 1) % 20 == 0 or (batch_idx + 1) == len(train_loader)):
                 rss_gb = get_process_and_cgroup_rss_gb()
@@ -858,11 +873,12 @@ def run_training(arch: str, args):
 
             try:
                 update_live_plots_for_log(log_filename)
-                subprocess.Popen(
-                    [sys.executable, os.path.join(ROOT_DIR, "scripts", "live_monitor.py"), "--once"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
+                if improved or (epoch + 1) % 5 == 0 or (epoch + 1) == epochs:
+                    subprocess.Popen(
+                        [sys.executable, os.path.join(ROOT_DIR, "scripts", "live_monitor.py"), "--once"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
             except Exception:
                 pass
 

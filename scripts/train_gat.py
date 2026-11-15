@@ -129,10 +129,17 @@ if __name__ == "__main__":
     if "4obs_" in f"{args.data_folder} {args.save_model}" and args.scheduler == "onecycle":
         args.scheduler = "cosine"
         args.weight_decay = 5e-4
-    # If relaunched by hot-reload on 4obs_no_RA_clean, keep full speed (micro_bs=32, no disk offload)
+    # Prevent false-positive OOM fallback loops in spooled SLURM scripts from enabling slow /scratch disk offload
+    # or tiny micro_bs=8 on 246 GB RAM nodes.
+    if args.force_disk_offload:
+        print("[train_gat] Disabling --force_disk_offload on 246 GB node (keep activations in RAM unless RSS > 70%).", flush=True)
+        args.force_disk_offload = False
+    if args.micro_bs < 16:
+        print(f"[train_gat] Upgrading micro_bs {args.micro_bs} -> 16 for optimal CPU cache locality without OOM.", flush=True)
+        args.micro_bs = 16
     _reload_marker = os.path.join(ROOT_DIR, "GNN-jed/trained_models/study2/4obs_no_RA_clean/.ablation0_ep18_reload_done")
-    if "4obs_no_RA" in f"{args.data_folder} {args.save_model}" and os.path.exists(_reload_marker) and args.micro_bs == 16:
-        args.micro_bs = 32
+    if "4obs_no_RA" in f"{args.data_folder} {args.save_model}" and os.path.exists(_reload_marker) and args.micro_bs <= 16:
+        args.micro_bs = 16
         args.force_disk_offload = False
 
     run_training("gat", args)

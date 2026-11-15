@@ -36,6 +36,21 @@ def init_distributed():
     return True, rank, local_rank, world_size
 
 
+def _get_cgroup_v2_dir() -> str | None:
+    """Resolve the active cgroup v2 directory for the current process from /proc/self/cgroup."""
+    try:
+        with open("/proc/self/cgroup", "r", encoding="utf-8") as f:
+            for line in f:
+                parts = line.strip().split(":", 2)
+                if len(parts) == 3 and parts[0] == "0" and parts[2]:
+                    cand = os.path.join("/sys/fs/cgroup", parts[2].lstrip("/"))
+                    if os.path.isdir(cand):
+                        return cand
+    except Exception:
+        pass
+    return None
+
+
 def get_process_and_cgroup_rss_gb() -> float:
     """Return current memory usage in GB (maximum of process VmRSS and cgroup memory.current)."""
     rss_gb = 0.0
@@ -49,10 +64,15 @@ def get_process_and_cgroup_rss_gb() -> float:
     except Exception:
         pass
 
-    for cg_path in (
+    cg_candidates = [
         "/sys/fs/cgroup/memory.current",
         "/sys/fs/cgroup/memory/memory.usage_in_bytes",
-    ):
+    ]
+    cg_v2 = _get_cgroup_v2_dir()
+    if cg_v2:
+        cg_candidates.insert(0, os.path.join(cg_v2, "memory.current"))
+
+    for cg_path in cg_candidates:
         if os.path.exists(cg_path):
             try:
                 with open(cg_path, "r", encoding="utf-8") as f:
@@ -65,10 +85,15 @@ def get_process_and_cgroup_rss_gb() -> float:
 
 def get_memory_limit_gb(default_gb: float = 492.0) -> float:
     """Detect SLURM or cgroup memory limit in GB."""
-    for cg_max in (
+    cg_candidates = [
         "/sys/fs/cgroup/memory.max",
         "/sys/fs/cgroup/memory/memory.limit_in_bytes",
-    ):
+    ]
+    cg_v2 = _get_cgroup_v2_dir()
+    if cg_v2:
+        cg_candidates.insert(0, os.path.join(cg_v2, "memory.max"))
+
+    for cg_max in cg_candidates:
         if os.path.exists(cg_max):
             try:
                 with open(cg_max, "r", encoding="utf-8") as f:

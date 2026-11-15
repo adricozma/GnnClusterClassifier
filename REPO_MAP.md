@@ -13,6 +13,7 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 ```text
 .
 │
+├── .gitattributes                             # GitHub Linguist rules (marks .html exports as generated so repo is Python)
 ├── README.md                                  # Main scientific overview and end-to-end reproducibility guide
 ├── REPO_MAP.md                                # Repository architecture and Study 1 vs. Study 2 file map
 ├── LIVE_STATUS.md                             # Live training progress and metrics summary
