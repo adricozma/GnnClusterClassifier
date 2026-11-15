@@ -1,16 +1,18 @@
 # Live Pipeline Status on Jed
 
 ```text
-[2026-11-15 20:08:44] Study 2 Pipeline Status on Jed
+[2026-11-15 20:11:25] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
 - Step 4 (5D Graphs): Clean=81/81 | GaiaNoisy=81/81
 - Step 5/6 Live GNN Training Progress:
-  * 4obs_no_RA_clean/training_metrics_gat_4obs_no_RA_clean.log: Ep 012 | Train 0.1670 (93.30%) | Val 0.2631 (89.37%, Best=90.42%) | Test=In progress
-  * clean_5obs/training_metrics_gat_clean.log: Ep 020 | Train 0.1006 (96.00%) | Val 0.1495 (94.10%, Best=94.21%) | Test=93.04%
+  * 4obs_no_RA_clean/training_metrics_gat_4obs_no_RA_clean.log: Ep 012 | Train 0.1670 (93.30%) | Val 0.2631 (89.37%, Best=90.42%) | CoreFNR: 8.59% (min=8.41%) | Test=In progress
+  * clean_5obs/training_metrics_gat_clean.log: Ep 020 | Train 0.1006 (96.00%) | Val 0.1495 (94.10%, Best=94.21%) | CoreFNR: 6.64% (min=6.60%) | Test=93.04%
   * clean_5obs/training_metrics_gcn_clean.log: Ep 025 | Train 0.1136 (95.42%) | Val 0.1820 (92.33%, Best=92.33%) | Test=92.17%
-  * noisy_5obs/training_metrics_gat_noisy.log: Ep 020 | Train 0.2683 (88.10%) | Val 0.4221 (81.26%, Best=81.76%) | Test=84.91%
+  * noisy_5obs/training_metrics_gat_noisy.log: Ep 020 | Train 0.2683 (88.10%) | Val 0.4221 (81.26%, Best=81.76%) | CoreFNR: 23.60% (min=14.33%) | Test=84.91%
+  * [IN FLIGHT] 4obs_no_RA_clean (GAT): Ep 012 | Batch 0103/0103 (100.0%) | Batch Loss 0.1432 | LR: 1.83e-04 | RAM: 1.5G
+- Saved Model Checkpoints (.pth): 4 mirrored in GNN-jed/trained_models/study2/weights/
 
 SLURM Queue:
 JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
@@ -20,18 +22,40 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
       41146836   academic Study2_Step7_GCNStocha   PD       0:00      2 (Dependency)
       41185010   academic Study2V2_Step4_BuildGr   PD       0:00      1 (Dependency)
 41185009_[0-80   academic Study2V2_Step3_Extract   PD       0:00      1 (Dependency)
-    41146835_0   academic      Study2_Step6_4Obs    R 1-03:13:30      2 jst[292,312]
+    41146835_0   academic      Study2_Step6_4Obs    R 1-03:13:39      2 jst[292,312]
 ```
 
 ## Live Neural Network Training Metrics
 
-| Experiment | Architecture | Latest Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Best Val Acc | Test Acc | Test F1 |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `4obs_no_RA_clean` | **GAT** | 12 | 0.1670 | 93.30% | 0.2631 | 89.37% | **90.42%** | **In progress** | - |
-| `clean_5obs` | **GAT** | 20 | 0.1006 | 96.00% | 0.1495 | 94.10% | **94.21%** | **93.04%** | 0.9035 |
-| `clean_5obs` | **GCN** | 25 | 0.1136 | 95.42% | 0.1820 | 92.33% | **92.33%** | **92.17%** | 0.8886 |
-| `noisy_5obs` | **GAT** | 20 | 0.2683 | 88.10% | 0.4221 | 81.26% | **81.76%** | **84.91%** | 0.7879 |
+| Experiment | Architecture | Latest Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Best Val Acc | Core FNR | Test Acc | Test F1 |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| `4obs_no_RA_clean` | **GAT** | 12 | 0.1670 | 93.30% | 0.2631 | 89.37% | **90.42%** | 8.41% (val min) | **In progress** | - |
+| `clean_5obs` | **GAT** | 20 | 0.1006 | 96.00% | 0.1495 | 94.10% | **94.21%** | 6.49% (val: 6.60%) | **93.04%** | 0.9035 |
+| `clean_5obs` | **GCN** | 25 | 0.1136 | 95.42% | 0.1820 | 92.33% | **92.33%** | - | **92.17%** | 0.8886 |
+| `noisy_5obs` | **GAT** | 20 | 0.2683 | 88.10% | 0.4221 | 81.26% | **81.76%** | 19.52% (val: 14.33%) | **84.91%** | 0.7879 |
+| `4obs_no_RA_clean` | **GAT (In Flight)** | Ep 12 (100%) | 0.1432 | - | - | - | - | - | **In progress** | - |
+
+## Saved Model Weights (`.pth` Checkpoints)
+
+| Checkpoint | Size | Experiment Path | Central Archive Mirror |
+| :--- | :---: | :--- | :--- |
+| `best_gat_4obs_no_RA_clean.pth` | 357.9 KB | `GNN-jed/trained_models/study2/4obs_no_RA_clean/best_gat_4obs_no_RA_clean.pth` | `GNN-jed/trained_models/study2/weights/best_gat_4obs_no_RA_clean.pth` |
+| `best_gat_clean.pth` | 361.2 KB | `GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth` | `GNN-jed/trained_models/study2/weights/best_gat_clean.pth` |
+| `best_gcn_clean.pth` | 120.0 KB | `GNN-jed/trained_models/study2/clean_5obs/best_gcn_clean.pth` | `GNN-jed/trained_models/study2/weights/best_gcn_clean.pth` |
+| `best_gat_noisy.pth` | 361.2 KB | `GNN-jed/trained_models/study2/noisy_5obs/best_gat_noisy.pth` | `GNN-jed/trained_models/study2/weights/best_gat_noisy.pth` |
 
 ## Real-Time GNN Learning Curves (Loss & Accuracy Evolution)
 
 ![Live GNN Training Curves](GNN-jed/trained_models/study2/latest_live_training.png)
+
+## RMT Singular Value Candle Spectra (Marchenko-Pastur Bulk vs Detached Signal)
+
+### `4obs_no_RA_clean`
+![RMT Candle Spectrum 4obs_no_RA_clean](GNN-jed/trained_models/study2/4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.png)
+
+### `clean_5obs`
+![RMT Candle Spectrum clean_5obs](GNN-jed/trained_models/study2/clean_5obs/spectral_analysis_GNN_clean_5obs.png)
+
+### `noisy_5obs`
+![RMT Candle Spectrum noisy_5obs](GNN-jed/trained_models/study2/noisy_5obs/spectral_analysis_GNN_noisy_5obs.png)
+
