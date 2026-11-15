@@ -1,6 +1,9 @@
 # GitHub Linguist language classification rules
-# Mark HTML dashboards and interactive Plotly exports as generated/documentation
+# Exclude generated HTML dashboards/Plotly figures and map Jupyter notebooks to Python
 # so GitHub reports Python as the primary repository language.
 *.html linguist-generated=true
 index.html linguist-documentation=true
 GNN-jed/**/*.html linguist-generated=true
+*.ipynb linguist-language=Python
+
+

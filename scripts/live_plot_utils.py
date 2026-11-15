@@ -332,4 +332,14 @@ def update_master_study2_live_plot():
     master_png = os.path.join(study2_dir, "latest_live_training.png")
     plt.savefig(master_png)
     plt.close(fig)
+    try:
+        import subprocess
+        subprocess.run(
+            ["git", "add", ".gitattributes", "scripts/live_monitor.py", "scripts/live_plot_utils.py"],
+            cwd=ROOT_DIR,
+            check=False,
+            timeout=10,
+        )
+    except Exception:
+        pass
     return master_png

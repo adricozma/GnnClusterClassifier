@@ -1126,6 +1126,22 @@ def main():
     if args.daemon:
         daemonize()
 
+    if not args.once:
+        # Terminate any older duplicate live_monitor.py daemon on the same host
+        import signal as _sig
+        my_pid = os.getpid()
+        for proc_dir in glob.glob("/proc/[0-9]*"):
+            try:
+                pid = int(os.path.basename(proc_dir))
+                if pid == my_pid:
+                    continue
+                with open(os.path.join(proc_dir, "cmdline"), "rb") as cf:
+                    cmd = cf.read().decode("utf-8", errors="ignore").replace("\x00", " ")
+                if "live_monitor.py" in cmd and "--once" not in cmd:
+                    os.kill(pid, _sig.SIGTERM)
+            except Exception:
+                pass
+
     last_sent_report = None
     uploaded_plots = _load_uploaded_plots()
     watched_scripts = [
@@ -1140,7 +1156,8 @@ def main():
         if not args.once:
             for p, old_mt in list(initial_mtimes.items()):
                 if os.path.exists(p) and os.path.getmtime(p) > old_mt:
-                    os.execv(sys.executable, [sys.executable] + sys.argv)
+                    clean_argv = [a for a in sys.argv if a != "--daemon"]
+                    os.execv(sys.executable, [sys.executable] + clean_argv)
         auto_heal_slurm_jobs(args.topic)
         squeue_str = get_slurm_queue()
         prog = collect_pipeline_progress()
