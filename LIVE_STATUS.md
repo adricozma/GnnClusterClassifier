@@ -1,13 +1,13 @@
 # Live Pipeline Status on Jed
 
 ```text
-[2026-11-16 02:55:30] Study 2 Pipeline Status on Jed
+[2026-11-16 03:00:42] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
 - Step 4 (5D Graphs): Clean=81/81 | GaiaNoisy=81/81
 - Step 5/6 Live GNN Training Progress:
-  * 4obs_no_RA_clean/training_metrics_gat_4obs_no_RA_clean.log: Ep 017 | Train 0.1628 (93.49%) | Val 0.2359 (90.45%, Best=90.59%) | Test=In progress
+  * 4obs_no_RA_clean/training_metrics_gat_4obs_no_RA_clean.log: Ep 018 | Train 0.1657 (93.40%) | Val 0.2340 (90.47%, Best=90.59%) | Test=In progress
   * clean_5obs/training_metrics_gat_clean.log: Ep 020 | Train 0.1006 (96.00%) | Val 0.1495 (94.10%, Best=94.21%) | Test=93.04%
   * clean_5obs/training_metrics_gcn_clean.log: Ep 025 | Train 0.1136 (95.42%) | Val 0.1820 (92.33%, Best=92.33%) | Test=92.17%
   * noisy_5obs/training_metrics_gat_noisy.log: Ep 020 | Train 0.2683 (88.10%) | Val 0.4221 (81.26%, Best=81.76%) | Test=84.91%
@@ -20,14 +20,14 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
       41146836   academic Study2_Step7_GCNStocha   PD       0:00      2 (Dependency)
       41185010   academic Study2V2_Step4_BuildGr   PD       0:00      1 (Dependency)
 41185009_[0-80   academic Study2V2_Step3_Extract   PD       0:00      1 (Dependency)
-    41146835_0   academic      Study2_Step6_4Obs    R 1-10:00:16      2 jst[292,312]
+    41146835_0   academic      Study2_Step6_4Obs    R 1-10:05:29      2 jst[292,312]
 ```
 
 ## Live Neural Network Training Metrics
 
 | Experiment | Architecture | Latest Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Best Val Acc | Test Acc | Test F1 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `4obs_no_RA_clean` | **GAT** | 17 | 0.1628 | 93.49% | 0.2359 | 90.45% | **90.59%** | **In progress** | - |
+| `4obs_no_RA_clean` | **GAT** | 18 | 0.1657 | 93.40% | 0.2340 | 90.47% | **90.59%** | **In progress** | - |
 | `clean_5obs` | **GAT** | 20 | 0.1006 | 96.00% | 0.1495 | 94.10% | **94.21%** | **93.04%** | 0.9035 |
 | `clean_5obs` | **GCN** | 25 | 0.1136 | 95.42% | 0.1820 | 92.33% | **92.33%** | **92.17%** | 0.8886 |
 | `noisy_5obs` | **GAT** | 20 | 0.2683 | 88.10% | 0.4221 | 81.26% | **81.76%** | **84.91%** | 0.7879 |
