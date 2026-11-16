@@ -1,13 +1,13 @@
 # Live Pipeline Status on Jed
 
 ```text
-[2026-11-16 19:28:16] Study 2 Pipeline Status on Jed
+[2026-11-16 20:00:24] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
 - Step 4 (5D Graphs): Clean=81/81 | GaiaNoisy=81/81
 - Step 5/6 Live GNN Training Progress:
-  * 4obs_no_Dec_clean/training_metrics_gat_4obs_no_Dec_clean.log: Ep 010 | Train 0.1388 (94.51%) | Val 0.1834 (92.67%, Best=92.67%) | Test=In progress
+  * 4obs_no_Dec_clean/training_metrics_gat_4obs_no_Dec_clean.log: Ep 011 | Train 0.1380 (94.59%) | Val 0.1843 (92.65%, Best=92.67%) | Test=In progress
   * 4obs_no_RA_clean/training_metrics_gat_4obs_no_RA_clean.log: Ep 020 | Train 0.1632 (93.52%) | Val 0.2301 (90.57%, Best=90.59%) | Test=89.54%
   * 4obs_no_RA_noisy/training_metrics_gat_4obs_no_RA_noisy.log: Ep 011 | Train 0.3614 (83.41%) | Val 0.4919 (76.33%, Best=77.82%) | Test=76.62%
   * clean_5obs/training_metrics_gat_clean.log: Ep 020 | Train 0.1006 (96.00%) | Val 0.1495 (94.10%, Best=94.21%) | Test=93.04%
@@ -22,7 +22,7 @@ Unable to query squeue: Command '['squeue', '-u', 'cozma', '-o', '%.14i %.10P %.
 
 | Experiment | Architecture | Latest Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Best Val Acc | Test Acc | Test F1 |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `4obs_no_Dec_clean` | **GAT** | 10 | 0.1388 | 94.51% | 0.1834 | 92.67% | **92.67%** | **In progress** | - |
+| `4obs_no_Dec_clean` | **GAT** | 11 | 0.1380 | 94.59% | 0.1843 | 92.65% | **92.67%** | **In progress** | - |
 | `4obs_no_RA_clean` | **GAT** | 20 | 0.1632 | 93.52% | 0.2301 | 90.57% | **90.59%** | **89.54%** | 0.8543 |
 | `4obs_no_RA_noisy` | **GAT** | 11 | 0.3614 | 83.41% | 0.4919 | 76.33% | **77.82%** | **76.62%** | 0.6238 |
 | `clean_5obs` | **GAT** | 20 | 0.1006 | 96.00% | 0.1495 | 94.10% | **94.21%** | **93.04%** | 0.9035 |
