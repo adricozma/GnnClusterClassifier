@@ -4,7 +4,7 @@ All best model checkpoints (`.pth`) are saved both in their respective experimen
 
 | Checkpoint File | Architecture | Features | Best Epoch | Val Loss | Val Acc | Core FNR | Test Acc | Test F1 | Size | Experiment Path |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| `best_gat_4obs_no_Dec_clean.pth` | **GAT** | 4D | 5 | 0.1886 | **92.37%** | 8.19% | **Pending** | - | 358.0 KB | `GNN-jed/trained_models/study2/4obs_no_Dec_clean/best_gat_4obs_no_Dec_clean.pth` |
+| `best_gat_4obs_no_Dec_clean.pth` | **GAT** | 4D | 10 | 0.1834 | **92.67%** | 8.81% | **Pending** | - | 358.0 KB | `GNN-jed/trained_models/study2/4obs_no_Dec_clean/best_gat_4obs_no_Dec_clean.pth` |
 | `best_gat_4obs_no_RA_clean.pth` | **GAT** | 4D | 16 | 0.2292 | **90.59%** | 12.00% | **89.54%** | 0.8543 | 357.9 KB | `GNN-jed/trained_models/study2/4obs_no_RA_clean/best_gat_4obs_no_RA_clean.pth` |
 | `best_gat_4obs_no_RA_noisy.pth` | **GAT** | 4D | 3 | 0.4650 | **77.82%** | 44.35% | **76.62%** | 0.6238 | 357.9 KB | `GNN-jed/trained_models/study2/4obs_no_RA_noisy/best_gat_4obs_no_RA_noisy.pth` |
 | `best_gat_clean.pth` | **GAT** | 5D | 18 | 0.1470 | **94.20%** | 6.49% | **93.04%** | 0.9035 | 361.2 KB | `GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth` |
