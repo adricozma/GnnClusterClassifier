@@ -4,3 +4,4 @@ Test ICs: ['IC_24', 'IC_36', 'IC_34', 'IC_14', 'IC_46', 'IC_23', 'IC_69', 'IC_18
 Epoch | Train Loss | Train Acc | Val Loss | Val Acc | LR | CoreFNR (CoreRec)
 001    | 0.5325     | 72.55%   | 0.5744   | 69.72%  | 5.0e-04 (*) | CoreFNR: 10.87% (CoreRec: 89.13%)
 002    | 0.4564     | 76.52%   | 0.5206   | 73.77%  | 4.9e-04 (*) | CoreFNR: 15.72% (CoreRec: 84.28%)
+003    | 0.4255     | 79.11%   | 0.4650   | 77.82%  | 4.7e-04 (*) | CoreFNR: 36.18% (CoreRec: 63.82%)

@@ -73,14 +73,14 @@
     "experiment_path": "GNN-jed/trained_models/study2/4obs_no_RA_noisy/best_gat_4obs_no_RA_noisy.pth",
     "central_archive_path": "GNN-jed/trained_models/study2/weights/best_gat_4obs_no_RA_noisy.pth",
     "size_kb": 357.9,
-    "best_epoch": 2,
-    "val_loss": 0.5206,
-    "val_acc": 73.77,
-    "val_core_fnr": 15.72,
+    "best_epoch": 3,
+    "val_loss": 0.465,
+    "val_acc": 77.82,
+    "val_core_fnr": 36.18,
     "test_loss": null,
     "test_acc": null,
     "test_f1": null,
     "test_core_fnr": null,
-    "updated_at": "2026-11-16 06:10:41"
+    "updated_at": "2026-11-16 06:52:02"
   }
 }
