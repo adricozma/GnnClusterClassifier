@@ -99,5 +99,22 @@
     "test_f1": 0.8828,
     "test_core_fnr": 7.9,
     "updated_at": "2026-11-17 01:53:15"
+  },
+  "best_gat_4obs_no_Parallax_clean.pth": {
+    "filename": "best_gat_4obs_no_Parallax_clean.pth",
+    "architecture": "GAT",
+    "in_channels": 4,
+    "experiment_path": "GNN-jed/trained_models/study2/4obs_no_Parallax_clean/best_gat_4obs_no_Parallax_clean.pth",
+    "central_archive_path": "GNN-jed/trained_models/study2/weights/best_gat_4obs_no_Parallax_clean.pth",
+    "size_kb": 358.1,
+    "best_epoch": 1,
+    "val_loss": 0.2546,
+    "val_acc": 89.58,
+    "val_core_fnr": 7.33,
+    "test_loss": null,
+    "test_acc": null,
+    "test_f1": null,
+    "test_core_fnr": null,
+    "updated_at": "2026-11-17 12:21:37"
   }
 }
