@@ -229,7 +229,7 @@
   <header>
     <div class="header-top">
       <h1>Study 2 — Index des Entraînements & Analyses GNN (GAT vs GCN)</h1>
-      <span class="timestamp">Dernière mise à jour : 2026-11-17 01:49:50</span>
+      <span class="timestamp">Dernière mise à jour : 2026-11-17 12:24:12</span>
     </div>
     <div class="nav-tabs">
       <button class="tab-btn active" onclick="switchTab('tab-overview', this)">Vue Globale & Spectres RMT</button>
@@ -273,13 +273,14 @@
           </tr>
         </thead>
         <tbody>
-          <tr><td><code>4obs_no_Dec_clean</code></td><td><span class='badge badge-gat'>GAT</span></td><td>20</td><td>0.1343</td><td>94.71%</td><td>0.1872</td><td>92.67%</td><td><strong>92.78%</strong></td><td>5.48% (val min)</td><td><span class='status-live'>In progress</span></td><td><strong>-</strong></td></tr>
+          <tr><td><code>4obs_no_Dec_clean</code></td><td><span class='badge badge-gat'>GAT</span></td><td>20</td><td>0.1343</td><td>94.71%</td><td>0.1872</td><td>92.67%</td><td><strong>92.78%</strong></td><td>7.90% (val: 5.48%)</td><td><span class='status-done'>91.48%</span></td><td><strong>0.8828</strong></td></tr>
+<tr><td><code>4obs_no_Parallax_clean</code></td><td><span class='badge badge-gat'>GAT</span></td><td>1</td><td>0.1969</td><td>91.84%</td><td>0.2546</td><td>89.58%</td><td><strong>89.58%</strong></td><td>7.33% (val min)</td><td><span class='status-live'>In progress</span></td><td><strong>-</strong></td></tr>
 <tr><td><code>4obs_no_RA_clean</code></td><td><span class='badge badge-gat'>GAT</span></td><td>20</td><td>0.1632</td><td>93.52%</td><td>0.2301</td><td>90.57%</td><td><strong>90.59%</strong></td><td>12.00% (val: 8.41%)</td><td><span class='status-done'>89.54%</span></td><td><strong>0.8543</strong></td></tr>
 <tr><td><code>4obs_no_RA_noisy</code></td><td><span class='badge badge-gat'>GAT</span></td><td>11</td><td>0.3614</td><td>83.41%</td><td>0.4919</td><td>76.33%</td><td><strong>77.82%</strong></td><td>44.35% (val: 10.87%)</td><td><span class='status-done'>76.62%</span></td><td><strong>0.6238</strong></td></tr>
 <tr><td><code>clean_5obs</code></td><td><span class='badge badge-gat'>GAT</span></td><td>20</td><td>0.1006</td><td>96.00%</td><td>0.1495</td><td>94.10%</td><td><strong>94.21%</strong></td><td>6.49% (val: 6.60%)</td><td><span class='status-done'>93.04%</span></td><td><strong>0.9035</strong></td></tr>
 <tr><td><code>clean_5obs</code></td><td><span class='badge badge-gcn'>GCN</span></td><td>25</td><td>0.1136</td><td>95.42%</td><td>0.1820</td><td>92.33%</td><td><strong>92.33%</strong></td><td>-</td><td><span class='status-done'>92.17%</span></td><td><strong>0.8886</strong></td></tr>
 <tr><td><code>noisy_5obs</code></td><td><span class='badge badge-gat'>GAT</span></td><td>20</td><td>0.2683</td><td>88.10%</td><td>0.4221</td><td>81.26%</td><td><strong>81.76%</strong></td><td>19.52% (val: 14.33%)</td><td><span class='status-done'>84.91%</span></td><td><strong>0.7879</strong></td></tr>
-<tr><td><code>4obs_no_Dec_clean</code></td><td><span class='badge badge-live'>GAT (In Flight)</span></td><td>Ep 20 (100%)</td><td>0.1419</td><td>-</td><td>-</td><td>-</td><td><strong>-</strong></td><td>-</td><td><span class='status-live'>In progress</span></td><td><strong>-</strong></td></tr>
+<tr><td><code>4obs_no_Parallax_clean</code></td><td><span class='badge badge-live'>GAT (In Flight)</span></td><td>Ep 01 (100%)</td><td>0.1250</td><td>-</td><td>-</td><td>-</td><td><strong>-</strong></td><td>-</td><td><span class='status-live'>In progress</span></td><td><strong>-</strong></td></tr>
         </tbody>
       </table>
 
@@ -291,6 +292,7 @@
       <h2>Comparaison des Spectres des Valeurs Singulières en Bâtons (Candles RMT vs Bulk Marchenko–Pastur)</h2>
       <p class="subtitle">À gauche : densité spectrale empirique avec le bulk de bruit Marchenko–Pastur (zone ombrée) et les valeurs singulières qui s'en détachent (tiges verticales). À droite : spectre complet classé par rang.</p>
       <div class='exp-block'><div class='exp-header'><h3>Expérience : <code>4obs_no_Dec_clean</code></h3><div class='btn-row'><button class='btn-plot' onclick="openInViewer('GNN-jed/trained_models/study2/4obs_no_Dec_clean/spectral_analysis_GNN_4obs_no_Dec_clean.html', 'Spectre RMT — 4obs_no_Dec_clean')">Spectre RMT Interactif</button><a class='btn-ext' href='GNN-jed/trained_models/study2/4obs_no_Dec_clean/spectral_analysis_GNN_4obs_no_Dec_clean.html' target='_blank'>Nouvel onglet ↗</a><button class='btn-plot' onclick="openInViewer('GNN-jed/trained_models/study2/4obs_no_Dec_clean/live_plots_GNN_4obs_no_Dec_clean.html', 'Courbes Loss/Acc — 4obs_no_Dec_clean')">Courbes Interactives</button></div></div><div class='dual-grid'><div class='img-wrap'><h4>Spectre des Valeurs Singulières en Bâtons (Candles) vs Bulk Marchenko–Pastur</h4><a href='GNN-jed/trained_models/study2/4obs_no_Dec_clean/spectral_analysis_GNN_4obs_no_Dec_clean.png' target='_blank'><img src='GNN-jed/trained_models/study2/4obs_no_Dec_clean/spectral_analysis_GNN_4obs_no_Dec_clean.png' alt='SVD 4obs_no_Dec_clean' /></a></div><div class='img-wrap'><h4>Évolution Loss & Accuracy</h4><a href='GNN-jed/trained_models/study2/4obs_no_Dec_clean/live_plots_GNN_4obs_no_Dec_clean.png' target='_blank'><img src='GNN-jed/trained_models/study2/4obs_no_Dec_clean/live_plots_GNN_4obs_no_Dec_clean.png' alt='Live 4obs_no_Dec_clean' /></a></div></div></div>
+<div class='exp-block'><div class='exp-header'><h3>Expérience : <code>4obs_no_Parallax_clean</code></h3><div class='btn-row'><button class='btn-plot' onclick="openInViewer('GNN-jed/trained_models/study2/4obs_no_Parallax_clean/spectral_analysis_GNN_4obs_no_Parallax_clean.html', 'Spectre RMT — 4obs_no_Parallax_clean')">Spectre RMT Interactif</button><a class='btn-ext' href='GNN-jed/trained_models/study2/4obs_no_Parallax_clean/spectral_analysis_GNN_4obs_no_Parallax_clean.html' target='_blank'>Nouvel onglet ↗</a><button class='btn-plot' onclick="openInViewer('GNN-jed/trained_models/study2/4obs_no_Parallax_clean/live_plots_GNN_4obs_no_Parallax_clean.html', 'Courbes Loss/Acc — 4obs_no_Parallax_clean')">Courbes Interactives</button></div></div><div class='dual-grid'><div class='img-wrap'><h4>Spectre des Valeurs Singulières en Bâtons (Candles) vs Bulk Marchenko–Pastur</h4><a href='GNN-jed/trained_models/study2/4obs_no_Parallax_clean/spectral_analysis_GNN_4obs_no_Parallax_clean.png' target='_blank'><img src='GNN-jed/trained_models/study2/4obs_no_Parallax_clean/spectral_analysis_GNN_4obs_no_Parallax_clean.png' alt='SVD 4obs_no_Parallax_clean' /></a></div><div class='img-wrap'><h4>Évolution Loss & Accuracy</h4><a href='GNN-jed/trained_models/study2/4obs_no_Parallax_clean/live_plots_GNN_4obs_no_Parallax_clean.png' target='_blank'><img src='GNN-jed/trained_models/study2/4obs_no_Parallax_clean/live_plots_GNN_4obs_no_Parallax_clean.png' alt='Live 4obs_no_Parallax_clean' /></a></div></div></div>
 <div class='exp-block'><div class='exp-header'><h3>Expérience : <code>4obs_no_RA_clean</code></h3><div class='btn-row'><button class='btn-plot' onclick="openInViewer('GNN-jed/trained_models/study2/4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.html', 'Spectre RMT — 4obs_no_RA_clean')">Spectre RMT Interactif</button><a class='btn-ext' href='GNN-jed/trained_models/study2/4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.html' target='_blank'>Nouvel onglet ↗</a><button class='btn-plot' onclick="openInViewer('GNN-jed/trained_models/study2/4obs_no_RA_clean/live_plots_GNN_4obs_no_RA_clean.html', 'Courbes Loss/Acc — 4obs_no_RA_clean')">Courbes Interactives</button></div></div><div class='dual-grid'><div class='img-wrap'><h4>Spectre des Valeurs Singulières en Bâtons (Candles) vs Bulk Marchenko–Pastur</h4><a href='GNN-jed/trained_models/study2/4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.png' target='_blank'><img src='GNN-jed/trained_models/study2/4obs_no_RA_clean/spectral_analysis_GNN_4obs_no_RA_clean.png' alt='SVD 4obs_no_RA_clean' /></a></div><div class='img-wrap'><h4>Évolution Loss & Accuracy</h4><a href='GNN-jed/trained_models/study2/4obs_no_RA_clean/live_plots_GNN_4obs_no_RA_clean.png' target='_blank'><img src='GNN-jed/trained_models/study2/4obs_no_RA_clean/live_plots_GNN_4obs_no_RA_clean.png' alt='Live 4obs_no_RA_clean' /></a></div></div></div>
 <div class='exp-block'><div class='exp-header'><h3>Expérience : <code>4obs_no_RA_noisy</code></h3><div class='btn-row'><button class='btn-plot' onclick="openInViewer('GNN-jed/trained_models/study2/4obs_no_RA_noisy/spectral_analysis_GNN_4obs_no_RA_noisy.html', 'Spectre RMT — 4obs_no_RA_noisy')">Spectre RMT Interactif</button><a class='btn-ext' href='GNN-jed/trained_models/study2/4obs_no_RA_noisy/spectral_analysis_GNN_4obs_no_RA_noisy.html' target='_blank'>Nouvel onglet ↗</a><button class='btn-plot' onclick="openInViewer('GNN-jed/trained_models/study2/4obs_no_RA_noisy/live_plots_GNN_4obs_no_RA_noisy.html', 'Courbes Loss/Acc — 4obs_no_RA_noisy')">Courbes Interactives</button></div></div><div class='dual-grid'><div class='img-wrap'><h4>Spectre des Valeurs Singulières en Bâtons (Candles) vs Bulk Marchenko–Pastur</h4><a href='GNN-jed/trained_models/study2/4obs_no_RA_noisy/spectral_analysis_GNN_4obs_no_RA_noisy.png' target='_blank'><img src='GNN-jed/trained_models/study2/4obs_no_RA_noisy/spectral_analysis_GNN_4obs_no_RA_noisy.png' alt='SVD 4obs_no_RA_noisy' /></a></div><div class='img-wrap'><h4>Évolution Loss & Accuracy</h4><a href='GNN-jed/trained_models/study2/4obs_no_RA_noisy/live_plots_GNN_4obs_no_RA_noisy.png' target='_blank'><img src='GNN-jed/trained_models/study2/4obs_no_RA_noisy/live_plots_GNN_4obs_no_RA_noisy.png' alt='Live 4obs_no_RA_noisy' /></a></div></div></div>
 <div class='exp-block'><div class='exp-header'><h3>Expérience : <code>clean_5obs</code></h3><div class='btn-row'><button class='btn-plot' onclick="openInViewer('GNN-jed/trained_models/study2/clean_5obs/spectral_analysis_GNN_clean_5obs.html', 'Spectre RMT — clean_5obs')">Spectre RMT Interactif</button><a class='btn-ext' href='GNN-jed/trained_models/study2/clean_5obs/spectral_analysis_GNN_clean_5obs.html' target='_blank'>Nouvel onglet ↗</a><button class='btn-plot' onclick="openInViewer('GNN-jed/trained_models/study2/clean_5obs/live_plots_GNN_clean_5obs.html', 'Courbes Loss/Acc — clean_5obs')">Courbes Interactives</button></div></div><div class='dual-grid'><div class='img-wrap'><h4>Spectre des Valeurs Singulières en Bâtons (Candles) vs Bulk Marchenko–Pastur</h4><a href='GNN-jed/trained_models/study2/clean_5obs/spectral_analysis_GNN_clean_5obs.png' target='_blank'><img src='GNN-jed/trained_models/study2/clean_5obs/spectral_analysis_GNN_clean_5obs.png' alt='SVD clean_5obs' /></a></div><div class='img-wrap'><h4>Évolution Loss & Accuracy</h4><a href='GNN-jed/trained_models/study2/clean_5obs/live_plots_GNN_clean_5obs.png' target='_blank'><img src='GNN-jed/trained_models/study2/clean_5obs/live_plots_GNN_clean_5obs.png' alt='Live clean_5obs' /></a></div></div></div>
@@ -332,6 +334,7 @@
         </thead>
         <tbody>
           <tr><td><code>best_gat_4obs_no_Dec_clean.pth</code></td><td>358.0 KB</td><td><code>GNN-jed/trained_models/study2/4obs_no_Dec_clean/best_gat_4obs_no_Dec_clean.pth</code></td><td><code>GNN-jed/trained_models/study2/weights/best_gat_4obs_no_Dec_clean.pth</code></td></tr>
+<tr><td><code>best_gat_4obs_no_Parallax_clean.pth</code></td><td>358.1 KB</td><td><code>GNN-jed/trained_models/study2/4obs_no_Parallax_clean/best_gat_4obs_no_Parallax_clean.pth</code></td><td><code>GNN-jed/trained_models/study2/weights/best_gat_4obs_no_Parallax_clean.pth</code></td></tr>
 <tr><td><code>best_gat_4obs_no_RA_clean.pth</code></td><td>357.9 KB</td><td><code>GNN-jed/trained_models/study2/4obs_no_RA_clean/best_gat_4obs_no_RA_clean.pth</code></td><td><code>GNN-jed/trained_models/study2/weights/best_gat_4obs_no_RA_clean.pth</code></td></tr>
 <tr><td><code>best_gat_4obs_no_RA_noisy.pth</code></td><td>357.9 KB</td><td><code>GNN-jed/trained_models/study2/4obs_no_RA_noisy/best_gat_4obs_no_RA_noisy.pth</code></td><td><code>GNN-jed/trained_models/study2/weights/best_gat_4obs_no_RA_noisy.pth</code></td></tr>
 <tr><td><code>best_gat_clean.pth</code></td><td>361.2 KB</td><td><code>GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth</code></td><td><code>GNN-jed/trained_models/study2/weights/best_gat_clean.pth</code></td></tr>
@@ -340,23 +343,31 @@
         </tbody>
       </table>
       <h2>État du Pipeline & Queue SLURM sur Jed</h2>
-      <pre class="status-box">[2026-11-17 01:49:48] Study 2 Pipeline Status on Jed
+      <pre class="status-box">[2026-11-17 12:24:10] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
 - Step 4 (5D Graphs): Clean=81/81 | GaiaNoisy=81/81
 - Step 5/6 Live GNN Training Progress:
-  * 4obs_no_Dec_clean/training_metrics_gat_4obs_no_Dec_clean.log: Ep 020 | Train 0.1343 (94.71%) | Val 0.1872 (92.67%, Best=92.78%) | CoreFNR: 6.17% (min=5.48%) | Test=In progress
+  * 4obs_no_Dec_clean/training_metrics_gat_4obs_no_Dec_clean.log: Ep 020 | Train 0.1343 (94.71%) | Val 0.1872 (92.67%, Best=92.78%) | CoreFNR: 6.17% (min=5.48%) | Test=91.48%
+  * 4obs_no_Parallax_clean/training_metrics_gat_4obs_no_Parallax_clean.log: Ep 001 | Train 0.1969 (91.84%) | Val 0.2546 (89.58%, Best=89.58%) | CoreFNR: 7.33% (min=7.33%) | Test=In progress
   * 4obs_no_RA_clean/training_metrics_gat_4obs_no_RA_clean.log: Ep 020 | Train 0.1632 (93.52%) | Val 0.2301 (90.57%, Best=90.59%) | CoreFNR: 11.50% (min=8.41%) | Test=89.54%
   * 4obs_no_RA_noisy/training_metrics_gat_4obs_no_RA_noisy.log: Ep 011 | Train 0.3614 (83.41%) | Val 0.4919 (76.33%, Best=77.82%) | CoreFNR: 36.76% (min=10.87%) | Test=76.62%
   * clean_5obs/training_metrics_gat_clean.log: Ep 020 | Train 0.1006 (96.00%) | Val 0.1495 (94.10%, Best=94.21%) | CoreFNR: 6.64% (min=6.60%) | Test=93.04%
   * clean_5obs/training_metrics_gcn_clean.log: Ep 025 | Train 0.1136 (95.42%) | Val 0.1820 (92.33%, Best=92.33%) | Test=92.17%
   * noisy_5obs/training_metrics_gat_noisy.log: Ep 020 | Train 0.2683 (88.10%) | Val 0.4221 (81.26%, Best=81.76%) | CoreFNR: 23.60% (min=14.33%) | Test=84.91%
-  * [IN FLIGHT] 4obs_no_Dec_clean (GAT): Ep 020 | Batch 0103/0103 (100.0%) | Batch Loss 0.1419 | LR: 2.00e-05 | RAM: 112.7G
-- Saved Model Checkpoints (.pth): 6 mirrored in GNN-jed/trained_models/study2/weights/
+  * [IN FLIGHT] 4obs_no_Parallax_clean (GAT): Ep 001 | Batch 0103/0103 (100.0%) | Batch Loss 0.1250 | LR: 9.94e-04 | RAM: 43.5G
+- Saved Model Checkpoints (.pth): 7 mirrored in GNN-jed/trained_models/study2/weights/
 
 SLURM Queue:
-Unable to query squeue: Command '['squeue', '-u', 'cozma', '-o', '%.14i %.10P %.22j %.4t %.10M %.6D %R']' timed out after 10 seconds</pre>
+JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
+41146835_[3-4%   academic      Study2_Step6_4Obs   PD       0:00      2 (JobArrayTaskLimit)
+      41185012   academic  Study2V2_Step6_Best4D   PD       0:00      2 (Dependency)
+      41185011   academic Study2V2_Step5_Train5D   PD       0:00      2 (Dependency)
+      41185010   academic Study2V2_Step4_BuildGr   PD       0:00      1 (Dependency)
+41185009_[0-80   academic Study2V2_Step3_Extract   PD       0:00      1 (Dependency)
+      41146836   academic Study2_Step7_GCNStocha   PD       0:00      2 (Dependency)
+    41146835_2   academic      Study2_Step6_4Obs    R      45:35      2 jst[282,294]</pre>
     </section>
   </main>
 
