@@ -1,7 +1,7 @@
 # Live Pipeline Status on Jed
 
 ```text
-[2026-11-17 10:03:52] Study 2 Pipeline Status on Jed
+[2026-11-17 11:00:40] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
@@ -16,7 +16,7 @@
 
 SLURM Queue:
 JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
-41146835_[2-4%   academic      Study2_Step6_4Obs   PD       0:00      2 (JobArrayTaskLimit)
+41146835_[2-4%   academic      Study2_Step6_4Obs   PD       0:00      2 (Priority)
       41185012   academic  Study2V2_Step6_Best4D   PD       0:00      2 (Dependency)
       41185011   academic Study2V2_Step5_Train5D   PD       0:00      2 (Dependency)
       41185010   academic Study2V2_Step4_BuildGr   PD       0:00      1 (Dependency)
