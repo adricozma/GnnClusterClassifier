@@ -1,7 +1,7 @@
 # Live Pipeline Status on Jed
 
 ```text
-[2026-11-18 22:52:47] Study 2 Pipeline Status on Jed
+[2026-11-18 22:58:43] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
@@ -25,7 +25,7 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
       41185010   academic Study2V2_Step4_BuildGr   PD       0:00      1 (Dependency)
 41185009_[0-80   academic Study2V2_Step3_Extract   PD       0:00      1 (Dependency)
       41146836   academic Study2_Step7_GCNStocha   PD       0:00      2 (Dependency)
-    41146835_3   academic      Study2_Step6_4Obs    R    6:09:14      2 jst[282,294]
+    41146835_3   academic      Study2_Step6_4Obs    R    6:15:11      2 jst[282,294]
 ```
 
 ## Live Neural Network Training Metrics
