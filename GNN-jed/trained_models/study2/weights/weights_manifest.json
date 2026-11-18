@@ -124,14 +124,14 @@
     "experiment_path": "GNN-jed/trained_models/study2/4obs_no_Parallax_noisy/best_gat_4obs_no_Parallax_noisy.pth",
     "central_archive_path": "GNN-jed/trained_models/study2/weights/best_gat_4obs_no_Parallax_noisy.pth",
     "size_kb": 358.1,
-    "best_epoch": 3,
-    "val_loss": 0.3956,
-    "val_acc": 82.11,
-    "val_core_fnr": 11.54,
+    "best_epoch": 11,
+    "val_loss": 0.3844,
+    "val_acc": 83.14,
+    "val_core_fnr": 14.64,
     "test_loss": null,
     "test_acc": null,
     "test_f1": null,
     "test_core_fnr": null,
-    "updated_at": "2026-11-18 04:05:26"
+    "updated_at": "2026-11-18 09:49:53"
   }
 }
