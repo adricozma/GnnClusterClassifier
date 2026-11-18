@@ -6,6 +6,7 @@ All best model checkpoints (`.pth`) are saved both in their respective experimen
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
 | `best_gat_4obs_no_Dec_clean.pth` | **GAT** | 4D | 13 | 0.1803 | **92.78%** | 7.90% | **91.48%** | 0.8828 | 358.0 KB | `GNN-jed/trained_models/study2/4obs_no_Dec_clean/best_gat_4obs_no_Dec_clean.pth` |
 | `best_gat_4obs_no_Parallax_clean.pth` | **GAT** | 4D | 13 | 0.2208 | **90.96%** | 7.27% | **90.25%** | 0.8689 | 358.1 KB | `GNN-jed/trained_models/study2/4obs_no_Parallax_clean/best_gat_4obs_no_Parallax_clean.pth` |
+| `best_gat_4obs_no_Parallax_noisy.pth` | **GAT** | 4D | 1 | 0.4314 | **79.71%** | 11.06% | **Pending** | - | 358.1 KB | `GNN-jed/trained_models/study2/4obs_no_Parallax_noisy/best_gat_4obs_no_Parallax_noisy.pth` |
 | `best_gat_4obs_no_RA_clean.pth` | **GAT** | 4D | 16 | 0.2292 | **90.59%** | 12.00% | **89.54%** | 0.8543 | 357.9 KB | `GNN-jed/trained_models/study2/4obs_no_RA_clean/best_gat_4obs_no_RA_clean.pth` |
 | `best_gat_4obs_no_RA_noisy.pth` | **GAT** | 4D | 3 | 0.4650 | **77.82%** | 44.35% | **76.62%** | 0.6238 | 357.9 KB | `GNN-jed/trained_models/study2/4obs_no_RA_noisy/best_gat_4obs_no_RA_noisy.pth` |
 | `best_gat_clean.pth` | **GAT** | 5D | 18 | 0.1470 | **94.20%** | 6.49% | **93.04%** | 0.9035 | 361.2 KB | `GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth` |
