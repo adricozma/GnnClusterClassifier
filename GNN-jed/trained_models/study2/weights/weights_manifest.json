@@ -111,10 +111,10 @@
     "val_loss": 0.2208,
     "val_acc": 90.96,
     "val_core_fnr": 7.58,
-    "test_loss": null,
-    "test_acc": null,
-    "test_f1": null,
-    "test_core_fnr": null,
-    "updated_at": "2026-11-17 20:49:12"
+    "test_loss": 0.2289,
+    "test_acc": 90.25,
+    "test_f1": 0.8689,
+    "test_core_fnr": 7.27,
+    "updated_at": "2026-11-18 01:53:37"
   }
 }
