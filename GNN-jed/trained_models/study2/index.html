@@ -229,7 +229,7 @@
   <header>
     <div class="header-top">
       <h1>Study 2 — Index des Entraînements & Analyses GNN (GAT vs GCN)</h1>
-      <span class="timestamp">Dernière mise à jour : 2026-11-19 15:16:23</span>
+      <span class="timestamp">Dernière mise à jour : 2026-11-19 16:05:46</span>
     </div>
     <div class="nav-tabs">
       <button class="tab-btn active" onclick="switchTab('tab-overview', this)">Vue Globale & Spectres RMT</button>
@@ -279,11 +279,11 @@
 <tr><td><code>4obs_no_RA_clean</code></td><td><span class='badge badge-gat'>GAT</span></td><td>20</td><td>0.1632</td><td>93.52%</td><td>0.2301</td><td>90.57%</td><td><strong>90.59%</strong></td><td>12.00% (val: 8.41%)</td><td><span class='status-done'>89.54%</span></td><td><strong>0.8543</strong></td></tr>
 <tr><td><code>4obs_no_RA_noisy</code></td><td><span class='badge badge-gat'>GAT</span></td><td>11</td><td>0.3614</td><td>83.41%</td><td>0.4919</td><td>76.33%</td><td><strong>77.82%</strong></td><td>44.35% (val: 10.87%)</td><td><span class='status-done'>76.62%</span></td><td><strong>0.6238</strong></td></tr>
 <tr><td><code>4obs_no_pmRA_clean</code></td><td><span class='badge badge-gat'>GAT</span></td><td>20</td><td>0.1221</td><td>95.17%</td><td>0.1851</td><td>92.72%</td><td><strong>92.86%</strong></td><td>7.20% (val: 6.92%)</td><td><span class='status-done'>92.25%</span></td><td><strong>0.8929</strong></td></tr>
-<tr><td><code>4obs_no_pmRA_noisy</code></td><td><span class='badge badge-gat'>GAT</span></td><td>10</td><td>0.2787</td><td>87.26%</td><td>0.3901</td><td>81.38%</td><td><strong>81.38%</strong></td><td>13.75% (val min)</td><td><span class='status-live'>In progress</span></td><td><strong>-</strong></td></tr>
+<tr><td><code>4obs_no_pmRA_noisy</code></td><td><span class='badge badge-gat'>GAT</span></td><td>11</td><td>0.2745</td><td>87.50%</td><td>0.3839</td><td>81.32%</td><td><strong>81.38%</strong></td><td>13.75% (val min)</td><td><span class='status-live'>In progress</span></td><td><strong>-</strong></td></tr>
 <tr><td><code>clean_5obs</code></td><td><span class='badge badge-gat'>GAT</span></td><td>20</td><td>0.1006</td><td>96.00%</td><td>0.1495</td><td>94.10%</td><td><strong>94.21%</strong></td><td>6.49% (val: 6.60%)</td><td><span class='status-done'>93.04%</span></td><td><strong>0.9035</strong></td></tr>
 <tr><td><code>clean_5obs</code></td><td><span class='badge badge-gcn'>GCN</span></td><td>25</td><td>0.1136</td><td>95.42%</td><td>0.1820</td><td>92.33%</td><td><strong>92.33%</strong></td><td>-</td><td><span class='status-done'>92.17%</span></td><td><strong>0.8886</strong></td></tr>
 <tr><td><code>noisy_5obs</code></td><td><span class='badge badge-gat'>GAT</span></td><td>20</td><td>0.2683</td><td>88.10%</td><td>0.4221</td><td>81.26%</td><td><strong>81.76%</strong></td><td>19.52% (val: 14.33%)</td><td><span class='status-done'>84.91%</span></td><td><strong>0.7879</strong></td></tr>
-<tr><td><code>4obs_no_pmRA_noisy</code></td><td><span class='badge badge-live'>GAT (In Flight)</span></td><td>Ep 10 (100%)</td><td>0.3563</td><td>-</td><td>-</td><td>-</td><td><strong>-</strong></td><td>-</td><td><span class='status-live'>In progress</span></td><td><strong>-</strong></td></tr>
+<tr><td><code>4obs_no_pmRA_noisy</code></td><td><span class='badge badge-live'>GAT (In Flight)</span></td><td>Ep 11 (100%)</td><td>0.2616</td><td>-</td><td>-</td><td>-</td><td><strong>-</strong></td><td>-</td><td><span class='status-live'>In progress</span></td><td><strong>-</strong></td></tr>
         </tbody>
       </table>
 
@@ -352,7 +352,7 @@
         </tbody>
       </table>
       <h2>État du Pipeline & Queue SLURM sur Jed</h2>
-      <pre class="status-box">[2026-11-19 15:16:20] Study 2 Pipeline Status on Jed
+      <pre class="status-box">[2026-11-19 16:05:40] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
@@ -364,11 +364,11 @@
   * 4obs_no_RA_clean/training_metrics_gat_4obs_no_RA_clean.log: Ep 020 | Train 0.1632 (93.52%) | Val 0.2301 (90.57%, Best=90.59%) | CoreFNR: 11.50% (min=8.41%) | Test=89.54%
   * 4obs_no_RA_noisy/training_metrics_gat_4obs_no_RA_noisy.log: Ep 011 | Train 0.3614 (83.41%) | Val 0.4919 (76.33%, Best=77.82%) | CoreFNR: 36.76% (min=10.87%) | Test=76.62%
   * 4obs_no_pmRA_clean/training_metrics_gat_4obs_no_pmRA_clean.log: Ep 020 | Train 0.1221 (95.17%) | Val 0.1851 (92.72%, Best=92.86%) | CoreFNR: 8.40% (min=6.92%) | Test=92.25%
-  * 4obs_no_pmRA_noisy/training_metrics_gat_4obs_no_pmRA_noisy.log: Ep 010 | Train 0.2787 (87.26%) | Val 0.3901 (81.38%, Best=81.38%) | CoreFNR: 23.32% (min=13.75%) | Test=In progress
+  * 4obs_no_pmRA_noisy/training_metrics_gat_4obs_no_pmRA_noisy.log: Ep 011 | Train 0.2745 (87.50%) | Val 0.3839 (81.32%, Best=81.38%) | CoreFNR: 27.23% (min=13.75%) | Test=In progress
   * clean_5obs/training_metrics_gat_clean.log: Ep 020 | Train 0.1006 (96.00%) | Val 0.1495 (94.10%, Best=94.21%) | CoreFNR: 6.64% (min=6.60%) | Test=93.04%
   * clean_5obs/training_metrics_gcn_clean.log: Ep 025 | Train 0.1136 (95.42%) | Val 0.1820 (92.33%, Best=92.33%) | Test=92.17%
   * noisy_5obs/training_metrics_gat_noisy.log: Ep 020 | Train 0.2683 (88.10%) | Val 0.4221 (81.26%, Best=81.76%) | CoreFNR: 23.60% (min=14.33%) | Test=84.91%
-  * [IN FLIGHT] 4obs_no_pmRA_noisy (GAT): Ep 010 | Batch 0103/0103 (100.0%) | Batch Loss 0.3563 | LR: 2.55e-04 | RAM: 112.6G
+  * [IN FLIGHT] 4obs_no_pmRA_noisy (GAT): Ep 011 | Batch 0103/0103 (100.0%) | Batch Loss 0.2616 | LR: 2.17e-04 | RAM: 112.6G
 - Saved Model Checkpoints (.pth): 10 mirrored in GNN-jed/trained_models/study2/weights/
 
 SLURM Queue:
@@ -379,7 +379,7 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
       41185010   academic Study2V2_Step4_BuildGr   PD       0:00      1 (Dependency)
 41185009_[0-80   academic Study2V2_Step3_Extract   PD       0:00      1 (Dependency)
       41146836   academic Study2_Step7_GCNStocha   PD       0:00      2 (Dependency)
-    41146835_3   academic      Study2_Step6_4Obs    R   22:29:47      2 jst[282,294]</pre>
+    41146835_3   academic      Study2_Step6_4Obs    R   23:16:57      2 jst[282,294]</pre>
     </section>
   </main>
 
