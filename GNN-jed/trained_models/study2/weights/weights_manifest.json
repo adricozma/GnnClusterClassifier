@@ -150,5 +150,22 @@
     "test_f1": 0.8929,
     "test_core_fnr": 7.2,
     "updated_at": "2026-11-19 07:39:10"
+  },
+  "best_gat_4obs_no_pmRA_noisy.pth": {
+    "filename": "best_gat_4obs_no_pmRA_noisy.pth",
+    "architecture": "GAT",
+    "in_channels": 4,
+    "experiment_path": "GNN-jed/trained_models/study2/4obs_no_pmRA_noisy/best_gat_4obs_no_pmRA_noisy.pth",
+    "central_archive_path": "GNN-jed/trained_models/study2/weights/best_gat_4obs_no_pmRA_noisy.pth",
+    "size_kb": 358.0,
+    "best_epoch": 1,
+    "val_loss": 0.4548,
+    "val_acc": 77.64,
+    "val_core_fnr": 13.75,
+    "test_loss": null,
+    "test_acc": null,
+    "test_f1": null,
+    "test_core_fnr": null,
+    "updated_at": "2026-11-19 08:28:39"
   }
 }
