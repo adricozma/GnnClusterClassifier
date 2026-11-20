@@ -2,44 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>GCN vs. GAT Training & Validation Dynamics (4obs_no_pmDec_clean)</title>
+  <title>Live GNN Learning Curves (4obs_no_pmDec_clean)</title>
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
   <style>
-    body {
-      margin: 0;
-      padding: 16px 20px;
-      background-color: #ffffff;
-      color: #111827;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    h2 {
-      margin: 0 0 12px 0;
-      font-size: 1.05rem;
-      font-weight: 600;
-      color: #111827;
-    }
-    #plot {
-      width: 100%;
-      height: 85vh;
-      background: #ffffff;
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
-    }
+    body { margin: 0; background: #ffffff; color: #111827; font-family: system-ui, sans-serif; }
+    #plot { width: 100vw; height: 96vh; }
   </style>
 </head>
 <body>
-  <h2>GCN vs. GAT Training & Validation Dynamics (4obs_no_pmDec_clean)</h2>
   <div id="plot"></div>
   <script>
-    const traces = [{"x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "y": [0.1683, 0.1475, 0.1467, 0.1443, 0.1407, 0.1407, 0.1396, 0.1388, 0.1398, 0.1354, 0.1353, 0.1348, 0.1344, 0.1347, 0.1322, 0.1333, 0.132, 0.132, 0.1329, 0.1305], "mode": "lines", "name": "GAT Train Loss", "line": {"dash": "dash", "color": "#fb923c"}, "xaxis": "x1", "yaxis": "y1"}, {"x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "y": [0.2223, 0.2237, 0.2186, 0.2217, 0.1985, 0.2055, 0.2077, 0.2215, 0.2018, 0.1938, 0.1974, 0.2125, 0.1943, 0.1989, 0.1954, 0.1931, 0.2011, 0.1996, 0.1982, 0.1981], "mode": "lines", "name": "GAT Val Loss", "line": {"width": 3, "color": "#ea580c"}, "xaxis": "x1", "yaxis": "y1"}, {"x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "y": [93.26, 94.12, 94.18, 94.24, 94.39, 94.41, 94.45, 94.49, 94.44, 94.62, 94.63, 94.68, 94.69, 94.63, 94.75, 94.73, 94.79, 94.78, 94.72, 94.83], "mode": "lines", "name": "GAT Train Acc (%)", "line": {"dash": "dash", "color": "#fb923c"}, "xaxis": "x2", "yaxis": "y2"}, {"x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "y": [91.01, 90.88, 91.1, 91.24, 91.71, 91.32, 91.57, 91.31, 91.52, 91.91, 91.87, 91.4, 91.82, 91.97, 91.94, 91.92, 91.84, 91.88, 91.88, 91.87], "mode": "lines", "name": "GAT Val Acc (%)", "line": {"width": 3, "color": "#ea580c"}, "xaxis": "x2", "yaxis": "y2"}];
-    const layout = Object.assign({
-      template: "plotly_white",
-      paper_bgcolor: "#ffffff",
-      plot_bgcolor: "#ffffff",
-      font: { color: "#111827", size: 12 },
-      hovermode: "closest"
-    }, {"grid": {"rows": 1, "columns": 2, "pattern": "independent"}, "xaxis1": {"title": "Epoch"}, "yaxis1": {"title": "BCE Loss"}, "xaxis2": {"title": "Epoch"}, "yaxis2": {"title": "Accuracy [%]"}});
-    Plotly.newPlot("plot", traces, layout, {responsive: true, displaylogo: false});
+    const traces = [{"x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "y": [0.1683, 0.1475, 0.1467, 0.1443, 0.1407, 0.1407, 0.1396, 0.1388, 0.1398, 0.1354, 0.1353, 0.1348, 0.1344, 0.1347, 0.1322, 0.1333, 0.132, 0.132, 0.1329, 0.1305], "mode": "lines+markers", "name": "GAT Train Loss", "line": {"dash": "dash", "color": "#fb923c"}, "xaxis": "x1", "yaxis": "y1"}, {"x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "y": [0.2223, 0.2237, 0.2186, 0.2217, 0.1985, 0.2055, 0.2077, 0.2215, 0.2018, 0.1938, 0.1974, 0.2125, 0.1943, 0.1989, 0.1954, 0.1931, 0.2011, 0.1996, 0.1982, 0.1981], "mode": "lines+markers", "name": "GAT Val Loss (min=0.1931)", "line": {"width": 3, "color": "#ea580c"}, "xaxis": "x1", "yaxis": "y1"}, {"x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "y": [93.26, 94.12, 94.18, 94.24, 94.39, 94.41, 94.45, 94.49, 94.44, 94.62, 94.63, 94.68, 94.69, 94.63, 94.75, 94.73, 94.79, 94.78, 94.72, 94.83], "mode": "lines+markers", "name": "GAT Train Acc (%)", "line": {"dash": "dash", "color": "#fb923c"}, "xaxis": "x2", "yaxis": "y2"}, {"x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "y": [91.01, 90.88, 91.1, 91.24, 91.71, 91.32, 91.57, 91.31, 91.52, 91.91, 91.87, 91.4, 91.82, 91.97, 91.94, 91.92, 91.84, 91.88, 91.88, 91.87], "mode": "lines+markers", "name": "GAT Val Acc (best=91.97%)", "line": {"width": 3, "color": "#ea580c"}, "xaxis": "x2", "yaxis": "y2"}];
+    const layout = {"title": "Interactive GNN Learning Curves \u2014 Loss & Accuracy (4obs_no_pmDec_clean)", "template": "plotly_white", "paper_bgcolor": "#ffffff", "plot_bgcolor": "#ffffff", "font": {"family": "Inter, system-ui, sans-serif", "size": 12, "color": "#111827"}, "grid": {"rows": 1, "columns": 2, "pattern": "independent"}, "xaxis1": {"title": "Epoch"}, "yaxis1": {"title": "Binary Cross-Entropy Loss"}, "xaxis2": {"title": "Epoch"}, "yaxis2": {"title": "Node Classification Accuracy [%]"}};
+    Plotly.newPlot('plot', traces, layout, {responsive: true, displaylogo: false});
   </script>
 </body>
 </html>
