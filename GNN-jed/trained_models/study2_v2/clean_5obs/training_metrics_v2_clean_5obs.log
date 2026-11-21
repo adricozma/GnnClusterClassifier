@@ -1,0 +1,2 @@
+Study 2 V2 GAT_V2 | features=[0, 1, 2, 3, 4] | num_classes=3 | IC split: 65/8/8
+Epoch | TrLoss | TrAcc   | VaLoss | VaAcc   | BoundF1 | PE_Rec  | CoreFNR | FieldFPR | LR
