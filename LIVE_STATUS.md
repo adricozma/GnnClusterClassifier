@@ -1,7 +1,7 @@
 # Live Pipeline Status on Jed
 
 ```text
-[2026-11-21 01:33:30] Study 2 Pipeline Status on Jed
+[2026-11-21 01:38:54] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
@@ -13,7 +13,7 @@
   * 4obs_no_RA_clean/training_metrics_gat_4obs_no_RA_clean.log: Ep 020 | Train 0.1632 (93.52%) | Val 0.2301 (90.57%, Best=90.59%) | Test=89.54%
   * 4obs_no_RA_noisy/training_metrics_gat_4obs_no_RA_noisy.log: Ep 011 | Train 0.3614 (83.41%) | Val 0.4919 (76.33%, Best=77.82%) | Test=76.62%
   * 4obs_no_pmDec_clean/training_metrics_gat_4obs_no_pmDec_clean.log: Ep 020 | Train 0.1305 (94.83%) | Val 0.1981 (91.87%, Best=91.97%) | Test=92.02%
-  * 4obs_no_pmDec_noisy/training_metrics_gat_4obs_no_pmDec_noisy.log: Ep 016 | Train 0.2665 (87.99%) | Val 0.3870 (81.67%, Best=82.09%) | Test=In progress
+  * 4obs_no_pmDec_noisy/training_metrics_gat_4obs_no_pmDec_noisy.log: Ep 017 | Train 0.2655 (87.98%) | Val 0.4011 (81.68%, Best=82.09%) | Test=In progress
   * 4obs_no_pmRA_clean/training_metrics_gat_4obs_no_pmRA_clean.log: Ep 020 | Train 0.1221 (95.17%) | Val 0.1851 (92.72%, Best=92.86%) | Test=92.25%
   * 4obs_no_pmRA_noisy/training_metrics_gat_4obs_no_pmRA_noisy.log: Ep 019 | Train 0.2670 (87.96%) | Val 0.4005 (81.56%, Best=81.92%) | Test=84.06%
   * clean_5obs/training_metrics_gat_clean.log: Ep 020 | Train 0.1006 (96.00%) | Val 0.1495 (94.10%, Best=94.21%) | Test=93.04%
@@ -27,7 +27,7 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
       41185010   academic Study2V2_Step4_BuildGr   PD       0:00      1 (Dependency)
 41185009_[0-80   academic Study2V2_Step3_Extract   PD       0:00      1 (Dependency)
       41146836   academic Study2_Step7_GCNStocha   PD       0:00      2 (Dependency)
-    41146835_4   academic      Study2_Step6_4Obs    R 1-03:16:03      2 jst[282,294]
+    41146835_4   academic      Study2_Step6_4Obs    R 1-03:21:26      2 jst[282,294]
 ```
 
 ## Live Neural Network Training Metrics
@@ -40,7 +40,7 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
 | `4obs_no_RA_clean` | **GAT** | 20 | 0.1632 | 93.52% | 0.2301 | 90.57% | **90.59%** | **89.54%** | 0.8543 |
 | `4obs_no_RA_noisy` | **GAT** | 11 | 0.3614 | 83.41% | 0.4919 | 76.33% | **77.82%** | **76.62%** | 0.6238 |
 | `4obs_no_pmDec_clean` | **GAT** | 20 | 0.1305 | 94.83% | 0.1981 | 91.87% | **91.97%** | **92.02%** | 0.8907 |
-| `4obs_no_pmDec_noisy` | **GAT** | 16 | 0.2665 | 87.99% | 0.3870 | 81.67% | **82.09%** | **In progress** | - |
+| `4obs_no_pmDec_noisy` | **GAT** | 17 | 0.2655 | 87.98% | 0.4011 | 81.68% | **82.09%** | **In progress** | - |
 | `4obs_no_pmRA_clean` | **GAT** | 20 | 0.1221 | 95.17% | 0.1851 | 92.72% | **92.86%** | **92.25%** | 0.8929 |
 | `4obs_no_pmRA_noisy` | **GAT** | 19 | 0.2670 | 87.96% | 0.4005 | 81.56% | **81.92%** | **84.06%** | 0.7705 |
 | `clean_5obs` | **GAT** | 20 | 0.1006 | 96.00% | 0.1495 | 94.10% | **94.21%** | **93.04%** | 0.9035 |
