@@ -56,18 +56,18 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 │   ├── build_graph_dataset.py                 # Parallel O(N log N) cKDTree k-NN graph builder (5D or 4D ablation subsets)
 │   ├── distributed_trainer.py                 # Unified DDP, micro-batch gradient accumulation & checkpoint engine
 │   ├── train_gcn.py                           # 3-layer Residual GCN trainer (--split_mode ic, clean_5obs baseline)
-│   ├── train_gat.py                           # 3-layer Multi-Head Residual GAT trainer (p=0.4 dropout, AdamW wd=1e-3, OneCycleLR, CoreFNR/CoreRec)
-│   ├── live_plot_utils.py                     # Real-time epoch-by-epoch live learning curve generator (.png)
-│   ├── live_monitor.py                        # Automated training telemetry and status updater
+│   ├── train_gat.py                           # 3-layer Multi-Head Residual GAT trainer (dropout<=0.25, cosine/onecycle, CoreFNR/CoreRec)
+│   ├── live_plot_utils.py                     # Real-time epoch-by-epoch live learning curve generator (.png & .html)
+│   ├── live_monitor.py                        # Automated training telemetry, LIVE_STATUS.md, and index.html updater
 │   ├── generate_study2_figures.py             # Automated generator for all report/README plots (.png + interactive .html)
 │   ├── v2_select_best_4d.py                   # [Study 2 V2] Automated Step 6 best-4D configuration parser & selector
 │   ├── v2_extract_observables.py              # [Study 2 V2] Isolated 3-class Gaia DR3 + MW contaminant observable extractor
 │   ├── v2_build_graph_dataset.py              # [Study 2 V2] Pure 2D-sky cKDTree graph builder with [dRA*, dDec, theta] edge attributes
-│   ├── v2_train_gat.py                        # [Study 2 V2] DDP GAT_V2 trainer (Clean 5D -> Noisy 5D & Clean Best-4D -> Noisy Best-4D)
-│   └── v2_infer_gaia_dr3.py                   # [Study 2 V2] Real Gaia DR3 / Ibata (2024) catalog inference (auto 5D/4D fallback)
+│   ├── v2_train_gat.py                        # [Study 2 V2] Unified DDP trainer for GAT_V2 and GCN_V2 (--arch gat|gcn, 5D & Best-4D)
+│   └── v2_infer_gaia_dr3.py                   # [Study 2 V2] Real Gaia DR3 / Ibata (2024) catalog inference (GAT_V2 & GCN_V2, 5D/4D)
 │
 ├── tests/                                     # Unit & end-to-end verification tests
-│   └── test_v2_pipeline.py                    # [Study 2 V2] IMF/parallax/N-invariance/GAT_V2/Best-4D selector/smoke test suite
+│   └── test_v2_pipeline.py                    # [Study 2 V2] IMF/parallax/N-invariance/GAT_V2/GCN_V2/Best-4D/smoke test suite
 │
 ├── slurm/                                     # SLURM batch scripts for HPC execution
 │   ├── step1_orbits_and_ics.sh                # Generates unbiased orbits and Plummer HDF5 initial conditions
@@ -76,19 +76,22 @@ This document maps the directory layout, modules, data directories, and SLURM ex
 │   ├── step4_build_graphs.sh                  # Builds 5D (and optional 4D) k-NN graphs in $DATA_DIR
 │   ├── step5_train_curriculum_and_plot.sh     # Runs Stage 1 Clean (GCN + GAT) -> Stage 2 Noisy (GAT only) + figures
 │   ├── step6_ablation_4obs.sh                 # Runs 4-observable GAT-only ablation study (Clean -> Noisy)
-│   ├── launch_full_study2_pipeline.sh         # Master script chaining Steps 5 and 6 via SLURM afterok dependencies
+│   ├── step7_retrain_gcn_stochastic.sh        # Optional V1 stochastic SO(3) GCN retraining template (skipped for V2)
+│   ├── launch_full_study2_pipeline.sh         # Master script chaining Steps 5, 6, and 7 via SLURM afterok dependencies
 │   ├── v2_step3_extract_obs.sh                # [Study 2 V2] Parallel SLURM array extracting Gaia DR3 V2 observables
 │   ├── v2_step4_build_graphs.sh               # [Study 2 V2] Best-4D selector + Clean/Noisy sky-kNN graph build
 │   ├── v2_step5_train_5d.sh                   # [Study 2 V2] 2-node DDP Clean 5D -> Noisy 5D GAT_V2 training
-│   ├── v2_step6_train_best4d.sh               # [Study 2 V2] 2-node DDP Best-4D transfer training + Ibata (2024) inference
-│   └── launch_study2_v2.sh                    # [Study 2 V2] Automated SLURM launcher chained after active V1 pipeline jobs
+│   ├── v2_step6_train_best4d.sh               # [Study 2 V2] 2-node DDP Best-4D GAT_V2 training + Ibata (2024) inference
+│   ├── v2_step7_train_gcn.sh                  # [Study 2 V2] 2-node DDP 5D & Best-4D GCN_V2 comparison + Ibata (2024) inference
+│   └── launch_study2_v2.sh                    # [Study 2 V2] Automated SLURM launcher chaining V2 Steps 3 -> 4 -> 5 -> 6 -> 7
 │
 ├── GNN-jed/                                   # Trained models & intermediate observable/label matrices
 │   ├── trained_models/
 │   │   ├── GCN-01/                            # [Study 1 - Untouched] Baseline GCN weights and logs
 │   │   ├── GCN-02/                            # [Study 1 - Untouched] Baseline GAT weights and logs
-│   │   └── study2/                            # [Study 2] Clean & Gaia DR3 Noisy checkpoints, logs, PNG & HTML figures
-│   │       └── weights/                       # [Study 2] Central archive of all best_*.pth checkpoints & registry
+│   │   ├── study2/                            # [Study 2 V1] Clean & Gaia DR3 Noisy checkpoints, logs, PNG & HTML figures
+│   │   │   └── weights/                       # [Study 2 V1] Central archive of all 12 best_*.pth checkpoints & registry
+│   │   └── study2_v2/                         # [Study 2 V2] best_4d_config.*, V2 GAT/GCN checkpoints, logs & Gaia DR3 inference CSVs
 │   ├── labels_bound_stars/                    # [Study 1 - Untouched] Original bound labels
 │   ├── labels_clean/                          # [Study 2 - Git-ignored] Exact bound labels B_L_snapshot_*.npy
 │   ├── obs_clean/                             # [Study 2 - Git-ignored] Noiseless standardized observable matrices
@@ -145,25 +148,26 @@ Bulk simulation outputs, extracted observable matrices, and PyTorch Geometric `.
    - `81 / 81` exact Küpper bound labels (`labels_clean/`), clean observables (`obs_clean/`), and noisy observables (`obs_gaia_noisy/`).
    - `40,905` 5D `.pt` graphs each in `/scratch/cozma/graph_data_clean` and `/scratch/cozma/graph_data_noisy`.
    - All 10 pre-built 4D ablation graph directories (`graph_data_4obs_no_{RA,Dec,Parallax,pmRA,pmDec}_{clean,noisy}`, `40,905` `.pt` graphs each) are already built on `/scratch/cozma/`.
-3. **Completed Study 2 V1 Model Checkpoints (`GNN-jed/trained_models/study2/weights/`):**
-   - `best_gat_clean.pth` / `best_gat_clean_ep18_backup.pth` (Canonical 5D Clean GAT, `dropout=0.2`, Ep 18/22): `Val Loss = 0.1470 (94.20%)`, **`Test Acc = 93.04%`, `BalAcc = 93.15%`, `Test F1 = 0.9035`, `CoreFNR = 6.49%`**.
-   - `best_gcn_clean.pth` (Static 5-rot, `dropout=0.2`, Ep 19/24): `Val Loss = 0.1725 (93.16%)`, **`Test Acc = 92.17%`, `BalAcc = 91.90%`, `Test F1 = 0.8886`, `CoreFNR = 10.32%`**.
-   - `best_gat_clean_dropout04_ep35.pth` (Archived Stochastic 5-rot, `dropout=0.4`, Ep 35/45): `Val Loss = 0.2071 (91.89%)`, **`Test Acc = 91.43%`, `BalAcc = 91.28%`, `Test F1 = 0.8807`, `CoreFNR = 9.22%`**.
-   - `best_gat_noisy.pth` (Stochastic 5-rot Curriculum on V1 Gaia DR3 noise, `dropout=0.4`, Best Ep 12/20): `Val Loss = 0.4014 (81.76%)`, **`Test Loss = 0.3181`, `Test Acc = 84.91%`, `BalAcc = 83.88%`, `Test F1 = 0.7879`, `CoreFNR = 19.52%` (`CoreRec = 80.48%`)** — **COMPLETED** (all Stage 2 PNG/HTML figures generated in `GNN-jed/trained_models/study2/noisy_5obs/`).
+3. **Completed Study 2 V1 Model Checkpoints (`GNN-jed/trained_models/study2/weights/`, 12 `.pth` files):**
+   - `best_gat_clean.pth` (Canonical 5D Clean GAT, `dropout=0.2`, Ep 18/20): `Val Loss = 0.1470 (94.20%)`, **`Test Loss = 0.1641`, `Test Acc = 93.04%`, `BalAcc = 93.15%`, `Test F1 = 0.9035`, `CoreFNR = 6.49%`**.
+   - `best_gcn_clean.pth` (Static 5-rot Clean GCN, `dropout=0.2`, Ep 24/25): `Val Loss = 0.1817 (92.32%)`, **`Test Loss = 0.1841`, `Test Acc = 92.17%`, `BalAcc = 91.59%`, `Test F1 = 0.8886`, `CoreFNR = 10.32%`**.
+   - `best_gat_noisy.pth` (Stochastic 5-rot Curriculum on V1 Gaia DR3 noise, `dropout=0.4`, Best Ep 12/20): `Val Loss = 0.4014 (81.76%)`, **`Test Loss = 0.3181`, `Test Acc = 84.91%`, `BalAcc = 83.88%`, `Test F1 = 0.7879`, `CoreFNR = 19.52%` (`CoreRec = 80.48%`)**.
+   - 9 completed Step 6 4D ablation checkpoints: all 5 Clean subsets (`no_pmRA` 92.25%, `no_pmDec` 92.02%, `no_Dec` 91.48%, `no_Parallax` 90.25%, `no_RA` 89.54%) plus 4 Noisy subsets led by **`best_gat_4obs_no_Parallax_noisy.pth`** (`Test Loss = 0.2934`, **`Test Acc = 86.72%`, `BalAcc = 87.91%`, `Test F1 = 0.8281`, `CoreFNR = 8.14%`** — selected as Best-4D for Study 2 V2; `4obs_no_Dec_noisy` was skipped after a SLURM controller outage).
+   - *(Legacy backups `best_gat_clean_ep18_backup.pth` and `best_gat_clean_dropout04_ep35.pth` are archived in git-ignored `GNN-jed/trained_models/study2_legacy_archive/clean_5obs_backups/`.)*
 
 ---
 
-## 5. V1 vs. V2 Pipeline Map & Implemented Upgrades for Agentic Sessions
+## 5. V1 vs. V2 Pipeline Map & Implemented Upgrades
 
 - **Study 2 V1 (`src/observables_matrix.py`, `src/gnn_models.py`, `scripts/distributed_trainer.py`):**
   - Uses monochromatic $M_G = 4.5$, clipped inverse parallax $D = 1/\mathrm{clip}(\varpi_{\mathrm{obs}}, 0.005, 10.0)\text{ kpc}$, `zscore` ($6\sigma_{\mathrm{MAD}}$ winsorized) standardization, and 5D Euclidean `cKDTree` $k$-NN graphs ($k=20$) with binary `is_bound` labels.
-  - **Step 5 (5D Clean + 5D Noisy) is 100% COMPLETED.**
-  - **Step 6 (4D Ablations, `41146835_[0-4%1]`) is currently RUNNING** and **Step 7 (`41146836`, Stochastic Clean GCN)** is queued immediately after.
+  - **Steps 1–6 are COMPLETED** (12 checkpoints mirrored in `study2/weights/`; `4obs_no_Dec_noisy` and V1 Step 7 were intentionally skipped in favor of Study 2 V2).
 - **Study 2 V2 (`src/gaia_v2.py`, `src/gnn_models_v2.py`, `scripts/v2_*.py`, `slurm/v2_*.sh`):**
-  - Introduces Kroupa IMF + RGB luminosity function, $G \le 20.7$ cut, linear signed parallax $\varpi_{\mathrm{obs}}$ (mas), 4 uncertainty/SNR features (`err_x`), 2D sky tangent-plane $k$-NN topology (`edge_attr = [dRA*, dDec, theta_sky]`), $N$-invariant surface density normalization, Milky Way field contaminants, and 3-class labels (`0: Unbound/Field`, `1: Potential Escaper`, `2: Bound Core`).
-  - **Upgrades Applied (Active for Step 6, Step 7, and V2 Jobs `41185009–41185012`):**
-    1. **Extended RGB Tip ($M_G \in [-2.5, 4.2]$) & Relaxed-Cut Sigma Guard (`src/gaia_v2.py:114-121, 293`):** Ensures evolved red-giant branch stars remain visible out to $D \sim 300\text{ kpc}$ and caps `g_app_vis` noise evaluation at `g_max = 20.7` if `cut_relaxed` triggers.
-    2. **Stream-Referenced Centering & Heliocentric-Invariant Parallax (`src/gaia_v2.py:434-485`, `scripts/v2_extract_observables.py:189-195`):** Centers parallax and proper motions on the stream member reference distribution (`reference_mask=~is_field`), preventing high field-star contamination from shifting the coordinate origin.
-    3. **Decoupled Feature vs. Attention Dropout & Zero Final-Layer Edge Dropout (`src/gnn_models.py:117-135`, `src/gnn_models_v2.py:119-160`):** Caps internal `GATConv` attention `edge_dropout` at $\le 0.15$, sets `dropout=0.0` on the final output `conv3` layer, and sets `--dropout 0.25 --weight_decay 5e-4` across Step 6 and V2 scripts.
-    4. **In-RAM Graph + `h0` Relational Feature Caching & Node-Weighted Accumulation (`scripts/distributed_trainer.py:132-186, 406-438`, `scripts/v2_train_gat.py:128-165, 509-549`):** Caches loaded `.pt` graphs and precomputed `h0` relational features in RAM (up to 55% of the 246 GB/node ceiling) with single-threaded persistent DataLoader workers (`torch.set_num_threads(1)`), eliminating repeated `/scratch` GPFS I/O and $O(E)$ scatter recomputations after initial epochs.
+  - Introduces Kroupa IMF + RGB luminosity function ($M_G \in [-2.4, 4.2]$), $G \le 20.7$ cut, linear signed parallax $\varpi_{\mathrm{obs}}$ (mas), 4 uncertainty/SNR features (`err_x`), 2D sky tangent-plane $k=32$ $k$-NN topology (`edge_attr = [dRA*, dDec, theta_sky]`), $N$-invariant surface density normalization, Milky Way field contaminants (`5%–55%`), 3-class labels (`0: Unbound/Field`, `1: Potential Escaper`, `2: Bound Core`), and architectural parity between `GAT_V2` and `GCN_V2`.
+  - **Active SLURM Chain (`41910480–41910484`):** Step 3 (`41910480`: `81/81` obs extracted) and Step 4 (`41910481`: `4obs_no_Parallax` selected, `40,905` clean + `40,905` noisy sky-kNN graphs built) are complete; Steps 5 (`41910482`, `GAT_V2` 5D), 6 (`41910483`, `GAT_V2` Best-4D + inference), and 7 (`41910484`, `GCN_V2` 5D & Best-4D + inference) are active/queued.
+  - **Key Upgrades Applied:**
+    1. **Extended RGB Tip ($M_G \in [-2.4, 4.2]$, clipped $[-2.5, 4.2]$) & Relaxed-Cut Sigma Guard (`src/gaia_v2.py`):** Ensures evolved red-giant branch stars remain visible out to outer-halo distances and caps `g_app_vis` noise evaluation at `g_max = 20.7` if `cut_relaxed` triggers (`min_visible_stars = 64`).
+    2. **Unmasked Train/Inference Centering (`reference_mask=None`, `scripts/v2_extract_observables.py`):** Centers coordinates over the full field of view in both training and real *Gaia* DR3 inference to eliminate train-vs.-inference centering leakage while leaving all local relational differences and edge vectors shift-invariant.
+    3. **Decoupled Feature vs. Attention Dropout & Zero Final-Layer Edge Dropout (`src/gnn_models.py`, `src/gnn_models_v2.py`):** Caps internal `GATConv` attention `edge_dropout` at $\le 0.15$, sets `dropout=0.0` on the final `conv3` layer, and sets `--dropout 0.25 --weight_decay 5e-4` across V2 training scripts.
+    4. **In-RAM Graph + `h0` Relational Feature Caching & Node-Weighted Accumulation (`scripts/distributed_trainer.py`, `scripts/v2_train_gat.py`):** Caches loaded `.pt` graphs and precomputed `h0` relational features in RAM (up to 55% of the 246 GB/node ceiling) with exact node-weighted micro-batch gradient accumulation.
 

@@ -204,7 +204,7 @@ $$
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **`best_gat_clean.pth`** *(Canonical Ep 18)* | 5D Clean | 18 | `0.1470` / **94.20%** | **0.1641** | **93.04%** | **93.15%** | **0.9035** | **6.49%** (`CoreRec: 93.51%`) |
 | **`best_gcn_clean.pth`** *(Baseline GCN)* | 5D Clean | 24 | `0.1817` / 92.32% | 0.1841 | 92.17% | 91.59% | 0.8886 | 10.32% (`CoreRec: 89.68%`) |
-| `best_gat_clean_dropout04_ep35.pth` *(Archived)* | 5D Clean (`0.40` drop) | 35 | `0.2071` / 91.89% | 0.2016 | 91.43% | 91.28% | 0.8807 | 9.22% (`CoreRec: 90.78%`) |
+| `best_gat_clean_dropout04_ep35.pth` *(Archived in `study2_legacy_archive/`)* | 5D Clean (`0.40` drop) | 35 | `0.2071` / 91.89% | 0.2016 | 91.43% | 91.28% | 0.8807 | 9.22% (`CoreRec: 90.78%`) |
 | **`best_gat_noisy.pth`** *(V1 5D Noisy)* | 5D *Gaia* DR3 Noisy | 12 | `0.4014` / 81.76% | 0.3181 | **84.91%** | **83.88%** | **0.7879** | 19.52% (`CoreRec: 80.48%`) |
 | `best_gat_4obs_no_pmRA_clean.pth` | 4D Clean (no $\mu_{\alpha^*}$) | 15 | `0.1810` / 92.76% | 0.1848 | 92.25% | 92.37% | 0.8929 | 7.20% (`CoreRec: 92.80%`) |
 | `best_gat_4obs_no_pmDec_clean.pth` | 4D Clean (no $\mu_\delta$) | 16 | `0.1931` / 91.92% | 0.1883 | 92.02% | 92.32% | 0.8907 | 6.67% (`CoreRec: 93.33%`) |
@@ -224,11 +224,11 @@ $$
 #### Two-Stage Curriculum, Stochastic $\mathrm{SO}(3)$ Training & $5\mathrm{D} \to 4\mathrm{D}$ Subspace Weight Transfer
 - **Step 5 — 5-Observable Curriculum (`slurm/step5_train_curriculum_and_plot.sh`):** Both GCN (25 epochs, architectural baseline) and GAT (50 epochs, `--stochastic_rotation` sampling 1 random rotation per snapshot per epoch across $6\,565$ training graphs/epoch) are trained on noiseless 5D astrometric graphs (`clean_5obs`, $\mathrm{lr} = 10^{-3}$). The converged 5D Clean GAT checkpoint (`best_gat_clean.pth`) is then fine-tuned for up to 30 epochs (`patience = 8`) on *Gaia* DR3 noisy graphs (`noisy_5obs`, $\mathrm{lr} = 5\times 10^{-4}$, Lindegren et al. 2021).
 - **Step 6 — 4-Observable Ablation Study (`slurm/step6_ablation_4obs.sh`):** To isolate the physical contribution of each astrometric coordinate (`no_RA`, `no_Dec`, `no_Parallax`, `no_pmRA`, `no_pmDec`), each 4D GAT model ($3d+3 = 15$ input channels) is initialized directly from the converged 5D Clean GAT weights ($18$ input channels) via `load_pretrained_with_channel_adaptation` (`src/gnn_models.py`). All internal message-passing and attention layers are copied identically ($100\%$ preservation), while first-layer projections (`conv1.lin.weight`, `skip1.weight`, and the `h0` slice of `ego_head.0.weight`) are sliced along the retained coordinate indices $\pi(\mathcal{I}) = \mathcal{I} \cup (5+\mathcal{I}) \cup (10+\mathcal{I}) \cup \{15,16,17\}$ and scaled by $\sqrt{18/15}$ prior to 4D Clean pre-training (up to 20 epochs, `patience = 8`) and 4D *Gaia* DR3 noisy fine-tuning (up to 20 epochs, `patience = 8`).
-- **Step 7 — Stochastic GCN Retraining (`slurm/step7_retrain_gcn_stochastic.sh`):** Archives the completed static-5-rotation Clean GCN baseline (`Test Acc = 92.17%`, `BalAcc = 91.59%`, `F1 = 0.8886`) into `GNN-jed/trained_models/study2/legacy/clean_5obs_static_5rot/` and retrains Clean GCN for 25 epochs using `--stochastic_rotation --bf16 --bs 256` for direct regime parity with Stochastic GAT (noting that `--bs 256` performs $\sim 650$ optimizer updates over 25 epochs vs. GAT's $\sim 5\,150$ updates over 50 epochs at `--bs 64`).
+- **Step 7 — Optional Stochastic GCN Retraining (`slurm/step7_retrain_gcn_stochastic.sh`):** Designed to archive the completed static-5-rotation Clean GCN baseline (`Test Acc = 92.17%`, `BalAcc = 91.59%`, `F1 = 0.8886`) into `GNN-jed/trained_models/study2_legacy_archive/clean_5obs_static_5rot/` and retrain Clean GCN for 25 epochs with `--stochastic_rotation --bf16 --bs 256` (noting `--bs 256` performs $\sim 650$ optimizer updates over 25 epochs vs. GAT's $\sim 5\,150$ updates over 50 epochs at `--bs 64`). In production, Step 7 was skipped in favor of the controlled `GAT_V2` vs. `GCN_V2` parity comparison in Study 2 V2 (`slurm/v2_step7_train_gcn.sh`).
 
 #### Multi-Node Distributed Execution & Memory Optimization (`scripts/distributed_trainer.py`, `src/oom_Pin_and_offload.py`)
 - **Multi-Node DDP & Micro-Batch Gradient Accumulation:** Supports single-machine execution (CPU or GPU) as well as multi-node SLURM `DistributedDataParallel` (`srun` / `torchrun`). Exact node-weighted gradient accumulation over micro-batches (`--micro_bs`) preserves the global effective batch size (`256` for GCN, `64` for GAT) while allowing SLURM wrappers (`run_ddp_with_oom_fallback`) to halve `--micro_bs` automatically and resume from the latest epoch checkpoint if memory limits are approached.
-- **Disk Activation Offloading (`DiskActivationOffloader`):** Cgroup-aware saved-tensor hooks (`torch.autograd.graph.saved_tensors_hooks`) monitor node memory against `/sys/fs/cgroup/memory.current` vs. `memory.max` and stream large ($> 8\text{ MB}$) activation tensors to `/scratch` when utilization exceeds $70\%$ (triggered dynamically by node memory pressure; `force_enable` is currently `False` in `distributed_trainer.py`).
+- **Disk Activation Offloading (`DiskActivationOffloader`):** Cgroup-aware saved-tensor hooks (`torch.autograd.graph.saved_tensors_hooks`) monitor node memory against the resolved cgroup v2 leaf (`memory.current` vs. `memory.max`) and stream large ($> 8\text{ MB}$) activation tensors to `/scratch` when utilization exceeds $70\%$. `distributed_trainer.py` passes `--force_disk_offload` into `DiskActivationOffloader(force_enable=force_offload)`, while `scripts/train_gat.py` disables forced offloading on 246 GB nodes to prevent unnecessary `/scratch` I/O overhead.
 
 | Training & Validation Loss Convergence (GCN vs. GAT) | Weight Matrix Singular Value Spectrum (RMT) |
 | :---: | :---: |
@@ -361,19 +361,17 @@ python3 scripts/train_gcn.py \
     --save_model "GNN-jed/trained_models/study2/clean_5obs/best_gcn_clean.pth" \
     --log_file "GNN-jed/trained_models/study2/clean_5obs/training_metrics_gcn_clean.log"
 
-# 2. Train the 3-Layer Multi-Head Residual GAT (stochastic SO(3) rotations, 50 epochs, effective batch size 64):
+# 2. Train the 3-Layer Multi-Head Residual GAT (canonical 5D Clean GAT settings):
 python3 scripts/train_gat.py \
     --data_folder "$DATA_DIR/graph_data_clean" \
     --n 5 \
-    --stochastic_rotation \
-    --bf16 \
     --lr 0.001 \
     --bs 64 \
     --micro_bs 16 \
     --epochs 50 \
-    --dropout 0.4 \
-    --weight_decay 1e-3 \
-    --scheduler onecycle \
+    --dropout 0.2 \
+    --weight_decay 1e-4 \
+    --scheduler cosine \
     --patience 10 \
     --split_mode ic \
     --save_model "GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth" \
@@ -394,9 +392,9 @@ python3 scripts/train_gat.py \
     --bs 64 \
     --micro_bs 16 \
     --epochs 30 \
-    --dropout 0.4 \
-    --weight_decay 1e-3 \
-    --scheduler onecycle \
+    --dropout 0.25 \
+    --weight_decay 5e-4 \
+    --scheduler cosine \
     --patience 8 \
     --split_mode ic \
     --pretrained_weights "GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth" \
@@ -406,7 +404,7 @@ python3 scripts/train_gat.py \
 
 #### Step 6: 4-Observable Ablation Study ($5\mathrm{D} \to 4\mathrm{D}$ Subspace Weight Transfer)
 
-To train an ablation model dropping one astrometric observable (columns: `0=RA`, `1=Dec`, `2=D_kpc (from Parallax)`, `3=pmRA`, `4=pmDec` — e.g. `1,2,3,4` for `4obs_no_RA`), build the 4D graphs and pass the 5D Clean GAT checkpoint to `--pretrained_weights` (`scripts/train_gat.py` automatically performs variance-preserving $5\mathrm{D} \to 4\mathrm{D}$ channel adaptation):
+To train an ablation model dropping one astrometric observable (columns: `0=RA`, `1=Dec`, `2=D_kpc (from Parallax)`, `3=pmRA`, `4=pmDec` — e.g. `1,2,3,4` for `4obs_no_RA`), build the 4D graphs and pass the 5D Clean GAT checkpoint to `--pretrained_weights` alongside `--feature_indices "$FEAT"` (`scripts/train_gat.py` automatically performs variance-preserving $5\mathrm{D} \to 4\mathrm{D}$ channel adaptation):
 
 ```bash
 export FEAT="1,2,3,4"
@@ -424,8 +422,9 @@ python3 scripts/build_graph_dataset.py \
 # 2. Stage 1: 4D Clean GAT pre-training (initialized from 5D Clean GAT weights):
 python3 scripts/train_gat.py \
     --data_folder "$DATA_DIR/graph_data_${TAG}_clean" \
+    --feature_indices "$FEAT" \
     --n 5 --stochastic_rotation --bf16 --lr 0.001 --bs 64 --micro_bs 32 --epochs 20 --split_mode ic \
-    --dropout 0.4 --weight_decay 1e-3 --scheduler onecycle --patience 8 \
+    --dropout 0.25 --weight_decay 5e-4 --scheduler cosine --patience 8 \
     --pretrained_weights "GNN-jed/trained_models/study2/clean_5obs/best_gat_clean.pth" \
     --save_model "GNN-jed/trained_models/study2/${TAG}_clean/best_gat_${TAG}_clean.pth" \
     --log_file "GNN-jed/trained_models/study2/${TAG}_clean/training_metrics_gat_${TAG}_clean.log"
@@ -433,16 +432,17 @@ python3 scripts/train_gat.py \
 # 3. Stage 2: 4D Gaia DR3 Noisy GAT fine-tuning:
 python3 scripts/train_gat.py \
     --data_folder "$DATA_DIR/graph_data_${TAG}_noisy" \
+    --feature_indices "$FEAT" \
     --n 5 --stochastic_rotation --bf16 --lr 0.0005 --bs 64 --micro_bs 32 --epochs 20 --split_mode ic \
-    --dropout 0.4 --weight_decay 1e-3 --scheduler onecycle --patience 8 \
+    --dropout 0.25 --weight_decay 5e-4 --scheduler cosine --patience 8 \
     --pretrained_weights "GNN-jed/trained_models/study2/${TAG}_clean/best_gat_${TAG}_clean.pth" \
     --save_model "GNN-jed/trained_models/study2/${TAG}_noisy/best_gat_${TAG}_noisy.pth" \
     --log_file "GNN-jed/trained_models/study2/${TAG}_noisy/training_metrics_gat_${TAG}_noisy.log"
 ```
 
-#### Step 7: Stochastic $\mathrm{SO}(3)$ GCN Retraining (`slurm/step7_retrain_gcn_stochastic.sh`)
+#### Step 7: Optional Stochastic $\mathrm{SO}(3)$ GCN Retraining (`slurm/step7_retrain_gcn_stochastic.sh`)
 
-To compare GCN and GAT under identical stochastic $\mathrm{SO}(3)$ rotation sampling, Step 7 archives the static-rotation GCN baseline to `GNN-jed/trained_models/study2/legacy/clean_5obs_static_5rot/` and retrains Clean GCN with `--stochastic_rotation`:
+To compare GCN and GAT under identical stochastic $\mathrm{SO}(3)$ rotation sampling in V1, Step 7 archives the static-rotation GCN baseline to `GNN-jed/trained_models/study2_legacy_archive/clean_5obs_static_5rot/` and retrains Clean GCN with `--stochastic_rotation`:
 
 ```bash
 python3 scripts/train_gcn.py \
@@ -529,11 +529,12 @@ env_astro/bin/python scripts/live_monitor.py --once
 | Pipeline Phase | Allocation | Status / Observed Speed | Wall-Clock Runtime |
 | :--- | :--- | :--- | :--- |
 | **V1 Steps 1–4 (`SWIFT` + Obs + 5D Graphs)** | `1` node (`36` CPUs) | **Complete** (`SWIFT`: `0.6–2.3 h/IC`; Obs: `11.5 min`; Graphs: `~16–22 min`) | Complete (reused in V2) |
-| **V1 Steps 5–7 (5D GAT/GCN + 4D Ablations)** | `2` nodes (`72` CPUs) | **Complete** (`12` checkpoints in `study2/weights/`) | Complete |
-| **V2 Step 3–4 (IMF + Contaminants + 2D Sky Graphs)** | `1` node (`18–36` CPUs) | Active / Reuses all 81 `SWIFT` runs | `~25 – 50 min` |
-| **V2 Step 5 (`GAT_V2` 5D Clean + Noisy)** | `2` nodes (`72` CPUs) | Queued (`afterok` Step 4) | `~20 – 28 h` |
-| **V2 Step 6 (`GAT_V2` Best-4D + *Gaia* Inference)** | `2` nodes (`72` CPUs) | Queued (`afterok` Step 5) | `~10 – 14 h` |
-| **V2 Step 7 (`GCN_V2` 5D & Best-4D + *Gaia* Inference)** | `2` nodes (`72` CPUs) | Queued (`afterok` Step 6) | `~15 – 25 h` |
+| **V1 Steps 5–6 (5D GAT/GCN + 4D Ablations)** | `2` nodes (`72` CPUs) | **Complete** (`12` checkpoints in `study2/weights/`; `4obs_no_Dec_noisy` and V1 Step 7 skipped for V2) | Complete |
+| **V2 Step 3 (IMF + Contaminants)** | `1` node (`18` CPUs/task) | **Complete** (`81/81` ICs, reuses all 81 `SWIFT` runs) | Complete |
+| **V2 Step 4 (Best-4D + 2D Sky $k=32$ Graphs)** | `1` node (`36` CPUs) | **Complete** (`40,905` Clean + `40,905` Noisy graphs; Best-4D = `4obs_no_Parallax`) | Complete (`~8 min`) |
+| **V2 Step 5 (`GAT_V2` 5D Clean + Noisy)** | `2` nodes (`72` CPUs) | Active / Queued (`41910482`) | `~20 – 28 h` |
+| **V2 Step 6 (`GAT_V2` Best-4D + *Gaia* Inference)** | `2` nodes (`72` CPUs) | Queued (`41910483`, `afterok` Step 5) | `~10 – 14 h` |
+| **V2 Step 7 (`GCN_V2` 5D & Best-4D + *Gaia* Inference)** | `2` nodes (`72` CPUs) | Queued (`41910484`, `afterok` Step 6) | `~15 – 25 h` |
 
 ---
 

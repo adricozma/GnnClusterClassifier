@@ -256,8 +256,8 @@ def discover_study2_logs():
     return entries
 
 
-def update_live_plots_for_log(log_path):
-    """Update both the per-experiment live training plot (PNG + HTML) and the master Study 2 live dashboard PNG."""
+def update_live_plots_for_log(log_path, update_master=True):
+    """Update both the per-experiment live training plot (PNG + HTML) and optionally the master Study 2 live dashboard PNG."""
     if not log_path or not os.path.exists(log_path):
         return None
 
@@ -397,28 +397,38 @@ def update_live_plots_for_log(log_path):
     plt.savefig(out_exp_png)
     plt.close(fig)
 
-    # Automatically refresh the RMT candle singular value spectrum if best V1 weights exist in exp_dir
+    # Refresh the RMT candle singular value spectrum only if missing or older than the checkpoint
     if not is_v2_exp:
         try:
-            try:
-                from scripts.generate_study2_figures import plot_spectral_analysis
-            except ImportError:
-                from generate_study2_figures import plot_spectral_analysis
             gcn_w = sorted(glob.glob(os.path.join(exp_dir, "best_gcn*.pth")))
             gat_w = sorted(glob.glob(os.path.join(exp_dir, "best_gat*.pth")))
             if gcn_w or gat_w:
-                in_ch = 4 if "4obs_" in exp_tag else 5
-                plot_spectral_analysis(
-                    gcn_w[0] if gcn_w else "",
-                    gat_w[0] if gat_w else "",
-                    exp_dir,
-                    exp_tag,
-                    in_channels=in_ch,
+                svd_png = os.path.join(exp_dir, f"spectral_analysis_GNN_{exp_tag}.png")
+                svd_html = os.path.join(exp_dir, f"spectral_analysis_GNN_{exp_tag}.html")
+                latest_w_mtime = max(os.path.getmtime(p) for p in (gcn_w[:1] + gat_w[:1]))
+                needs_svd = (
+                    not os.path.isfile(svd_png)
+                    or not os.path.isfile(svd_html)
+                    or os.path.getmtime(svd_png) < latest_w_mtime
                 )
+                if needs_svd:
+                    try:
+                        from scripts.generate_study2_figures import plot_spectral_analysis
+                    except ImportError:
+                        from generate_study2_figures import plot_spectral_analysis
+                    in_ch = 4 if "4obs_" in exp_tag else 5
+                    plot_spectral_analysis(
+                        gcn_w[0] if gcn_w else "",
+                        gat_w[0] if gat_w else "",
+                        exp_dir,
+                        exp_tag,
+                        in_channels=in_ch,
+                    )
         except Exception:
             pass
 
-    update_master_study2_live_plot()
+    if update_master:
+        update_master_study2_live_plot()
     return out_exp_png
 
 

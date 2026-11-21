@@ -326,7 +326,7 @@ def collect_pipeline_progress():
         if not d["epochs"]:
             continue
         try:
-            update_live_plots_for_log(lg)
+            update_live_plots_for_log(lg, update_master=False)
         except Exception:
             pass
 
@@ -792,7 +792,14 @@ def write_master_html_index(report, prog):
             return f"{v2_base_prefix}{rel_within_study2_v2}"
 
         rows_html = []
-        for row in prog.get("training_rows", []):
+        filtered_rows = [
+            row for row in prog.get("training_rows", [])
+            if row[0] not in SUPERSEDED_V1_NOISY_EXPS
+        ]
+        filtered_rows.sort(
+            key=lambda r: (0 if (str(r[0]).startswith("v2/") or "_V2" in str(r[1])) else 1, _v1_row_sort_key(r))
+        )
+        for row in filtered_rows:
             if len(row) == 11:
                 exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, core_str, test_str, f1_str = row
             else:
@@ -1042,8 +1049,8 @@ def write_master_html_index(report, prog):
         else:
             v2_blocks.append(
                 "<div class='exp-block pending-block'>"
-                "<h3>Study 2 V2 — Domaine Réel Gaia DR3 (En file d'attente SLURM : Jobs 41185009–41185012)</h3>"
-                "<p class='subtitle'>Cette section se remplira automatiquement dès le démarrage des entraînements V2 (Génération covariances Gaia DR3, Graphes à échelle physique préservée, GAT_V2/GCN_V2 3 classes : Bound Core / Potential Escaper / Unbound).</p>"
+                "<h3>Study 2 V2 — Domaine Réel Gaia DR3 (Chaîne SLURM active : Steps 3→7)</h3>"
+                "<p class='subtitle'>Cette section se remplira automatiquement dès le démarrage des entraînements V2 (Erreurs Lindegren DR3 par étoile, graphes 2D-sky k=32 à échelle physique, contaminants Voie Lactée, GAT_V2 et GCN_V2 3 classes : Bound Core / Potential Escaper / Unbound).</p>"
                 "</div>"
             )
         v2_section_html = "\n".join(v2_blocks)
@@ -1432,17 +1439,8 @@ def auto_push_to_github():
                 return
             try:
                 candidate_paths = [
-                    ".gitignore",
-                    ".gitattributes",
                     "index.html",
-                    "README.md",
                     "LIVE_STATUS.md",
-                    "REPO_MAP.md",
-                    "src/",
-                    "scripts/",
-                    "slurm/",
-                    "tests/",
-                    "assets/figures/",
                     "GNN-jed/trained_models/study2/",
                     "GNN-jed/trained_models/study2_v2/",
                 ]
@@ -1622,73 +1620,6 @@ def main():
             _save_uploaded_plots(uploaded_plots)
 
         if args.once:
-            try:
-                import signal
-                ppid = os.getppid()
-                cmdline_file = f"/proc/{ppid}/cmdline"
-                marker_file = os.path.join(
-                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "clean_5obs", ".gcn_ep25_transition_done"
-                )
-                gcn_clean_log = os.path.join(
-                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "clean_5obs", "training_metrics_gcn_clean.log"
-                )
-                if os.path.exists(cmdline_file) and not os.path.exists(marker_file):
-                    with open(cmdline_file, "rb") as cf:
-                        cmd_str = cf.read().decode("utf-8", errors="ignore")
-                    if "train_gcn.py" in cmd_str and os.path.exists(gcn_clean_log):
-                        d_gcn = parse_log_file(gcn_clean_log)
-                        if d_gcn["epochs"] and d_gcn["epochs"][-1] >= 25 and d_gcn["test_acc"] is None:
-                            with open(marker_file, "w", encoding="utf-8") as mf:
-                                mf.write("triggered\n")
-                            time.sleep(2.5)
-                            os.kill(ppid, signal.SIGTERM)
-
-                # Hot-reload transition for active 4obs_no_RA_clean if it started before the dropout=0.25 & feature_indices=1,2,3,4 fix
-                ablation0_marker = os.path.join(
-                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "4obs_no_RA_clean", ".ablation0_ep18_reload_done"
-                )
-                ablation0_log = os.path.join(
-                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "4obs_no_RA_clean", "training_metrics_gat_4obs_no_RA_clean.log"
-                )
-                if os.path.exists(cmdline_file) and not os.path.exists(ablation0_marker):
-                    with open(cmdline_file, "rb") as cf:
-                        cmd_str = cf.read().decode("utf-8", errors="ignore")
-                    if "train_gat.py" in cmd_str and "4obs_no_RA_clean" in cmd_str and os.path.exists(ablation0_log):
-                        with open(ablation0_log, "r", encoding="utf-8", errors="ignore") as lf:
-                            log_head = lf.read(512)
-                        if "dropout=0.4" in log_head:
-                            with open(ablation0_marker, "w", encoding="utf-8") as mf:
-                                mf.write("triggered\n")
-                            for stale_f in (
-                                os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2", "4obs_no_RA_clean", "last_gat_4obs_no_RA_clean.pth"),
-                                os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2", "4obs_no_RA_clean", "best_gat_4obs_no_RA_clean.pth"),
-                                ablation0_log,
-                            ):
-                                try:
-                                    if os.path.exists(stale_f):
-                                        os.remove(stale_f)
-                                except OSError:
-                                    pass
-                            time.sleep(2.0)
-                            os.kill(ppid, signal.SIGTERM)
-                # Fast-reload transition for active 4obs_no_RA_clean if stuck in micro_bs=8 / force_disk_offload after Epoch 13
-                fast_reload_marker = os.path.join(
-                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "4obs_no_RA_clean", ".ablation0_ep13_fast_reload_done"
-                )
-                resume_pt = os.path.join(
-                    ROOT_DIR, "GNN-jed", "trained_models", "study2", "4obs_no_RA_clean", "best_gat_4obs_no_RA_clean_resume_state.pt"
-                )
-                if os.path.exists(cmdline_file) and not os.path.exists(fast_reload_marker):
-                    with open(cmdline_file, "rb") as cf:
-                        cmd_str = cf.read().decode("utf-8", errors="ignore").replace("\x00", " ")
-                    if "train_gat.py" in cmd_str and "4obs_no_RA_clean" in cmd_str and ("--force_disk_offload" in cmd_str or "--micro_bs 8" in cmd_str):
-                        if os.path.exists(resume_pt):
-                            with open(fast_reload_marker, "w", encoding="utf-8") as mf:
-                                mf.write("triggered_fast_reload\n")
-                            time.sleep(2.0)
-                            os.kill(ppid, signal.SIGTERM)
-            except Exception:
-                pass
             break
         time.sleep(args.interval)
 
