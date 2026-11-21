@@ -68,8 +68,9 @@ def sample_cluster_abs_magnitudes_g(
     Combines:
     - Main-sequence stars (0.15-0.84 M_sun) drawn from a Kroupa (2001) broken
       power-law IMF (alpha1 = 1.3 for m < 0.5, alpha2 = 2.3 for m >= 0.5),
-      mapped onto an old halo main-sequence M_G(m) relation (4.2 <= M_G <= 10.0).
-    - Turnoff, subgiant, and RGB stars spanning M_G in [-0.6, 4.2] drawn from a
+      mapped onto an old halo main-sequence M_G(m) relation (4.0 <= M_G <= 10.8).
+    - Turnoff, subgiant, and RGB stars spanning M_G in [-2.4, 4.2] (clipped to
+      [-2.5, 4.2] down to the metal-poor TRGB) drawn from an exponential
       luminosity function weighted toward the turnoff/lower-RGB.
 
     Parameters

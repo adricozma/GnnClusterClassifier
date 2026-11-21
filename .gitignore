@@ -39,6 +39,8 @@ GNN-jed/graph_data_clean/
 GNN-jed/graph_data_noisy/
 GNN-jed/trained_models/graphs/
 *.pt
+GNN-jed/trained_models/**/last_*.pth
+GNN-jed/trained_models/**/latest_v2_ckpt.pth
 
 # Heavy bulk plot/video directories (keep final paper plots in GNN-jed/trained_models/)
 plots/

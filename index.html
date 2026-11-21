@@ -229,7 +229,7 @@
   <header>
     <div class="header-top">
       <h1>Study 2 — Index des Entraînements & Analyses GNN (GAT vs GCN)</h1>
-      <span class="timestamp">Dernière mise à jour : 2026-11-21 13:49:14</span>
+      <span class="timestamp">Dernière mise à jour : 2026-11-21 14:02:51</span>
     </div>
     <div class="nav-tabs">
       <button class="tab-btn active" onclick="switchTab('tab-overview', this)">Vue Globale & Spectres RMT</button>
@@ -331,7 +331,7 @@
 
     <!-- TAB 5: STUDY 2 V2 -->
     <section id="tab-v2" class="tab-section">
-      <div class='exp-block'><h3>Avancement Pipeline Study 2 V2 (Domaine Réel Gaia DR3 — 3 Classes)</h3><p class='subtitle'>Observables &amp; Contaminants : <strong>81/81</strong> | Graphes Clean : <strong>0/81</strong> | Graphes Gaia Noisy : <strong>0/81</strong> | CSVs d'inférence Gaia DR3 : <strong>0</strong></p></div>
+      <div class='exp-block'><h3>Avancement Pipeline Study 2 V2 (Domaine Réel Gaia DR3 — 3 Classes)</h3><p class='subtitle'>Observables &amp; Contaminants : <strong>81/81</strong> | Graphes Clean : <strong>81/81</strong> | Graphes Gaia Noisy : <strong>81/81</strong> | CSVs d'inférence Gaia DR3 : <strong>0</strong></p></div>
 <div class='exp-block pending-block'><h3>Study 2 V2 — Domaine Réel Gaia DR3 (En file d'attente SLURM : Jobs 41185009–41185012)</h3><p class='subtitle'>Cette section se remplira automatiquement dès le démarrage des entraînements V2 (Génération covariances Gaia DR3, Graphes à échelle physique préservée, GAT_V2/GCN_V2 3 classes : Bound Core / Potential Escaper / Unbound).</p></div>
     </section>
 
@@ -358,13 +358,13 @@
         </tbody>
       </table>
       <h2>État du Pipeline & Queue SLURM sur Jed</h2>
-      <pre class="status-box">[2026-11-21 13:49:13] Study 2 Pipeline Status on Jed
+      <pre class="status-box">[2026-11-21 14:02:50] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (V1 Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
 - Step 4 (V1 5D Graphs): Clean=81/81 | GaiaNoisy=81/81
 - V2 Step 3 (Obs + Gaia DR3 + Contaminants): 81 / 81 completed
-- V2 Step 4 (Sky-kNN Graphs): Clean=0/81 | GaiaNoisy=0/81
+- V2 Step 4 (Sky-kNN Graphs): Clean=81/81 | GaiaNoisy=81/81
 - V2 Inference CSVs: 0 file(s) in GNN-jed/trained_models/study2_v2/inference/
 - Step 5/6/7 Live GNN Training Progress (V1 & V2):
   * 4obs_no_Dec_clean (GAT): Ep 020 | Train 0.1343 (94.71%) | Val 0.1872 (92.67%, Best=92.78%) | CoreFNR: 6.17% (min=5.48%) | Test=91.48%
@@ -386,14 +386,7 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
       41910484   academic Study2V2_Step7_TrainGC   PD       0:00      2 (Dependency)
       41910483   academic  Study2V2_Step6_Best4D   PD       0:00      2 (Dependency)
       41910482   academic Study2V2_Step5_Train5D   PD       0:00      2 (Dependency)
-      41910481   academic Study2V2_Step4_BuildGr   PD       0:00      1 (Dependency)
-   41910480_75   academic Study2V2_Step3_Extract    R       0:19      1 jst318
-   41910480_76   academic Study2V2_Step3_Extract    R       0:19      1 jst320
-   41910480_77   academic Study2V2_Step3_Extract    R       0:19      1 jst048
-   41910480_78   academic Study2V2_Step3_Extract    R       0:19      1 jst049
-   41910480_79   academic Study2V2_Step3_Extract    R       0:19      1 jst049
-   41910480_80   academic Study2V2_Step3_Extract    R       0:19      1 jst051
-   41910480_60   academic Study2V2_Step3_Extract    R       3:19      1 jst053</pre>
+      41910481   academic Study2V2_Step4_BuildGr    R      10:02      1 jst049</pre>
     </section>
   </main>
 

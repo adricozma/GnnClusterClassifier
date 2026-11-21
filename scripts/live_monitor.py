@@ -24,6 +24,7 @@ for _p in (ROOT_DIR, os.path.join(ROOT_DIR, "scripts")):
         sys.path.insert(0, _p)
 
 from live_plot_utils import (
+    SUPERSEDED_V1_NOISY_EXPS,
     V2_EPOCH_LINE_RE,
     discover_study2_logs,
     parse_log_file,
@@ -119,7 +120,7 @@ def get_in_flight_training_progress():
             is_v2 = fname.startswith("v2_") or any(
                 tok in ln
                 for ln in lines
-                for tok in ("v2_train_gat.py", "v2_train_gcn.py", "GAT_V2", "GCN_V2", "study2_v2", "Study 2 V2")
+                for tok in ("v2_train_gat.py", "GAT_V2", "GCN_V2", "study2_v2", "Study 2 V2")
             )
             exp_tag = "v2/clean_5obs" if is_v2 else "clean_5obs"
             arch_base = "GAT"
@@ -145,10 +146,24 @@ def get_in_flight_training_progress():
                 elif "Step 6B" in ln:
                     m_b4 = re.search(r"Best-4D\s*\(([A-Za-z0-9_]+)\)", ln)
                     exp_tag = f"v2/{m_b4.group(1)}_noisy" if m_b4 else "v2/best_4d_noisy"
-
-                if any(tok in ln for tok in ("v2_train_gcn.py", "train_gcn.py", "[GCN]", "GCN_V2")) or "--arch gcn" in ln.lower():
+                elif "Step 7A" in ln:
+                    exp_tag = "v2/clean_5obs_gcn"
                     arch_base = "GCN"
-                elif any(tok in ln for tok in ("v2_train_gat.py", "train_gat.py", "[GAT]", "GAT_V2")):
+                elif "Step 7B" in ln:
+                    exp_tag = "v2/noisy_5obs_gcn"
+                    arch_base = "GCN"
+                elif "Step 7C" in ln:
+                    m_b4 = re.search(r"Best-4D\s*\(([A-Za-z0-9_]+)\)", ln)
+                    exp_tag = f"v2/{m_b4.group(1)}_gcn_clean" if m_b4 else "v2/best_4d_gcn_clean"
+                    arch_base = "GCN"
+                elif "Step 7D" in ln:
+                    m_b4 = re.search(r"Best-4D\s*\(([A-Za-z0-9_]+)\)", ln)
+                    exp_tag = f"v2/{m_b4.group(1)}_gcn_noisy" if m_b4 else "v2/best_4d_gcn_noisy"
+                    arch_base = "GCN"
+
+                if any(tok in ln for tok in ("train_gcn.py", "[GCN]", "GCN_V2")) or "--arch gcn" in ln.lower():
+                    arch_base = "GCN"
+                elif any(tok in ln for tok in ("v2_train_gat.py", "train_gat.py", "[GAT]", "GAT_V2")) and "--arch gcn" not in ln.lower():
                     arch_base = "GAT"
 
             arch_lbl = f"{arch_base}_V2" if is_v2 else arch_base
@@ -438,21 +453,60 @@ def collect_pipeline_progress():
     }
 
 
+def _v1_row_sort_key(row):
+    """Order V1 training rows logically: 5D Clean (GAT, GCN), 5D Noisy, Best 4D Noisy, 4D Clean, Superseded."""
+    exp_name = row[0]
+    arch = row[1]
+    priority = {
+        ("clean_5obs", "GAT"): 0,
+        ("clean_5obs", "GCN"): 1,
+        ("noisy_5obs", "GAT"): 2,
+        ("4obs_no_Parallax_noisy", "GAT"): 3,
+        ("4obs_no_pmRA_clean", "GAT"): 4,
+        ("4obs_no_pmDec_clean", "GAT"): 5,
+        ("4obs_no_Dec_clean", "GAT"): 6,
+        ("4obs_no_Parallax_clean", "GAT"): 7,
+        ("4obs_no_RA_clean", "GAT"): 8,
+        ("4obs_no_pmDec_noisy", "GAT"): 9,
+        ("4obs_no_pmRA_noisy", "GAT"): 10,
+        ("4obs_no_RA_noisy", "GAT"): 11,
+    }
+    return (priority.get((exp_name, arch), 50), exp_name, arch)
+
+
+def _format_v1_table_row(row):
+    if len(row) == 11:
+        exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, core_str, test_str, f1_str = row
+    else:
+        exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, test_str, f1_str = row
+        core_str = "-"
+    tr_l_s = f"{tr_l:.4f}" if isinstance(tr_l, (int, float)) else str(tr_l)
+    tr_a_s = f"{tr_a:.2f}%" if isinstance(tr_a, (int, float)) else str(tr_a)
+    va_l_s = f"{va_l:.4f}" if isinstance(va_l, (int, float)) else str(va_l)
+    va_a_s = f"{va_a:.2f}%" if isinstance(va_a, (int, float)) else str(va_a)
+    best_va_s = f"**{best_va:.2f}%**" if isinstance(best_va, (int, float)) else str(best_va)
+    exp_display = f"`{exp_name}` *(V2 Best-4D)*" if exp_name == "4obs_no_Parallax_noisy" else f"`{exp_name}`"
+    return (
+        f"| {exp_display} | **{model_name}** | {ep} | {tr_l_s} | {tr_a_s} | "
+        f"{va_l_s} | {va_a_s} | {best_va_s} | {core_str} | **{test_str}** | {f1_str} |"
+    )
+
+
 def format_status_report(squeue_str, prog):
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
         f"[{now_str}] Study 2 Pipeline Status on Jed",
-        f"- Step 1 (Plummer ICs): {prog['n_ics']} / 81 ready",
-        f"- Step 2 (SWIFT Runs): {prog['n_swift_done']} / 81 completed (101 snapshots)",
-        f"- Step 3 (V1 Observables): Labels={prog['n_labels']}/81 | Clean={prog['n_obs_clean']}/81 | GaiaNoisy={prog['n_obs_noisy']}/81",
-        f"- Step 4 (V1 5D Graphs): Clean={prog['n_graphs_clean']}/81 | GaiaNoisy={prog['n_graphs_noisy']}/81",
-        f"- V2 Step 3 (Obs + Gaia DR3 + Contaminants): {prog['n_v2_obs']} / 81 completed",
-        f"- V2 Step 4 (Sky-kNN Graphs): Clean={prog['n_v2_graphs_clean']}/81 | GaiaNoisy={prog['n_v2_graphs_noisy']}/81",
-        f"- V2 Inference CSVs: {prog['n_v2_infer_csvs']} file(s) in GNN-jed/trained_models/study2_v2/inference/",
+        f"- Base SWIFT N-body (reused by V1 & V2): ICs={prog['n_ics']}/81 | SWIFT={prog['n_swift_done']}/81 (101 snapshots)",
+        f"- Study 2 V1 (Completed): Obs={prog['n_obs_clean']}/81 | 5D Graphs={prog['n_graphs_clean']}/81 | Best 5D Clean GAT=93.04% | Best 4D Noisy=4obs_no_Parallax (86.72%, F1=0.8281)",
+        f"- Study 2 V2 (Active Gaia DR3): Obs={prog['n_v2_obs']}/81 | Sky-kNN Clean={prog['n_v2_graphs_clean']}/81 | Sky-kNN Noisy={prog['n_v2_graphs_noisy']}/81 | Inference CSVs={prog['n_v2_infer_csvs']}",
     ]
-    if prog["latest_epochs"]:
-        lines.append("- Step 5/6/7 Live GNN Training Progress (V1 & V2):")
-        for le in prog["latest_epochs"]:
+    active_lines = [
+        le for le in prog["latest_epochs"]
+        if le.startswith("[IN FLIGHT]") or le.startswith("v2/") or "_V2" in le
+    ]
+    if active_lines:
+        lines.append("- Active V2 / In-Flight Training:")
+        for le in active_lines:
             lines.append(f"  * {le}")
     if prog.get("saved_weights"):
         lines.append(f"- Saved Model Checkpoints (.pth): {len(prog['saved_weights'])} mirrored in weights/")
@@ -462,7 +516,7 @@ def format_status_report(squeue_str, prog):
 
 
 def write_live_status_markdown(report, prog):
-    """Write LIVE_STATUS.md with embedded live training plots and V1/V2 metrics tables."""
+    """Write a clean, scannable LIVE_STATUS.md prioritizing active Study 2 V2 runs and canonical V1 benchmarks."""
     status_md_path = os.path.join(ROOT_DIR, "LIVE_STATUS.md")
     md_lines = [
         "# Live Pipeline Status on Jed",
@@ -470,51 +524,30 @@ def write_live_status_markdown(report, prog):
         "```text",
         report,
         "```",
+        "",
+        "## 1. Study 2 V2 — Real *Gaia* DR3 Domain Adaptation (Active Pipeline)",
+        "",
+        f"- **Observables & MW Contaminants** (`/scratch/cozma/study2_v2/obs_unbiased`): **{prog['n_v2_obs']} / 81** ICs",
+        f"- **2D-Sky $k=32$ Clean Graphs** (`/scratch/cozma/study2_v2/graphs_clean`): **{prog['n_v2_graphs_clean']} / 81** ICs",
+        f"- **2D-Sky $k=32$ Noisy Graphs** (`/scratch/cozma/study2_v2/graphs_noisy`): **{prog['n_v2_graphs_noisy']} / 81** ICs",
+        f"- **Selected Best-4D Subset** (`study2_v2/best_4d_config.json`): `4obs_no_Parallax` (`RA, Dec, pmRA, pmDec`, indices `0,1,3,4`)",
+        f"- ***Gaia* DR3 Inference CSVs** (`GNN-jed/trained_models/study2_v2/inference/`): **{prog['n_v2_infer_csvs']}** file(s)",
     ]
-
-    if prog["training_rows"]:
-        md_lines.extend([
-            "",
-            "## Live Neural Network Training Metrics",
-            "",
-            "| Experiment | Architecture | Latest Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Best Val Acc | Core FNR | Test Acc | Test F1 |",
-            "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
-        ])
-        for row in prog["training_rows"]:
-            if len(row) == 11:
-                exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, core_str, test_str, f1_str = row
-            else:
-                exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, test_str, f1_str = row
-                core_str = "-"
-            tr_l_s = f"{tr_l:.4f}" if isinstance(tr_l, (int, float)) else str(tr_l)
-            tr_a_s = f"{tr_a:.2f}%" if isinstance(tr_a, (int, float)) else str(tr_a)
-            va_l_s = f"{va_l:.4f}" if isinstance(va_l, (int, float)) else str(va_l)
-            va_a_s = f"{va_a:.2f}%" if isinstance(va_a, (int, float)) else str(va_a)
-            best_va_s = f"**{best_va:.2f}%**" if isinstance(best_va, (int, float)) else str(best_va)
-            md_lines.append(
-                f"| `{exp_name}` | **{model_name}** | {ep} | {tr_l_s} | {tr_a_s} | {va_l_s} | {va_a_s} | {best_va_s} | {core_str} | **{test_str}** | {f1_str} |"
-            )
-
-    md_lines.extend([
-        "",
-        "## Study 2 V2 — Real Gaia DR3 Domain Adaptation",
-        "",
-        f"- **Observables & Contaminants** (`/scratch/cozma/study2_v2/obs_unbiased`): **{prog['n_v2_obs']} / 81** ICs completed",
-        f"- **Sky-kNN Clean Graphs** (`/scratch/cozma/study2_v2/graphs_clean`): **{prog['n_v2_graphs_clean']} / 81** ICs completed",
-        f"- **Sky-kNN Noisy Graphs** (`/scratch/cozma/study2_v2/graphs_noisy`): **{prog['n_v2_graphs_noisy']} / 81** ICs completed",
-        f"- **Gaia DR3 Inference CSVs** (`GNN-jed/trained_models/study2_v2/inference/`): **{prog['n_v2_infer_csvs']}** file(s)",
-    ])
     if prog.get("v2_inference_csvs"):
         for csv_rel in prog["v2_inference_csvs"]:
             md_lines.append(f"  - `{csv_rel}`")
 
-    if prog.get("v2_training_rows"):
+    v2_in_flight_rows = [
+        row for row in prog.get("training_rows", [])
+        if "In Flight" in str(row[1]) and (str(row[0]).startswith("v2/") or "_V2" in str(row[1]))
+    ]
+    if prog.get("v2_training_rows") or v2_in_flight_rows:
         md_lines.extend([
             "",
             "| V2 Experiment | Architecture | Epoch | TrLoss | TrAcc | VaLoss | VaAcc | BoundF1 | PE_Rec | CoreFNR | FieldFPR | Test Acc | Test MacroF1 |",
             "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
         ])
-        for vr in prog["v2_training_rows"]:
+        for vr in prog.get("v2_training_rows", []):
             bf1_s = f"{vr['test_bound_f1']:.4f}" if vr["test_bound_f1"] is not None else (f"{vr['va_bound_f1']:.4f} (val)" if vr["va_bound_f1"] is not None else "-")
             pe_s = f"{vr['test_pe_rec']:.2f}%" if vr["test_pe_rec"] is not None else (f"{vr['va_pe_rec']:.2f}% (val)" if vr["va_pe_rec"] is not None else "-")
             cfnr_s = f"{vr['test_core_fnr']:.2f}%" if vr["test_core_fnr"] is not None else (f"{vr['va_core_fnr']:.2f}% (val)" if vr["va_core_fnr"] is not None else "-")
@@ -525,47 +558,125 @@ def write_live_status_markdown(report, prog):
                 f"| `{vr['exp_key']}` | **{vr['arch']}** | {vr['ep']} | {vr['tr_loss']:.4f} | {vr['tr_acc']:.2f}% | "
                 f"{vr['va_loss']:.4f} | {vr['va_acc']:.2f}% | {bf1_s} | {pe_s} | {cfnr_s} | {ffpr_s} | {te_acc_s} | {te_mf1_s} |"
             )
+        for row in v2_in_flight_rows:
+            exp_name, model_name, ep, tr_l = row[0], row[1], row[2], row[3]
+            tr_l_s = f"{tr_l:.4f}" if isinstance(tr_l, (int, float)) else str(tr_l)
+            md_lines.append(
+                f"| `{exp_name}` | **{model_name}** | {ep} | {tr_l_s} | - | - | - | - | - | - | - | **In progress** | - |"
+            )
+
+    # Partition V1 rows into canonical benchmarks vs superseded non-winning 4D noisy ablations
+    v1_rows = [
+        row for row in prog.get("training_rows", [])
+        if not str(row[0]).startswith("v2/") and "_V2" not in str(row[1])
+    ]
+    v1_primary = sorted(
+        [r for r in v1_rows if r[0] not in SUPERSEDED_V1_NOISY_EXPS],
+        key=_v1_row_sort_key,
+    )
+    v1_superseded = sorted(
+        [r for r in v1_rows if r[0] in SUPERSEDED_V1_NOISY_EXPS],
+        key=_v1_row_sort_key,
+    )
+
+    if v1_primary:
+        md_lines.extend([
+            "",
+            "## 2. Study 2 V1 — Canonical Benchmarks & Clean 4D Ablations (Completed)",
+            "",
+            "| Experiment | Architecture | Latest Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Best Val Acc | Core FNR | Test Acc | Test F1 |",
+            "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
+        ])
+        for row in v1_primary:
+            md_lines.append(_format_v1_table_row(row))
+
+    master_plot_rel = "GNN-jed/trained_models/study2/latest_live_training.png"
+    if os.path.exists(os.path.join(ROOT_DIR, master_plot_rel)):
+        md_lines.extend([
+            "",
+            "## 3. Real-Time GNN Learning Curves (V2 + Canonical V1)",
+            "",
+            f"![Live GNN Training Curves]({master_plot_rel})",
+        ])
+
+    # Inline only canonical 5D + active V2 RMT spectra; collapse 4D ablation spectra to keep LIVE_STATUS scannable
+    primary_svd_plots = []
+    ablation_svd_plots = []
+    for base_rel in ("study2_v2", "study2"):
+        base_p = os.path.join(ROOT_DIR, "GNN-jed", "trained_models", base_rel)
+        if not os.path.isdir(base_p):
+            continue
+        for svd_p in sorted(glob.glob(os.path.join(base_p, "**", "spectral_analysis_GNN_*.png"), recursive=True)):
+            if "/legacy/" in svd_p.replace("\\", "/"):
+                continue
+            exp_folder = os.path.basename(os.path.dirname(svd_p))
+            if base_rel == "study2" and exp_folder in SUPERSEDED_V1_NOISY_EXPS:
+                continue
+            if base_rel == "study2_v2" or exp_folder in ("clean_5obs", "noisy_5obs"):
+                primary_svd_plots.append((base_rel, exp_folder, os.path.relpath(svd_p, ROOT_DIR)))
+            else:
+                ablation_svd_plots.append((base_rel, exp_folder, os.path.relpath(svd_p, ROOT_DIR)))
+
+    if primary_svd_plots:
+        md_lines.extend([
+            "",
+            "## 4. Key RMT Singular Value Candle Spectra (Canonical 5D & V2)",
+            "",
+        ])
+        for base_rel, exp_folder, rel_svd in primary_svd_plots:
+            label = f"v2/{exp_folder}" if base_rel == "study2_v2" else exp_folder
+            md_lines.extend([
+                f"### `{label}`",
+                f"![RMT Candle Spectrum {label}]({rel_svd})",
+                "",
+            ])
+
+    md_lines.extend([
+        "---",
+        "",
+        "## 5. Reference Archives (Collapsed)",
+    ])
+
+    if v1_superseded:
+        md_lines.extend([
+            "",
+            "<details>",
+            "<summary>Superseded V1 4D Noisy Ablations (not used in V2; <code>4obs_no_Dec_noisy</code> skipped)</summary>",
+            "",
+            "| Experiment | Architecture | Latest Epoch | Train Loss | Train Acc | Val Loss | Val Acc | Best Val Acc | Core FNR | Test Acc | Test F1 |",
+            "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
+        ])
+        for row in v1_superseded:
+            md_lines.append(_format_v1_table_row(row))
+        md_lines.extend(["", "</details>"])
 
     if prog.get("saved_weights"):
         md_lines.extend([
             "",
-            "## Saved Model Weights (`.pth` Checkpoints)",
+            "<details>",
+            f"<summary>Saved Model Weights ({len(prog['saved_weights'])} <code>.pth</code> checkpoints)</summary>",
             "",
             "| Checkpoint | Size | Experiment Path | Central Archive Mirror |",
             "| :--- | :---: | :--- | :--- |",
         ])
         for fname, rel_pth, rel_central, size_kb in prog["saved_weights"]:
             md_lines.append(f"| `{fname}` | {size_kb:.1f} KB | `{rel_pth}` | `{rel_central}` |")
+        md_lines.extend(["", "</details>"])
 
-    master_plot_rel = "GNN-jed/trained_models/study2/latest_live_training.png"
-    if os.path.exists(os.path.join(ROOT_DIR, master_plot_rel)):
+    if ablation_svd_plots:
         md_lines.extend([
             "",
-            "## Real-Time GNN Learning Curves (Loss & Accuracy Evolution)",
-            "",
-            f"![Live GNN Training Curves]({master_plot_rel})",
-        ])
-
-    svd_plots = []
-    for base_rel in ("study2", "study2_v2"):
-        base_p = os.path.join(ROOT_DIR, "GNN-jed", "trained_models", base_rel)
-        if os.path.isdir(base_p):
-            svd_plots.extend(glob.glob(os.path.join(base_p, "**", "spectral_analysis_GNN_*.png"), recursive=True))
-    svd_plots = sorted(svd_plots)
-    if svd_plots:
-        md_lines.extend([
-            "",
-            "## RMT Singular Value Candle Spectra (Marchenko-Pastur Bulk vs Detached Signal)",
+            "<details>",
+            f"<summary>V1 4D Ablation RMT Candle Spectra ({len(ablation_svd_plots)} figures)</summary>",
             "",
         ])
-        for svd_p in svd_plots:
-            rel_svd = os.path.relpath(svd_p, ROOT_DIR)
-            exp_folder = os.path.basename(os.path.dirname(svd_p))
+        for _, exp_folder, rel_svd in ablation_svd_plots:
             md_lines.extend([
                 f"### `{exp_folder}`",
                 f"![RMT Candle Spectrum {exp_folder}]({rel_svd})",
                 "",
             ])
+        md_lines.append("</details>")
 
     with open(status_md_path, "w", encoding="utf-8") as f:
         f.write("\n".join(md_lines) + "\n")
@@ -573,6 +684,15 @@ def write_live_status_markdown(report, prog):
         write_master_html_index(report, prog)
     except Exception:
         pass
+
+
+def _js_escape(s: str) -> str:
+    """Escape a Python string for safe interpolation inside single-quoted JS inside double-quoted HTML onclick."""
+    return (
+        s.replace("\\", "\\\\")
+        .replace("'", "\\'")
+        .replace('"', "&quot;")
+    )
 
 
 def _friendly_plot_label(fname: str) -> str:
@@ -641,11 +761,12 @@ def write_master_html_index(report, prog):
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     expected_ablations = [
-        ("4obs_no_RA_clean", "Sans Ascension Droite (α / RA) — Indices [1,2,3,4]"),
-        ("4obs_no_DEC_clean", "Sans Déclinaison (δ / Dec) — Indices [0,2,3,4]"),
-        ("4obs_no_parallax_clean", "Sans Parallaxe (ϖ) — Indices [0,1,3,4]"),
-        ("4obs_no_pmra_clean", "Sans Mouvement Propre μ_α* — Indices [0,1,2,4]"),
-        ("4obs_no_pmdec_clean", "Sans Mouvement Propre μ_δ — Indices [0,1,2,3]"),
+        ("4obs_no_Parallax_noisy", "Vainqueur 4D Bruité Gaia DR3 — Sans Parallaxe (ϖ), Indices [0,1,3,4] (sélectionné pour V2)"),
+        ("4obs_no_pmRA_clean", "Sans Mouvement Propre μ_α* (Clean) — Indices [0,1,2,4]"),
+        ("4obs_no_pmDec_clean", "Sans Mouvement Propre μ_δ (Clean) — Indices [0,1,2,3]"),
+        ("4obs_no_Dec_clean", "Sans Déclinaison δ (Clean) — Indices [0,2,3,4]"),
+        ("4obs_no_Parallax_clean", "Sans Parallaxe ϖ (Clean) — Indices [0,1,3,4]"),
+        ("4obs_no_RA_clean", "Sans Ascension Droite α (Clean) — Indices [1,2,3,4]"),
     ]
 
     all_subdirs = sorted([
@@ -709,6 +830,8 @@ def write_master_html_index(report, prog):
             (study2_v2_dir, _url_v2, d, f"v2/{d}") for d in v2_dedicated_dirs
         ]
         for root_base, url_fn, exp_d, display_d in rmt_sources:
+            if root_base == study2_dir and exp_d in SUPERSEDED_V1_NOISY_EXPS:
+                continue
             svd_png = os.path.join(root_base, exp_d, f"spectral_analysis_GNN_{exp_d}.png")
             svd_html = os.path.join(root_base, exp_d, f"spectral_analysis_GNN_{exp_d}.html")
             live_png = os.path.join(root_base, exp_d, f"live_plots_GNN_{exp_d}.png")
@@ -717,11 +840,11 @@ def write_master_html_index(report, prog):
                 btns = []
                 if os.path.exists(svd_html):
                     u_svd = url_fn(f"{exp_d}/spectral_analysis_GNN_{exp_d}.html")
-                    btns.append(f"<button class='btn-plot' onclick=\"openInViewer('{u_svd}', 'Spectre RMT — {display_d}')\">Spectre RMT Interactif</button>")
+                    btns.append(f"<button class='btn-plot' onclick=\"openInViewer('{_js_escape(u_svd)}', '{_js_escape(f'Spectre RMT — {display_d}')}')\">Spectre RMT Interactif</button>")
                     btns.append(f"<a class='btn-ext' href='{u_svd}' target='_blank'>Nouvel onglet ↗</a>")
                 if os.path.exists(live_html):
                     u_live = url_fn(f"{exp_d}/live_plots_GNN_{exp_d}.html")
-                    btns.append(f"<button class='btn-plot' onclick=\"openInViewer('{u_live}', 'Courbes Loss/Acc — {display_d}')\">Courbes Interactives</button>")
+                    btns.append(f"<button class='btn-plot' onclick=\"openInViewer('{_js_escape(u_live)}', '{_js_escape(f'Courbes Loss/Acc — {display_d}')}')\">Courbes Interactives</button>")
                 imgs_html = ""
                 if os.path.exists(svd_png):
                     u_sp = url_fn(f"{exp_d}/spectral_analysis_GNN_{exp_d}.png")
@@ -774,7 +897,7 @@ def write_master_html_index(report, prog):
                 lbl = _friendly_plot_label(hf)
                 btn_items.append(
                     f"<div class='plot-pill'>"
-                    f"<button class='btn-plot' onclick=\"openInViewer('{u_hf}', '{lbl}')\">{lbl}</button>"
+                    f"<button class='btn-plot' onclick=\"openInViewer('{_js_escape(u_hf)}', '{_js_escape(lbl)}')\">{lbl}</button>"
                     f"<a class='btn-ext' href='{u_hf}' target='_blank' title='Ouvrir dans un nouvel onglet'>↗</a>"
                     f"</div>"
                 )
@@ -792,7 +915,7 @@ def write_master_html_index(report, prog):
                 open_interactive_btn = ""
                 if matching_html in html_files:
                     u_mh = url_fn(f"{exp_d}/{matching_html}")
-                    open_interactive_btn = f"<button class='btn-card-action' onclick=\"openInViewer('{u_mh}', '{lbl}')\">Vue Interactive Plotly</button>"
+                    open_interactive_btn = f"<button class='btn-card-action' onclick=\"openInViewer('{_js_escape(u_mh)}', '{_js_escape(lbl)}')\">Vue Interactive Plotly</button>"
                 png_cards.append(
                     f"<div class='card'>"
                     f"<div class='card-top'><h4>{lbl}</h4>{open_interactive_btn}</div>"

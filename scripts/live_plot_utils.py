@@ -19,6 +19,14 @@ except Exception:
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
+# Superseded V1 4D noisy ablations (not selected for V2; kept in per-experiment dirs, omitted from master overlay)
+SUPERSEDED_V1_NOISY_EXPS = {
+    "4obs_no_RA_noisy",
+    "4obs_no_Dec_noisy",
+    "4obs_no_pmRA_noisy",
+    "4obs_no_pmDec_noisy",
+}
+
 V2_EPOCH_LINE_RE = re.compile(
     r"^\s*(\d+)\s*\|\s*([0-9.]+)\s*\|\s*([0-9.]+)%\s*\|\s*([0-9.]+)\s*\|\s*([0-9.]+)%\s*\|\s*"
     r"([0-9.]+)\s*\|\s*([0-9.]+)%\s*\|\s*([0-9.]+)%\s*\|\s*([0-9.]+)%\s*\|\s*([0-9.eE+-]+)"
@@ -426,20 +434,29 @@ def update_master_study2_live_plot():
 
     parsed_runs = []
     for entry in discovered:
+        if entry["study"] == "v1" and entry["exp_name"] in SUPERSEDED_V1_NOISY_EXPS:
+            continue
         d = parse_log_file(entry["log_path"])
         if d["epochs"]:
             arch_lbl = f"{entry['arch']}_V2" if (d.get("is_v2") and "_V2" not in entry["arch_label"]) else entry["arch_label"]
             label = f"{entry['exp_key']} ({arch_lbl})"
-            parsed_runs.append((label, d))
+            order_key = (
+                0 if entry["study"] == "v2" else (1 if entry["exp_name"] in ("clean_5obs", "noisy_5obs") else (2 if entry["exp_name"] == "4obs_no_Parallax_noisy" else 3)),
+                entry["exp_key"],
+                arch_lbl,
+            )
+            parsed_runs.append((order_key, label, d))
 
     if not parsed_runs:
         return None
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6), dpi=160)
-    cmap = plt.get_cmap("tab10")
+    parsed_runs.sort(key=lambda item: item[0])
 
-    for idx, (label, d) in enumerate(parsed_runs):
-        color = cmap(idx % 10)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6), dpi=160)
+    cmap = plt.get_cmap("tab20")
+
+    for idx, (_, label, d) in enumerate(parsed_runs):
+        color = cmap(idx % 20)
         ep = d["epochs"]
         best_val = max(d["val_acc"])
         min_loss = min(d["val_loss"])
