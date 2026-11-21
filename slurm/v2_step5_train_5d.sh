@@ -77,6 +77,8 @@ run_ddp_with_oom_fallback scripts/v2_train_gat.py 8 \
     --save_model "${OUT_CLEAN}/best_v2_clean_5obs.pth" \
     --log_file "${OUT_CLEAN}/training_metrics_v2_clean_5obs.log"
 
+python3 scripts/live_monitor.py --once || true
+
 echo "=== Study 2 V2 Step 5B: Curriculum Gaia DR3 Noisy 5D GAT_V2 Fine-Tune ==="
 run_ddp_with_oom_fallback scripts/v2_train_gat.py 8 \
     --data_folder "$GRAPH_V2_NOISY" \
@@ -92,5 +94,7 @@ run_ddp_with_oom_fallback scripts/v2_train_gat.py 8 \
     --pretrained_weights "${OUT_CLEAN}/best_v2_clean_5obs.pth" \
     --save_model "${OUT_NOISY}/best_v2_noisy_5obs.pth" \
     --log_file "${OUT_NOISY}/training_metrics_v2_noisy_5obs.log"
+
+python3 scripts/live_monitor.py --once || true
 
 echo "[DONE] V2 Step 5 Clean + Noisy 5D training complete."

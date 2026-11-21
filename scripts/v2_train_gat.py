@@ -17,6 +17,7 @@ from contextlib import nullcontext
 import math
 import os
 import re
+import subprocess
 import sys
 import time
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -36,6 +37,7 @@ for _p in (ROOT_DIR, os.path.join(ROOT_DIR, "src")):
 from gnn_models_v2 import (
     CLASS_NAMES_3WAY,
     GAT_V2,
+    GCN_V2,
     compute_node_relational_features_v2,
     load_pretrained_with_channel_adaptation_v2,
 )
@@ -165,10 +167,15 @@ def compute_empirical_class_weights(
     paths: Sequence[str],
     num_classes: int,
     power: float = 0.5,
+    max_samples: int = 650,
 ) -> torch.Tensor:
-    """Compute smoothed inverse-frequency weights w_c proportional to (N / N_c)^power."""
+    """Compute smoothed inverse-frequency weights w_c proportional to (N / N_c)^power across all ICs."""
     counts = np.zeros(num_classes, dtype=np.float64)
-    sample_paths = paths[: min(len(paths), 200)]
+    if len(paths) > max_samples:
+        indices = np.linspace(0, len(paths) - 1, num=max_samples, dtype=int)
+        sample_paths = [paths[i] for i in indices]
+    else:
+        sample_paths = list(paths)
     for p in sample_paths:
         g = torch.load(p, map_location="cpu", weights_only=False)
         y = g.y.numpy()
@@ -312,8 +319,29 @@ def atomic_torch_save(obj: dict, path: str) -> None:
     os.replace(tmp, path)
 
 
+def trigger_live_monitor_once(disabled: bool = False) -> None:
+    """Invoke `scripts/live_monitor.py --once` non-fatally on rank 0."""
+    if disabled:
+        return
+    monitor_script = os.path.join(ROOT_DIR, "scripts", "live_monitor.py")
+    if not os.path.isfile(monitor_script):
+        return
+    try:
+        subprocess.run(
+            [sys.executable, monitor_script, "--once"],
+            cwd=ROOT_DIR,
+            timeout=90,
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception as exc:
+        print(f"[LiveMonitor] Non-fatal telemetry update failed: {exc}")
+
+
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Train Study 2 V2 GAT_V2 classifier.")
+    p = argparse.ArgumentParser(description="Train Study 2 V2 GAT_V2 / GCN_V2 classifier.")
+    p.add_argument("--arch", type=str, default="gat", choices=["gat", "gcn"])
     p.add_argument("--data_folder", type=str, required=True)
     p.add_argument("--n_rotations", type=int, default=5)
     p.add_argument("--feature_indices", type=str, default="0,1,2,3,4")
@@ -337,6 +365,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--stochastic_rotation", action="store_true", default=True)
     p.add_argument("--no_stochastic_rotation", dest="stochastic_rotation", action="store_false")
     p.add_argument("--force_disk_offload", action="store_true")
+    p.add_argument("--no_live_monitor", action="store_true")
     p.add_argument("--no_resume", dest="resume", action="store_false")
     p.set_defaults(resume=True)
     return p
@@ -374,7 +403,8 @@ def main() -> None:
     val_paths = val_by_rot.get(available_rots[0], sum(val_by_rot.values(), []))
     test_paths = sum(test_by_rot.values(), []) or test_by_rot.get(available_rots[0], [])
 
-    model = GAT_V2(
+    model_cls = GAT_V2 if args.arch == "gat" else GCN_V2
+    model = model_cls(
         in_features=in_features,
         err_features=args.err_features,
         hidden_channels=args.hidden_channels,
@@ -464,7 +494,7 @@ def main() -> None:
         with open(args.log_file, mode_str, encoding="utf-8") as lf:
             if mode_str == "w":
                 lf.write(
-                    f"Study 2 V2 GAT_V2 | features={feat_indices} | num_classes={args.num_classes} | "
+                    f"Study 2 V2 {args.arch.upper()}_V2 | features={feat_indices} | num_classes={args.num_classes} | "
                     f"IC split: {len(train_ics)}/{len(val_ics)}/{len(test_ics)}\n"
                 )
                 lf.write(
@@ -584,9 +614,18 @@ def main() -> None:
         if is_master:
             raw_state = (train_model.module if is_distributed else train_model).state_dict()
             if improved:
-                atomic_torch_save({"model_state": raw_state, "epoch": epoch, "val_loss": va_loss}, args.save_model)
+                atomic_torch_save(
+                    {
+                        "arch": args.arch,
+                        "model_state": raw_state,
+                        "epoch": epoch,
+                        "val_loss": va_loss,
+                    },
+                    args.save_model,
+                )
             atomic_torch_save(
                 {
+                    "arch": args.arch,
                     "model_state": raw_state,
                     "optimizer_state": optimizer.state_dict(),
                     "scheduler_state": scheduler.state_dict(),
@@ -607,6 +646,7 @@ def main() -> None:
             print(line, end="")
             with open(args.log_file, "a", encoding="utf-8") as lf:
                 lf.write(line)
+            trigger_live_monitor_once(disabled=args.no_live_monitor)
 
         if patience_counter >= args.patience:
             if is_master:
@@ -647,6 +687,7 @@ def main() -> None:
         print(te_conf)
         with open(args.log_file, "a", encoding="utf-8") as lf:
             lf.write("\n" + summary_line)
+        trigger_live_monitor_once(disabled=args.no_live_monitor)
 
     if is_distributed:
         dist.destroy_process_group()

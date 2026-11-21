@@ -111,6 +111,9 @@ echo "Queued V2 Step 5 (Train V2 5D Clean/Noisy): $JOB_V2_STEP5 (afterok:${JOB_V
 JOB_V2_STEP6=$(_submit "--dependency=afterok:${JOB_V2_STEP5}" slurm/v2_step6_train_best4d.sh)
 echo "Queued V2 Step 6 (Train V2 Best-4D + Gaia Infer): $JOB_V2_STEP6 (afterok:${JOB_V2_STEP5})"
 
+JOB_V2_STEP7=$(_submit "--dependency=afterok:${JOB_V2_STEP6}" slurm/v2_step7_train_gcn.sh)
+echo "Queued V2 Step 7 (Train V2 GCN Comparison + Gaia Infer): $JOB_V2_STEP7 (afterok:${JOB_V2_STEP6})"
+
 echo "=================================================================="
 echo "All Study 2 V2 pipeline stages queued!"
 echo "Monitor queue with: squeue -u \$USER"

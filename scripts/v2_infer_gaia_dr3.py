@@ -34,7 +34,7 @@ from gaia_v2 import (
     mask_uncertainty_features,
     standardise_matrix_v2,
 )
-from gnn_models_v2 import CLASS_NAMES_3WAY, GAT_V2
+from gnn_models_v2 import CLASS_NAMES_3WAY, GAT_V2, GCN_V2
 from v2_build_graph_dataset import build_sky_knn_edges
 
 
@@ -139,6 +139,22 @@ def parse_gaia_csv(
     return rows, arrays, groups
 
 
+def _detect_arch(ckpt: Any, clean_state: Dict[str, torch.Tensor], arch: str = "auto") -> str:
+    """Resolve V2 architecture (`gat` or `gcn`) explicitly or from checkpoint metadata/keys."""
+    if arch in ("gat", "gcn"):
+        return arch
+    if isinstance(ckpt, dict) and ckpt.get("arch") in ("gat", "gcn"):
+        return str(ckpt["arch"])
+    if any(
+        k.endswith(("att_src", "att_dst", "att_edge", "lin_edge.weight"))
+        for k in clean_state
+    ):
+        return "gat"
+    if any(k.startswith("conv1.") for k in clean_state):
+        return "gcn"
+    return "gat"
+
+
 def load_v2_checkpoint(
     weights_path: str,
     feat_indices: Sequence[int],
@@ -147,8 +163,9 @@ def load_v2_checkpoint(
     out_channels: int = 3,
     edge_dim: int = 3,
     err_features: int = 4,
-) -> GAT_V2:
-    """Instantiate GAT_V2 and load trained weights."""
+    arch: str = "auto",
+) -> torch.nn.Module:
+    """Instantiate GAT_V2 or GCN_V2 and load trained weights."""
     ckpt = torch.load(weights_path, map_location="cpu", weights_only=False)
     state = ckpt["model_state"] if isinstance(ckpt, dict) and "model_state" in ckpt else ckpt
     clean_state = {
@@ -159,7 +176,9 @@ def load_v2_checkpoint(
     if "lin_in.0.weight" in clean_state:
         hidden_channels = int(clean_state["lin_in.0.weight"].shape[0])
 
-    model = GAT_V2(
+    resolved_arch = _detect_arch(ckpt, clean_state, arch=arch)
+    model_cls = GAT_V2 if resolved_arch == "gat" else GCN_V2
+    model = model_cls(
         in_features=len(feat_indices),
         err_features=err_features,
         hidden_channels=hidden_channels,
@@ -176,11 +195,11 @@ def load_v2_checkpoint(
 def infer_group(
     obs_plx: np.ndarray,
     err_raw: np.ndarray,
-    model: GAT_V2,
+    model: torch.nn.Module,
     feat_indices: Sequence[int],
     k_neighbors: int = 32,
 ) -> Optional[np.ndarray]:
-    """Run GAT_V2 inference on one sky group. Returns (N, C) calibrated probabilities or None."""
+    """Run V2 model inference on one sky group. Returns (N, C) calibrated probabilities or None."""
     n_stars = len(obs_plx)
     if n_stars < 2:
         return None
@@ -197,8 +216,9 @@ def infer_group(
             obs_clean[~finite_mask, col] = float(np.median(obs_clean[finite_mask, col]))
 
     x_std, _ = standardise_matrix_v2(obs_clean, ref_scales=REF_SCALES_V2)
+    k_eff = max(min(int(k_neighbors), n_stars - 1), 1)
     edge_idx_np, edge_attr_np = build_sky_knn_edges(
-        x_std[:, :2].astype(np.float64), k_neighbors=min(k_neighbors, n_stars - 1)
+        x_std[:, :2].astype(np.float64), k_neighbors=k_eff
     )
 
     err_feats = encode_uncertainty_features_v2(
@@ -236,6 +256,7 @@ def run_inference(
     group_filter: str = "",
     mode: str = "auto",
     k_neighbors: int = 32,
+    arch: str = "auto",
 ) -> Dict[str, Any]:
     """Execute Study 2 V2 catalog inference and write enriched CSV + JSON summary."""
     rows, arrays, groups = parse_gaia_csv(input_csv, group_col=group_col)
@@ -251,12 +272,12 @@ def run_inference(
         tag_4d = str(cfg.get("best_tag", tag_4d))
 
     model_5d = (
-        load_v2_checkpoint(model_5d_path, [0, 1, 2, 3, 4])
+        load_v2_checkpoint(model_5d_path, [0, 1, 2, 3, 4], arch=arch)
         if (model_5d_path and os.path.isfile(model_5d_path))
         else None
     )
     model_4d = (
-        load_v2_checkpoint(model_4d_path, feat_4d)
+        load_v2_checkpoint(model_4d_path, feat_4d, arch=arch)
         if (model_4d_path and os.path.isfile(model_4d_path))
         else None
     )
@@ -370,7 +391,7 @@ def run_inference(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Apply trained Study 2 V2 GAT_V2 models to Gaia DR3 star catalogs."
+        description="Apply trained Study 2 V2 GAT_V2 / GCN_V2 models to Gaia DR3 star catalogs."
     )
     parser.add_argument("--input_csv", type=str, required=True)
     parser.add_argument("--out_csv", type=str, required=True)
@@ -381,6 +402,7 @@ def main() -> None:
     parser.add_argument("--group_col", type=str, default="Stream_ID")
     parser.add_argument("--group_filter", type=str, default="")
     parser.add_argument("--mode", type=str, default="auto", choices=["auto", "5d", "4d"])
+    parser.add_argument("--arch", type=str, default="auto", choices=["auto", "gat", "gcn"])
     parser.add_argument("--k_neighbors", type=int, default=32)
     args = parser.parse_args()
 
@@ -395,6 +417,7 @@ def main() -> None:
         group_filter=args.group_filter,
         mode=args.mode,
         k_neighbors=args.k_neighbors,
+        arch=args.arch,
     )
     print(
         f"Gaia DR3 V2 inference complete: {summary['total_rows']} stars across "

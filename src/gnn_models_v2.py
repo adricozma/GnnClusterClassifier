@@ -20,7 +20,7 @@ from typing import Dict, Optional, Sequence, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import GATConv
+from torch_geometric.nn import GATConv, GCNConv
 
 
 CLASS_NAMES_3WAY: Tuple[str, str, str] = ("Unbound_Field", "Potential_Escaper", "Bound_Core")
@@ -113,35 +113,24 @@ def compute_node_relational_features_v2(
     return torch.cat(parts, dim=-1)
 
 
-class GAT_V2(nn.Module):
-    """3-layer Multi-Head Residual Graph Attention Network for Gaia DR3 V2 catalogs."""
+class _BaseResidualGNN_V2(nn.Module):
+    """Shared residual relational GNN backbone for Study 2 V2 Gaia DR3 classifiers."""
 
     def __init__(
         self,
         in_features: int = 5,
         err_features: int = 4,
         hidden_channels: int = 64,
-        heads: int = 4,
         out_channels: int = 3,
-        edge_dim: int = 3,
         dropout: float = 0.2,
-        edge_dropout: Optional[float] = None,
     ) -> None:
         super().__init__()
         self.in_features = int(in_features)
         self.err_features = int(err_features)
         self.hidden_channels = int(hidden_channels)
-        self.heads = int(heads)
         self.out_channels = int(out_channels)
-        self.edge_dim = int(edge_dim)
         self.dropout = float(dropout)
-        self.edge_dropout = float(min(self.dropout, 0.15) if edge_dropout is None else edge_dropout)
 
-        if hidden_channels % heads != 0:
-            raise ValueError(
-                f"hidden_channels ({hidden_channels}) must be divisible by heads ({heads})."
-            )
-        head_dim = hidden_channels // heads
         rel_dim = 3 * self.in_features + 3 + self.err_features
         self.rel_dim = rel_dim
 
@@ -151,15 +140,8 @@ class GAT_V2(nn.Module):
             nn.ELU(),
         )
 
-        conv_edge_dim = self.edge_dim if self.edge_dim > 0 else None
-        self.conv1 = GATConv(hidden_channels, head_dim, heads=heads, dropout=self.edge_dropout, edge_dim=conv_edge_dim)
         self.norm1 = nn.LayerNorm(hidden_channels)
-
-        self.conv2 = GATConv(hidden_channels, head_dim, heads=heads, dropout=self.edge_dropout, edge_dim=conv_edge_dim)
         self.norm2 = nn.LayerNorm(hidden_channels)
-
-        # Final message-passing layer: keep attention edge_dropout=0.0 to preserve neighborhood aggregation
-        self.conv3 = GATConv(hidden_channels, head_dim, heads=heads, dropout=0.0, edge_dim=conv_edge_dim)
         self.norm3 = nn.LayerNorm(hidden_channels)
 
         self.head = nn.Sequential(
@@ -169,6 +151,15 @@ class GAT_V2(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(hidden_channels // 2, out_channels),
         )
+
+    def _apply_conv(
+        self,
+        conv: nn.Module,
+        h: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_attr: Optional[torch.Tensor],
+    ) -> torch.Tensor:
+        raise NotImplementedError
 
     def forward(
         self,
@@ -194,20 +185,106 @@ class GAT_V2(nn.Module):
             )
         h = self.lin_in(h)
 
-        conv_attr = edge_attr if (edge_attr is not None and self.edge_dim > 0) else None
         for conv, norm in (
             (self.conv1, self.norm1),
             (self.conv2, self.norm2),
             (self.conv3, self.norm3),
         ):
-            delta = conv(h, edge_index, edge_attr=conv_attr)
+            delta = self._apply_conv(conv, h, edge_index, edge_attr)
             h = h + F.dropout(F.elu(norm(delta)), p=self.dropout, training=self.training)
 
         return self.head(h)
 
 
+class GAT_V2(_BaseResidualGNN_V2):
+    """3-layer Multi-Head Residual Graph Attention Network for Gaia DR3 V2 catalogs."""
+
+    def __init__(
+        self,
+        in_features: int = 5,
+        err_features: int = 4,
+        hidden_channels: int = 64,
+        heads: int = 4,
+        out_channels: int = 3,
+        edge_dim: int = 3,
+        dropout: float = 0.2,
+        edge_dropout: Optional[float] = None,
+    ) -> None:
+        super().__init__(
+            in_features=in_features,
+            err_features=err_features,
+            hidden_channels=hidden_channels,
+            out_channels=out_channels,
+            dropout=dropout,
+        )
+        self.heads = int(heads)
+        self.edge_dim = int(edge_dim)
+        self.edge_dropout = float(min(self.dropout, 0.15) if edge_dropout is None else edge_dropout)
+
+        if hidden_channels % heads != 0:
+            raise ValueError(
+                f"hidden_channels ({hidden_channels}) must be divisible by heads ({heads})."
+            )
+        head_dim = hidden_channels // heads
+        conv_edge_dim = self.edge_dim if self.edge_dim > 0 else None
+
+        self.conv1 = GATConv(hidden_channels, head_dim, heads=heads, dropout=self.edge_dropout, edge_dim=conv_edge_dim)
+        self.conv2 = GATConv(hidden_channels, head_dim, heads=heads, dropout=self.edge_dropout, edge_dim=conv_edge_dim)
+        # Final message-passing layer: keep attention edge_dropout=0.0 to preserve neighborhood aggregation
+        self.conv3 = GATConv(hidden_channels, head_dim, heads=heads, dropout=0.0, edge_dim=conv_edge_dim)
+
+    def _apply_conv(
+        self,
+        conv: nn.Module,
+        h: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_attr: Optional[torch.Tensor],
+    ) -> torch.Tensor:
+        conv_attr = edge_attr if (edge_attr is not None and self.edge_dim > 0) else None
+        return conv(h, edge_index, edge_attr=conv_attr)
+
+
+class GCN_V2(_BaseResidualGNN_V2):
+    """3-layer Residual Graph Convolutional Network with architectural parity to GAT_V2."""
+
+    def __init__(
+        self,
+        in_features: int = 5,
+        err_features: int = 4,
+        hidden_channels: int = 64,
+        heads: int = 4,
+        out_channels: int = 3,
+        edge_dim: int = 3,
+        dropout: float = 0.2,
+        edge_dropout: Optional[float] = None,
+    ) -> None:
+        super().__init__(
+            in_features=in_features,
+            err_features=err_features,
+            hidden_channels=hidden_channels,
+            out_channels=out_channels,
+            dropout=dropout,
+        )
+        self.heads = int(heads)
+        self.edge_dim = int(edge_dim)
+        self.edge_dropout = float(min(self.dropout, 0.15) if edge_dropout is None else edge_dropout)
+
+        self.conv1 = GCNConv(hidden_channels, hidden_channels)
+        self.conv2 = GCNConv(hidden_channels, hidden_channels)
+        self.conv3 = GCNConv(hidden_channels, hidden_channels)
+
+    def _apply_conv(
+        self,
+        conv: nn.Module,
+        h: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_attr: Optional[torch.Tensor],
+    ) -> torch.Tensor:
+        return conv(h, edge_index)
+
+
 def load_pretrained_with_channel_adaptation_v2(
-    model: GAT_V2,
+    model: nn.Module,
     state_dict: Dict[str, torch.Tensor],
     selected_features: Optional[Sequence[int]] = None,
     d_err: Optional[int] = None,

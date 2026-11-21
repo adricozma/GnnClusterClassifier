@@ -33,7 +33,8 @@ echo "=================================================================="
 
 python3 scripts/v2_select_best_4d.py \
     --study2_models_dir "$STUDY2_V1_MODELS" \
-    --out_dir "$STUDY2_V2_MODELS"
+    --out_dir "$STUDY2_V2_MODELS" \
+    --allow_partial
 
 python3 scripts/v2_build_graph_dataset.py \
     --obs_dir "$OBS_V2_DIR" \
@@ -50,5 +51,7 @@ python3 scripts/v2_build_graph_dataset.py \
     --k_neighbors "$K_NEIGHBORS" \
     --feature_indices "0,1,2,3,4" \
     --num_workers "${SLURM_CPUS_PER_TASK:-36}"
+
+python3 scripts/live_monitor.py --once || true
 
 echo "[DONE] V2 Clean and Noisy sky-kNN graph datasets ready."

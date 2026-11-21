@@ -43,6 +43,7 @@ from gaia_v2 import (
 )
 from gnn_models_v2 import (
     GAT_V2,
+    GCN_V2,
     compute_node_relational_features_v2,
     load_pretrained_with_channel_adaptation_v2,
 )
@@ -182,6 +183,31 @@ def test_gat_v2_and_5d_to_4d_transfer() -> None:
     assert out4.shape == (60, 3) and torch.all(torch.isfinite(out4))
 
 
+def test_gcn_v2_and_5d_to_4d_transfer() -> None:
+    torch.manual_seed(1)
+    rng = np.random.default_rng(23)
+    sky = rng.normal(0.0, 1.0, (60, 2))
+    ei, ea = build_sky_knn_edges(sky, k_neighbors=12)
+
+    x_5d = torch.randn(60, 5)
+    err_x = torch.rand(60, 4)
+    m5 = GCN_V2(in_features=5, err_features=4, hidden_channels=32, heads=4, out_channels=3, edge_dim=3)
+    out = m5(x_5d, torch.from_numpy(ei), edge_attr=torch.from_numpy(ea), err_x=err_x)
+    assert out.shape == (60, 3)
+    loss = out.sum()
+    loss.backward()
+    assert any(p.grad is not None and p.grad.abs().sum() > 0 for p in m5.parameters())
+
+    keep = [1, 2, 3, 4]
+    m4 = GCN_V2(in_features=4, err_features=4, hidden_channels=32, heads=4, out_channels=3, edge_dim=3)
+    loaded, skipped = load_pretrained_with_channel_adaptation_v2(
+        m4, m5.state_dict(), selected_features=keep, d_err=4
+    )
+    assert skipped == 0 and loaded > 0
+    out4 = m4(x_5d[:, keep], torch.from_numpy(ei), edge_attr=torch.from_numpy(ea), err_x=err_x)
+    assert out4.shape == (60, 3) and torch.all(torch.isfinite(out4))
+
+
 def test_best_4d_selector_logic() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         mock_scores = {
@@ -295,11 +321,12 @@ def test_end_to_end_smoke_pipeline() -> None:
         w_n5 = os.path.join(models_dir, "noisy_5d.pth")
         w_n4 = os.path.join(models_dir, "noisy_4d.pth")
 
-        # Stage 1: Clean 5D
+        # Stage 1: Clean 5D (GAT)
         subprocess.run(
             [
                 py,
                 os.path.join(ROOT_DIR, "scripts", "v2_train_gat.py"),
+                "--arch", "gat",
                 "--data_folder", g_clean,
                 "--feature_indices", "0,1,2,3,4",
                 "--bs", "4",
@@ -307,17 +334,20 @@ def test_end_to_end_smoke_pipeline() -> None:
                 "--epochs", "2",
                 "--save_model", w_c5,
                 "--log_file", os.path.join(models_dir, "clean_5d.log"),
+                "--no_live_monitor",
                 "--no_resume",
             ],
             check=True,
         )
         assert os.path.isfile(w_c5)
+        assert torch.load(w_c5, map_location="cpu", weights_only=False).get("arch") == "gat"
 
-        # Stage 2: Clean 5D -> Noisy 5D
+        # Stage 2: Clean 5D -> Noisy 5D (GAT)
         subprocess.run(
             [
                 py,
                 os.path.join(ROOT_DIR, "scripts", "v2_train_gat.py"),
+                "--arch", "gat",
                 "--data_folder", g_noisy,
                 "--feature_indices", "0,1,2,3,4",
                 "--bs", "4",
@@ -326,17 +356,19 @@ def test_end_to_end_smoke_pipeline() -> None:
                 "--pretrained_weights", w_c5,
                 "--save_model", w_n5,
                 "--log_file", os.path.join(models_dir, "noisy_5d.log"),
+                "--no_live_monitor",
                 "--no_resume",
             ],
             check=True,
         )
         assert os.path.isfile(w_n5)
 
-        # Stage 3: 5D -> Best-4D transfer
+        # Stage 3: 5D -> Best-4D transfer (GAT)
         subprocess.run(
             [
                 py,
                 os.path.join(ROOT_DIR, "scripts", "v2_train_gat.py"),
+                "--arch", "gat",
                 "--data_folder", g_noisy,
                 "--feature_indices", "0,1,3,4",
                 "--bs", "4",
@@ -345,46 +377,94 @@ def test_end_to_end_smoke_pipeline() -> None:
                 "--pretrained_weights", w_n5,
                 "--save_model", w_n4,
                 "--log_file", os.path.join(models_dir, "noisy_4d.log"),
+                "--no_live_monitor",
                 "--no_resume",
             ],
             check=True,
         )
         assert os.path.isfile(w_n4)
 
-        # Inference test on real Ibata (2024) CSV subset (Streams 1 and 3, including RA wrap & 250 kpc outliers)
-        ibata_sub = os.path.join(tmp, "ibata_subset.csv")
-        src_ibata = os.path.join(ROOT_DIR, "make_ICs", "stars_6D_ibata2024.csv")
-        with open(src_ibata, "r", encoding="utf-8") as fin, open(ibata_sub, "w", encoding="utf-8", newline="") as fout:
-            reader = csv.DictReader(fin)
-            writer = csv.DictWriter(fout, fieldnames=reader.fieldnames)
-            writer.writeheader()
-            for r in reader:
-                if r["Stream_ID"] in ("1", "2", "3", "4", "5", "6"):
-                    writer.writerow(r)
-
-        out_csv = os.path.join(tmp, "ibata_pred.csv")
-        out_sum = os.path.join(tmp, "ibata_summary.json")
-        summary = run_inference(
-            input_csv=ibata_sub,
-            out_csv=out_csv,
-            out_summary=out_sum,
-            model_5d_path=w_n5,
-            model_4d_path=w_n4,
-            mode="auto",
-            k_neighbors=16,
+        # Stage 4: GCN_V2 5D + 4D parity training
+        w_gcn_5 = os.path.join(models_dir, "gcn_noisy_5d.pth")
+        w_gcn_4 = os.path.join(models_dir, "gcn_noisy_4d.pth")
+        subprocess.run(
+            [
+                py,
+                os.path.join(ROOT_DIR, "scripts", "v2_train_gat.py"),
+                "--arch", "gcn",
+                "--data_folder", g_noisy,
+                "--feature_indices", "0,1,2,3,4",
+                "--bs", "4",
+                "--micro_bs", "2",
+                "--epochs", "2",
+                "--save_model", w_gcn_5,
+                "--log_file", os.path.join(models_dir, "gcn_noisy_5d.log"),
+                "--no_live_monitor",
+                "--no_resume",
+            ],
+            check=True,
         )
-        assert summary["groups_evaluated"] >= 2
-        with open(out_csv, "r", encoding="utf-8") as f:
-            pred_rows = list(csv.DictReader(f))
-        assert len(pred_rows) >= 10
-        evaluated_count = 0
-        for pr in pred_rows:
-            if pr["Pred_Label"] == "Skipped":
-                continue
-            evaluated_count += 1
-            probs = [float(pr["P_Unbound_Field"]), float(pr["P_Potential_Escaper"]), float(pr["P_Bound_Core"])]
-            assert abs(sum(probs) - 1.0) < 1e-4
-        assert evaluated_count >= 10
+        assert os.path.isfile(w_gcn_5)
+        assert torch.load(w_gcn_5, map_location="cpu", weights_only=False).get("arch") == "gcn"
+
+        subprocess.run(
+            [
+                py,
+                os.path.join(ROOT_DIR, "scripts", "v2_train_gat.py"),
+                "--arch", "gcn",
+                "--data_folder", g_noisy,
+                "--feature_indices", "0,1,3,4",
+                "--bs", "4",
+                "--micro_bs", "2",
+                "--epochs", "2",
+                "--pretrained_weights", w_gcn_5,
+                "--save_model", w_gcn_4,
+                "--log_file", os.path.join(models_dir, "gcn_noisy_4d.log"),
+                "--no_live_monitor",
+                "--no_resume",
+            ],
+            check=True,
+        )
+        assert os.path.isfile(w_gcn_4)
+
+        # Inference test on full real Ibata (2024) CSV (includes N=1, N=2 small streams, RA wrap, 250 kpc outliers)
+        src_ibata = os.path.join(ROOT_DIR, "make_ICs", "stars_6D_ibata2024.csv")
+        for label, m5_p, m4_p, arch_arg in (
+            ("gat", w_n5, w_n4, "auto"),
+            ("gcn", w_gcn_5, w_gcn_4, "auto"),
+        ):
+            for mode_arg in ("5d", "4d"):
+                out_csv = os.path.join(tmp, f"ibata_{label}_{mode_arg}_pred.csv")
+                out_sum = os.path.join(tmp, f"ibata_{label}_{mode_arg}_summary.json")
+                summary = run_inference(
+                    input_csv=src_ibata,
+                    out_csv=out_csv,
+                    out_summary=out_sum,
+                    model_5d_path=m5_p,
+                    model_4d_path=m4_p,
+                    mode=mode_arg,
+                    k_neighbors=16,
+                    arch=arch_arg,
+                )
+                assert summary["groups_evaluated"] >= 70
+                with open(out_csv, "r", encoding="utf-8") as f:
+                    pred_rows = list(csv.DictReader(f))
+                assert len(pred_rows) == summary["total_rows"]
+                evaluated_count = 0
+                skipped_count = 0
+                for pr in pred_rows:
+                    if pr["Pred_Label"] == "Skipped":
+                        skipped_count += 1
+                        continue
+                    evaluated_count += 1
+                    probs = [
+                        float(pr["P_Unbound_Field"]),
+                        float(pr["P_Potential_Escaper"]),
+                        float(pr["P_Bound_Core"]),
+                    ]
+                    assert abs(sum(probs) - 1.0) < 1e-4
+                assert evaluated_count >= 100
+                assert skipped_count >= 4  # N=1 streams cleanly skipped without errors
 
 
 if __name__ == "__main__":
@@ -393,6 +473,7 @@ if __name__ == "__main__":
     test_circular_ra_wrap_and_uncertainty_masking()
     test_n_invariant_sky_density_under_subsampling()
     test_gat_v2_and_5d_to_4d_transfer()
+    test_gcn_v2_and_5d_to_4d_transfer()
     test_best_4d_selector_logic()
     test_end_to_end_smoke_pipeline()
-    print("ALL 7 STUDY 2 V2 TESTS PASSED CLEANLY.")
+    print("ALL 8 STUDY 2 V2 TESTS PASSED CLEANLY.")

@@ -44,4 +44,8 @@ python3 scripts/v2_extract_observables.py \
     --ic_index "$SLURM_ARRAY_TASK_ID" \
     --num_workers "${SLURM_CPUS_PER_TASK:-18}"
 
+if [ $((SLURM_ARRAY_TASK_ID % 20)) -eq 0 ] || [ "$SLURM_ARRAY_TASK_ID" -eq 80 ]; then
+    python3 scripts/live_monitor.py --once || true
+fi
+
 echo "[DONE] V2 extraction complete for IC index $SLURM_ARRAY_TASK_ID."

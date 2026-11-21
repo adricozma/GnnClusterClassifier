@@ -8,9 +8,11 @@ or smartphone without SSH access to Jed.
 """
 
 import argparse
+import fcntl
 import glob
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -21,7 +23,13 @@ for _p in (ROOT_DIR, os.path.join(ROOT_DIR, "scripts")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from live_plot_utils import parse_log_file, update_live_plots_for_log, update_master_study2_live_plot
+from live_plot_utils import (
+    V2_EPOCH_LINE_RE,
+    discover_study2_logs,
+    parse_log_file,
+    update_live_plots_for_log,
+    update_master_study2_live_plot,
+)
 
 DEFAULT_TOPIC = "epfl-cozma-gnn-study2"
 
@@ -68,32 +76,82 @@ def get_slurm_queue():
 
 
 def get_in_flight_training_progress():
-    """Detect active batch progress (including 4D ablations and V2 runs) from the most recent SLURM output log."""
-    out_files = sorted(
-        glob.glob(os.path.join(ROOT_DIR, "slurm_logs", "*.out")),
-        key=os.path.getmtime,
-        reverse=True,
-    )
-    for out_f in out_files[:4]:
+    """Detect active batch or epoch progress (V1 and V2) from recent SLURM training logs."""
+    slurm_dir = os.path.join(ROOT_DIR, "slurm_logs")
+    if not os.path.isdir(slurm_dir):
+        return None
+
+    candidate_patterns = [
+        "v2_step5_*.out",
+        "v2_step6_*.out",
+        "v2_step7_*.out",
+        "step5_*.out",
+        "step6_*.out",
+        "step7_*.out",
+        "*.out",
+    ]
+    seen = set()
+    out_files = []
+    for pat in candidate_patterns:
+        for p in glob.glob(os.path.join(slurm_dir, pat)):
+            ap = os.path.abspath(p)
+            if ap not in seen:
+                seen.add(ap)
+                out_files.append(ap)
+    out_files.sort(key=os.path.getmtime, reverse=True)
+
+    now = time.time()
+    for out_f in out_files[:8]:
         # Only consider logs updated within the last 90 minutes
         try:
-            if (time.time() - os.path.getmtime(out_f)) > 5400:
+            if (now - os.path.getmtime(out_f)) > 5400:
                 continue
             with open(out_f, "r", encoding="utf-8", errors="ignore") as f:
-                lines = f.readlines()[-160:]
-            exp_tag = "clean_5obs"
-            arch_lbl = "GAT"
+                lines = f.readlines()[-200:]
+            if not lines:
+                continue
+
+            tail_text = "".join(lines[-20:])
+            if "[DONE]" in tail_text or "=== END OF TRAINING ===" in tail_text:
+                continue
+
+            fname = os.path.basename(out_f)
+            is_v2 = fname.startswith("v2_") or any(
+                tok in ln
+                for ln in lines
+                for tok in ("v2_train_gat.py", "v2_train_gcn.py", "GAT_V2", "GCN_V2", "study2_v2", "Study 2 V2")
+            )
+            exp_tag = "v2/clean_5obs" if is_v2 else "clean_5obs"
+            arch_base = "GAT"
+
             for ln in lines:
+                m_v2_save = re.search(r"study2_v2/([A-Za-z0-9_]+)/", ln)
+                if m_v2_save and m_v2_save.group(1) not in ("weights", "inference"):
+                    exp_tag = f"v2/{m_v2_save.group(1)}"
+                    is_v2 = True
                 m_idx = re.search(r"graph_data_([A-Za-z0-9_]+)", ln)
                 if m_idx:
                     exp_tag = m_idx.group(1)
                 m_save = re.search(r"study2/([A-Za-z0-9_]+)/", ln)
                 if m_save and m_save.group(1) != "weights":
                     exp_tag = m_save.group(1)
-                if "train_gcn.py" in ln or "[GCN]" in ln:
-                    arch_lbl = "GCN"
-                elif "train_gat.py" in ln or "[GAT]" in ln:
-                    arch_lbl = "GAT"
+                if "Step 5A" in ln:
+                    exp_tag = "v2/clean_5obs"
+                elif "Step 5B" in ln:
+                    exp_tag = "v2/noisy_5obs"
+                elif "Step 6A" in ln:
+                    m_b4 = re.search(r"Best-4D\s*\(([A-Za-z0-9_]+)\)", ln)
+                    exp_tag = f"v2/{m_b4.group(1)}_clean" if m_b4 else "v2/best_4d_clean"
+                elif "Step 6B" in ln:
+                    m_b4 = re.search(r"Best-4D\s*\(([A-Za-z0-9_]+)\)", ln)
+                    exp_tag = f"v2/{m_b4.group(1)}_noisy" if m_b4 else "v2/best_4d_noisy"
+
+                if any(tok in ln for tok in ("v2_train_gcn.py", "train_gcn.py", "[GCN]", "GCN_V2")) or "--arch gcn" in ln.lower():
+                    arch_base = "GCN"
+                elif any(tok in ln for tok in ("v2_train_gat.py", "train_gat.py", "[GAT]", "GAT_V2")):
+                    arch_base = "GAT"
+
+            arch_lbl = f"{arch_base}_V2" if is_v2 else arch_base
 
             for line in reversed(lines):
                 m = re.search(
@@ -111,14 +169,55 @@ def get_in_flight_training_progress():
                     return {
                         "summary": f"[IN FLIGHT] {exp_tag} ({arch_lbl}): Ep {ep:03d} | Batch {b_cur:04d}/{b_tot:04d} ({pct:.1f}%) | Batch Loss {loss:.4f} | LR: {lr} | RAM: {ram}",
                         "row": (exp_tag, f"{arch_lbl} (In Flight)", f"Ep {ep:02d} ({pct:.0f}%)", loss, "-", "-", "-", "-", "-", "In progress", "-"),
+                        "is_v2": is_v2,
+                    }
+
+            if is_v2 and any("v2_train_" in ln for ln in lines):
+                # V2 trainers flush epoch lines directly; detect epoch 1 warm-up before first epoch log
+                has_epoch = any(V2_EPOCH_LINE_RE.match(ln) for ln in lines)
+                if not has_epoch and "Final Test Loss" not in tail_text:
+                    return {
+                        "summary": f"[IN FLIGHT] {exp_tag} ({arch_lbl}): Ep 001 (Running)",
+                        "row": (exp_tag, f"{arch_lbl} (In Flight)", "Ep 01 (Running)", "-", "-", "-", "-", "-", "-", "In progress", "-"),
+                        "is_v2": True,
                     }
         except Exception:
             pass
     return None
 
 
+def _count_v2_obs_done(obs_dir):
+    """Count IC_* directories in Study 2 V2 obs_unbiased containing all 101 valid .npz snapshots."""
+    if not os.path.isdir(obs_dir):
+        return 0
+    done = 0
+    for ic_dir in glob.glob(os.path.join(obs_dir, "IC_*")):
+        if not os.path.isdir(ic_dir):
+            continue
+        files = glob.glob(os.path.join(ic_dir, "v2_obs_*.npz"))
+        if len(files) >= 101 and all(os.path.getsize(f) >= 2048 for f in files):
+            done += 1
+    return done
+
+
+def _count_v2_graphs_done(graph_dir):
+    """Count IC_* directories in a Study 2 V2 graph folder that have completed all snapshots."""
+    if not os.path.isdir(graph_dir):
+        return 0
+    done = 0
+    for ic_dir in glob.glob(os.path.join(graph_dir, "IC_*")):
+        if not os.path.isdir(ic_dir):
+            continue
+        final_rot0 = os.path.join(ic_dir, "graph_v2_snapshot_0100_rot_0.pt")
+        if os.path.isfile(final_rot0):
+            done += 1
+        elif len(glob.glob(os.path.join(ic_dir, "graph_v2_*_rot_0.pt"))) >= 101:
+            done += 1
+    return done
+
+
 def collect_pipeline_progress():
-    """Count completed files across each stage of Study 2 and refresh live training plots."""
+    """Count completed files across each stage of Study 2 V1 and V2 and refresh live training plots."""
     n_ics = len(glob.glob(os.path.join(ROOT_DIR, "make_ICs", "initial_conditions_unbiased", "IC_*.hdf5")))
 
     # Check SWIFT completion: /scratch/cozma/study2/outputs_unbiased (falling back to /home/cozma/swift_sims/outputs_unbiased)
@@ -186,46 +285,97 @@ def collect_pipeline_progress():
     n_graphs_clean = len(glob.glob("/scratch/cozma/graph_data_clean/IC_*/graph_data_output_100_rotation_0.pt"))
     n_graphs_noisy = len(glob.glob("/scratch/cozma/graph_data_noisy/IC_*/graph_data_output_100_rotation_0.pt"))
 
-    logs = sorted(glob.glob(os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2", "**", "training_metrics_*.log"), recursive=True))
+    # Study 2 V2 pipeline counters
+    v2_obs_dir = "/scratch/cozma/study2_v2/obs_unbiased"
+    v2_graphs_clean_dir = "/scratch/cozma/study2_v2/graphs_clean"
+    v2_graphs_noisy_dir = "/scratch/cozma/study2_v2/graphs_noisy"
+    v2_infer_dir = os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2_v2", "inference")
+
+    n_v2_obs = _count_v2_obs_done(v2_obs_dir)
+    n_v2_graphs_clean = _count_v2_graphs_done(v2_graphs_clean_dir)
+    n_v2_graphs_noisy = _count_v2_graphs_done(v2_graphs_noisy_dir)
+    v2_inference_csvs = (
+        [os.path.relpath(p, ROOT_DIR) for p in sorted(glob.glob(os.path.join(v2_infer_dir, "*.csv")))]
+        if os.path.isdir(v2_infer_dir)
+        else []
+    )
+    n_v2_infer_csvs = len(v2_inference_csvs)
+
+    discovered_logs = discover_study2_logs()
     latest_epochs = []
     training_rows = []
-    for lg in logs:
-        rel = os.path.relpath(lg, os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2"))
-        if rel.startswith("legacy"):
-            continue
+    v2_training_rows = []
+    for entry in discovered_logs:
+        lg = entry["log_path"]
         d = parse_log_file(lg)
-        if d["epochs"]:
-            try:
-                update_live_plots_for_log(lg)
-            except Exception:
-                pass
-            ep = d["epochs"][-1]
-            tr_l = d["train_loss"][-1]
-            tr_a = d["train_acc"][-1]
-            va_l = d["val_loss"][-1]
-            va_a = d["val_acc"][-1]
-            best_va = max(d["val_acc"])
-            test_str = f"{d['test_acc']:.2f}%" if d["test_acc"] is not None else "In progress"
-            f1_str = f"{d['test_f1']:.4f}" if d["test_f1"] is not None else "-"
+        if not d["epochs"]:
+            continue
+        try:
+            update_live_plots_for_log(lg)
+        except Exception:
+            pass
 
-            core_fnr_str = "-"
-            if d.get("test_core_fnr") is not None:
-                core_fnr_str = f"{d['test_core_fnr']:.2f}%"
-                if d.get("val_core_fnr"):
-                    core_fnr_str += f" (val: {min(d['val_core_fnr']):.2f}%)"
-            elif d.get("val_core_fnr"):
-                core_fnr_str = f"{min(d['val_core_fnr']):.2f}% (val min)"
+        is_v2 = bool(d.get("is_v2") or entry["study"] == "v2")
+        exp_key = entry["exp_key"]
+        arch_label = f"{entry['arch']}_V2" if (is_v2 and "_V2" not in entry["arch_label"]) else entry["arch_label"]
 
-            core_ep_str = ""
+        ep = d["epochs"][-1]
+        tr_l = d["train_loss"][-1]
+        tr_a = d["train_acc"][-1]
+        va_l = d["val_loss"][-1]
+        va_a = d["val_acc"][-1]
+        best_va = max(d["val_acc"])
+        test_str = f"{d['test_acc']:.2f}%" if d["test_acc"] is not None else "In progress"
+        f1_str = f"{d['test_f1']:.4f}" if d["test_f1"] is not None else "-"
+
+        core_fnr_str = "-"
+        if d.get("test_core_fnr") is not None:
+            core_fnr_str = f"{d['test_core_fnr']:.2f}%"
             if d.get("val_core_fnr"):
-                core_ep_str = f" | CoreFNR: {d['val_core_fnr'][-1]:.2f}% (min={min(d['val_core_fnr']):.2f}%)"
+                core_fnr_str += f" (val: {min(d['val_core_fnr']):.2f}%)"
+        elif d.get("val_core_fnr"):
+            core_fnr_str = f"{min(d['val_core_fnr']):.2f}% (val min)"
 
-            latest_epochs.append(
-                f"{rel}: Ep {ep:03d} | Train {tr_l:.4f} ({tr_a:.2f}%) | Val {va_l:.4f} ({va_a:.2f}%, Best={best_va:.2f}%){core_ep_str} | Test={test_str}"
-            )
-            exp_name = os.path.basename(os.path.dirname(lg))
-            model_name = "GAT" if "_gat" in os.path.basename(lg) else "GCN"
-            training_rows.append((exp_name, model_name, ep, tr_l, tr_a, va_l, va_a, best_va, core_fnr_str, test_str, f1_str))
+        core_ep_str = ""
+        if d.get("val_core_fnr"):
+            core_ep_str = f" | CoreFNR: {d['val_core_fnr'][-1]:.2f}% (min={min(d['val_core_fnr']):.2f}%)"
+
+        v2_ep_str = ""
+        if is_v2:
+            if d.get("va_bound_f1"):
+                v2_ep_str += f" | BoundF1: {d['va_bound_f1'][-1]:.4f}"
+            if d.get("va_pe_rec"):
+                v2_ep_str += f" | PE_Rec: {d['va_pe_rec'][-1]:.2f}%"
+            if d.get("va_field_fpr"):
+                v2_ep_str += f" | FieldFPR: {d['va_field_fpr'][-1]:.2f}%"
+
+        latest_epochs.append(
+            f"{exp_key} ({arch_label}): Ep {ep:03d} | Train {tr_l:.4f} ({tr_a:.2f}%) | Val {va_l:.4f} ({va_a:.2f}%, Best={best_va:.2f}%){core_ep_str}{v2_ep_str} | Test={test_str}"
+        )
+        training_rows.append((exp_key, arch_label, ep, tr_l, tr_a, va_l, va_a, best_va, core_fnr_str, test_str, f1_str))
+
+        if is_v2:
+            v2_training_rows.append({
+                "exp_key": exp_key,
+                "arch": arch_label,
+                "ep": ep,
+                "tr_loss": tr_l,
+                "tr_acc": tr_a,
+                "va_loss": va_l,
+                "va_acc": va_a,
+                "best_va_acc": best_va,
+                "va_bound_f1": d["va_bound_f1"][-1] if d.get("va_bound_f1") else None,
+                "va_pe_rec": d["va_pe_rec"][-1] if d.get("va_pe_rec") else None,
+                "va_core_fnr": d["val_core_fnr"][-1] if d.get("val_core_fnr") else None,
+                "va_field_fpr": d["va_field_fpr"][-1] if d.get("va_field_fpr") else None,
+                "test_acc": d.get("test_acc"),
+                "test_bal_acc": d.get("test_bal_acc"),
+                "test_macro_f1": d.get("test_macro_f1"),
+                "test_bound_f1": d.get("test_bound_f1"),
+                "test_pe_rec": d.get("test_pe_rec"),
+                "test_core_fnr": d.get("test_core_fnr"),
+                "test_field_fpr": d.get("test_field_fpr"),
+            })
 
     in_flight = get_in_flight_training_progress()
     if in_flight:
@@ -237,30 +387,36 @@ def collect_pipeline_progress():
     except Exception:
         pass
 
-    # Discover all saved model weights (.pth) across experiment folders and mirror to central weights/ folder
-    study2_base = os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2")
-    central_weights_dir = os.path.join(study2_base, "weights")
-    os.makedirs(central_weights_dir, exist_ok=True)
+    # Discover all saved model weights (.pth) across V1 and V2 folders and mirror to central weights/ folders
     saved_weights = []
-    for pth_path in sorted(glob.glob(os.path.join(study2_base, "**", "*.pth"), recursive=True)):
-        if os.path.dirname(os.path.abspath(pth_path)) == os.path.abspath(central_weights_dir):
+    for base_rel in ("study2", "study2_v2"):
+        base_dir = os.path.join(ROOT_DIR, "GNN-jed", "trained_models", base_rel)
+        if not os.path.isdir(base_dir):
             continue
-        if "/legacy/" in pth_path.replace("\\", "/"):
-            continue
-        fname = os.path.basename(pth_path)
-        if fname.startswith("last_"):
-            continue
-        central_copy = os.path.join(central_weights_dir, fname)
-        try:
-            if not os.path.exists(central_copy) or os.path.getsize(pth_path) != os.path.getsize(central_copy) or int(os.path.getmtime(pth_path)) > int(os.path.getmtime(central_copy)):
-                import shutil
-                shutil.copyfile(pth_path, central_copy)
-        except Exception:
-            pass
-        rel_pth = os.path.relpath(pth_path, ROOT_DIR)
-        rel_central = os.path.relpath(central_copy, ROOT_DIR)
-        size_kb = os.path.getsize(pth_path) / 1024.0
-        saved_weights.append((fname, rel_pth, rel_central, size_kb))
+        central_weights_dir = os.path.join(base_dir, "weights")
+        os.makedirs(central_weights_dir, exist_ok=True)
+        for pth_path in sorted(glob.glob(os.path.join(base_dir, "**", "*.pth"), recursive=True)):
+            if os.path.dirname(os.path.abspath(pth_path)) == os.path.abspath(central_weights_dir):
+                continue
+            if "/legacy/" in pth_path.replace("\\", "/"):
+                continue
+            fname = os.path.basename(pth_path)
+            if fname.startswith("last_") or fname.startswith("latest_"):
+                continue
+            central_copy = os.path.join(central_weights_dir, fname)
+            try:
+                if (
+                    not os.path.exists(central_copy)
+                    or os.path.getsize(pth_path) != os.path.getsize(central_copy)
+                    or int(os.path.getmtime(pth_path)) > int(os.path.getmtime(central_copy))
+                ):
+                    shutil.copyfile(pth_path, central_copy)
+            except Exception:
+                pass
+            rel_pth = os.path.relpath(pth_path, ROOT_DIR)
+            rel_central = os.path.relpath(central_copy, ROOT_DIR)
+            size_kb = os.path.getsize(pth_path) / 1024.0
+            saved_weights.append((fname, rel_pth, rel_central, size_kb))
 
     return {
         "n_ics": n_ics,
@@ -270,8 +426,14 @@ def collect_pipeline_progress():
         "n_obs_noisy": n_obs_noisy,
         "n_graphs_clean": n_graphs_clean,
         "n_graphs_noisy": n_graphs_noisy,
+        "n_v2_obs": n_v2_obs,
+        "n_v2_graphs_clean": n_v2_graphs_clean,
+        "n_v2_graphs_noisy": n_v2_graphs_noisy,
+        "n_v2_infer_csvs": n_v2_infer_csvs,
+        "v2_inference_csvs": v2_inference_csvs,
         "latest_epochs": latest_epochs,
         "training_rows": training_rows,
+        "v2_training_rows": v2_training_rows,
         "saved_weights": saved_weights,
     }
 
@@ -282,22 +444,25 @@ def format_status_report(squeue_str, prog):
         f"[{now_str}] Study 2 Pipeline Status on Jed",
         f"- Step 1 (Plummer ICs): {prog['n_ics']} / 81 ready",
         f"- Step 2 (SWIFT Runs): {prog['n_swift_done']} / 81 completed (101 snapshots)",
-        f"- Step 3 (Observables): Labels={prog['n_labels']}/81 | Clean={prog['n_obs_clean']}/81 | GaiaNoisy={prog['n_obs_noisy']}/81",
-        f"- Step 4 (5D Graphs): Clean={prog['n_graphs_clean']}/81 | GaiaNoisy={prog['n_graphs_noisy']}/81",
+        f"- Step 3 (V1 Observables): Labels={prog['n_labels']}/81 | Clean={prog['n_obs_clean']}/81 | GaiaNoisy={prog['n_obs_noisy']}/81",
+        f"- Step 4 (V1 5D Graphs): Clean={prog['n_graphs_clean']}/81 | GaiaNoisy={prog['n_graphs_noisy']}/81",
+        f"- V2 Step 3 (Obs + Gaia DR3 + Contaminants): {prog['n_v2_obs']} / 81 completed",
+        f"- V2 Step 4 (Sky-kNN Graphs): Clean={prog['n_v2_graphs_clean']}/81 | GaiaNoisy={prog['n_v2_graphs_noisy']}/81",
+        f"- V2 Inference CSVs: {prog['n_v2_infer_csvs']} file(s) in GNN-jed/trained_models/study2_v2/inference/",
     ]
     if prog["latest_epochs"]:
-        lines.append("- Step 5/6 Live GNN Training Progress:")
+        lines.append("- Step 5/6/7 Live GNN Training Progress (V1 & V2):")
         for le in prog["latest_epochs"]:
             lines.append(f"  * {le}")
     if prog.get("saved_weights"):
-        lines.append(f"- Saved Model Checkpoints (.pth): {len(prog['saved_weights'])} mirrored in GNN-jed/trained_models/study2/weights/")
+        lines.append(f"- Saved Model Checkpoints (.pth): {len(prog['saved_weights'])} mirrored in weights/")
     lines.append("\nSLURM Queue:")
     lines.append(squeue_str if squeue_str else "(No active jobs)")
     return "\n".join(lines)
 
 
 def write_live_status_markdown(report, prog):
-    """Write LIVE_STATUS.md with embedded live training plots and metrics table."""
+    """Write LIVE_STATUS.md with embedded live training plots and V1/V2 metrics tables."""
     status_md_path = os.path.join(ROOT_DIR, "LIVE_STATUS.md")
     md_lines = [
         "# Live Pipeline Status on Jed",
@@ -330,6 +495,37 @@ def write_live_status_markdown(report, prog):
                 f"| `{exp_name}` | **{model_name}** | {ep} | {tr_l_s} | {tr_a_s} | {va_l_s} | {va_a_s} | {best_va_s} | {core_str} | **{test_str}** | {f1_str} |"
             )
 
+    md_lines.extend([
+        "",
+        "## Study 2 V2 — Real Gaia DR3 Domain Adaptation",
+        "",
+        f"- **Observables & Contaminants** (`/scratch/cozma/study2_v2/obs_unbiased`): **{prog['n_v2_obs']} / 81** ICs completed",
+        f"- **Sky-kNN Clean Graphs** (`/scratch/cozma/study2_v2/graphs_clean`): **{prog['n_v2_graphs_clean']} / 81** ICs completed",
+        f"- **Sky-kNN Noisy Graphs** (`/scratch/cozma/study2_v2/graphs_noisy`): **{prog['n_v2_graphs_noisy']} / 81** ICs completed",
+        f"- **Gaia DR3 Inference CSVs** (`GNN-jed/trained_models/study2_v2/inference/`): **{prog['n_v2_infer_csvs']}** file(s)",
+    ])
+    if prog.get("v2_inference_csvs"):
+        for csv_rel in prog["v2_inference_csvs"]:
+            md_lines.append(f"  - `{csv_rel}`")
+
+    if prog.get("v2_training_rows"):
+        md_lines.extend([
+            "",
+            "| V2 Experiment | Architecture | Epoch | TrLoss | TrAcc | VaLoss | VaAcc | BoundF1 | PE_Rec | CoreFNR | FieldFPR | Test Acc | Test MacroF1 |",
+            "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |",
+        ])
+        for vr in prog["v2_training_rows"]:
+            bf1_s = f"{vr['test_bound_f1']:.4f}" if vr["test_bound_f1"] is not None else (f"{vr['va_bound_f1']:.4f} (val)" if vr["va_bound_f1"] is not None else "-")
+            pe_s = f"{vr['test_pe_rec']:.2f}%" if vr["test_pe_rec"] is not None else (f"{vr['va_pe_rec']:.2f}% (val)" if vr["va_pe_rec"] is not None else "-")
+            cfnr_s = f"{vr['test_core_fnr']:.2f}%" if vr["test_core_fnr"] is not None else (f"{vr['va_core_fnr']:.2f}% (val)" if vr["va_core_fnr"] is not None else "-")
+            ffpr_s = f"{vr['test_field_fpr']:.2f}%" if vr["test_field_fpr"] is not None else (f"{vr['va_field_fpr']:.2f}% (val)" if vr["va_field_fpr"] is not None else "-")
+            te_acc_s = f"**{vr['test_acc']:.2f}%**" if vr["test_acc"] is not None else "In progress"
+            te_mf1_s = f"{vr['test_macro_f1']:.4f}" if vr["test_macro_f1"] is not None else "-"
+            md_lines.append(
+                f"| `{vr['exp_key']}` | **{vr['arch']}** | {vr['ep']} | {vr['tr_loss']:.4f} | {vr['tr_acc']:.2f}% | "
+                f"{vr['va_loss']:.4f} | {vr['va_acc']:.2f}% | {bf1_s} | {pe_s} | {cfnr_s} | {ffpr_s} | {te_acc_s} | {te_mf1_s} |"
+            )
+
     if prog.get("saved_weights"):
         md_lines.extend([
             "",
@@ -350,7 +546,12 @@ def write_live_status_markdown(report, prog):
             f"![Live GNN Training Curves]({master_plot_rel})",
         ])
 
-    svd_plots = sorted(glob.glob(os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2", "**", "spectral_analysis_GNN_*.png"), recursive=True))
+    svd_plots = []
+    for base_rel in ("study2", "study2_v2"):
+        base_p = os.path.join(ROOT_DIR, "GNN-jed", "trained_models", base_rel)
+        if os.path.isdir(base_p):
+            svd_plots.extend(glob.glob(os.path.join(base_p, "**", "spectral_analysis_GNN_*.png"), recursive=True))
+    svd_plots = sorted(svd_plots)
     if svd_plots:
         md_lines.extend([
             "",
@@ -432,8 +633,11 @@ def _normalize_existing_plotly_html_to_white(study2_dir: str) -> None:
 def write_master_html_index(report, prog):
     """Write a unified, single-page classified index.html at repo root and in study2/ with a sober white academic style."""
     study2_dir = os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2")
+    study2_v2_dir = os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2_v2")
     os.makedirs(study2_dir, exist_ok=True)
     _normalize_existing_plotly_html_to_white(study2_dir)
+    if os.path.isdir(study2_v2_dir):
+        _normalize_existing_plotly_html_to_white(study2_v2_dir)
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     expected_ablations = [
@@ -448,15 +652,23 @@ def write_master_html_index(report, prog):
         d for d in os.listdir(study2_dir)
         if os.path.isdir(os.path.join(study2_dir, d)) and d not in ("weights", "legacy")
     ])
-    v2_dirs = [d for d in all_subdirs if d.startswith("v2_")]
+    v2_in_study2_dirs = [d for d in all_subdirs if d.startswith("v2_")]
+    v2_dedicated_dirs = sorted([
+        d for d in os.listdir(study2_v2_dir)
+        if os.path.isdir(os.path.join(study2_v2_dir, d)) and d not in ("weights", "legacy", "inference")
+    ]) if os.path.isdir(study2_v2_dir) else []
+
     ablation_dirs = [d for d in all_subdirs if d.startswith("4obs_")]
     for ab_name, _ in expected_ablations:
         if ab_name not in ablation_dirs:
             ablation_dirs.append(ab_name)
 
-    def _render_for_base(base_prefix: str) -> str:
+    def _render_for_base(base_prefix: str, v2_base_prefix: str) -> str:
         def _url(rel_within_study2: str) -> str:
             return f"{base_prefix}{rel_within_study2}"
+
+        def _url_v2(rel_within_study2_v2: str) -> str:
+            return f"{v2_base_prefix}{rel_within_study2_v2}"
 
         rows_html = []
         for row in prog.get("training_rows", []):
@@ -493,37 +705,40 @@ def write_master_html_index(report, prog):
         metrics_table_body = "\n".join(rows_html) if rows_html else "<tr><td colspan='11'>Aucun entraînement trouvé</td></tr>"
 
         rmt_cards = []
-        for exp_d in sorted(all_subdirs):
-            svd_png = os.path.join(study2_dir, exp_d, f"spectral_analysis_GNN_{exp_d}.png")
-            svd_html = os.path.join(study2_dir, exp_d, f"spectral_analysis_GNN_{exp_d}.html")
-            live_png = os.path.join(study2_dir, exp_d, f"live_plots_GNN_{exp_d}.png")
-            live_html = os.path.join(study2_dir, exp_d, f"live_plots_GNN_{exp_d}.html")
+        rmt_sources = [(study2_dir, _url, d, d) for d in sorted(all_subdirs)] + [
+            (study2_v2_dir, _url_v2, d, f"v2/{d}") for d in v2_dedicated_dirs
+        ]
+        for root_base, url_fn, exp_d, display_d in rmt_sources:
+            svd_png = os.path.join(root_base, exp_d, f"spectral_analysis_GNN_{exp_d}.png")
+            svd_html = os.path.join(root_base, exp_d, f"spectral_analysis_GNN_{exp_d}.html")
+            live_png = os.path.join(root_base, exp_d, f"live_plots_GNN_{exp_d}.png")
+            live_html = os.path.join(root_base, exp_d, f"live_plots_GNN_{exp_d}.html")
             if os.path.exists(svd_png) or os.path.exists(live_png):
                 btns = []
                 if os.path.exists(svd_html):
-                    u_svd = _url(f"{exp_d}/spectral_analysis_GNN_{exp_d}.html")
-                    btns.append(f"<button class='btn-plot' onclick=\"openInViewer('{u_svd}', 'Spectre RMT — {exp_d}')\">Spectre RMT Interactif</button>")
+                    u_svd = url_fn(f"{exp_d}/spectral_analysis_GNN_{exp_d}.html")
+                    btns.append(f"<button class='btn-plot' onclick=\"openInViewer('{u_svd}', 'Spectre RMT — {display_d}')\">Spectre RMT Interactif</button>")
                     btns.append(f"<a class='btn-ext' href='{u_svd}' target='_blank'>Nouvel onglet ↗</a>")
                 if os.path.exists(live_html):
-                    u_live = _url(f"{exp_d}/live_plots_GNN_{exp_d}.html")
-                    btns.append(f"<button class='btn-plot' onclick=\"openInViewer('{u_live}', 'Courbes Loss/Acc — {exp_d}')\">Courbes Interactives</button>")
+                    u_live = url_fn(f"{exp_d}/live_plots_GNN_{exp_d}.html")
+                    btns.append(f"<button class='btn-plot' onclick=\"openInViewer('{u_live}', 'Courbes Loss/Acc — {display_d}')\">Courbes Interactives</button>")
                 imgs_html = ""
                 if os.path.exists(svd_png):
-                    u_sp = _url(f"{exp_d}/spectral_analysis_GNN_{exp_d}.png")
-                    imgs_html += f"<div class='img-wrap'><h4>Spectre des Valeurs Singulières en Bâtons (Candles) vs Bulk Marchenko–Pastur</h4><a href='{u_sp}' target='_blank'><img src='{u_sp}' alt='SVD {exp_d}' /></a></div>"
+                    u_sp = url_fn(f"{exp_d}/spectral_analysis_GNN_{exp_d}.png")
+                    imgs_html += f"<div class='img-wrap'><h4>Spectre des Valeurs Singulières en Bâtons (Candles) vs Bulk Marchenko–Pastur</h4><a href='{u_sp}' target='_blank'><img src='{u_sp}' alt='SVD {display_d}' /></a></div>"
                 if os.path.exists(live_png):
-                    u_lp = _url(f"{exp_d}/live_plots_GNN_{exp_d}.png")
-                    imgs_html += f"<div class='img-wrap'><h4>Évolution Loss & Accuracy</h4><a href='{u_lp}' target='_blank'><img src='{u_lp}' alt='Live {exp_d}' /></a></div>"
+                    u_lp = url_fn(f"{exp_d}/live_plots_GNN_{exp_d}.png")
+                    imgs_html += f"<div class='img-wrap'><h4>Évolution Loss & Accuracy</h4><a href='{u_lp}' target='_blank'><img src='{u_lp}' alt='Live {display_d}' /></a></div>"
                 rmt_cards.append(
                     f"<div class='exp-block'>"
-                    f"<div class='exp-header'><h3>Expérience : <code>{exp_d}</code></h3><div class='btn-row'>{''.join(btns)}</div></div>"
+                    f"<div class='exp-header'><h3>Expérience : <code>{display_d}</code></h3><div class='btn-row'>{''.join(btns)}</div></div>"
                     f"<div class='dual-grid'>{imgs_html}</div>"
                     f"</div>"
                 )
         rmt_overview_html = "\n".join(rmt_cards) if rmt_cards else "<p>Aucun spectre RMT généré pour le moment.</p>"
 
-        def _build_experiment_section(exp_d: str, title: str, subtitle: str) -> str:
-            exp_path = os.path.join(study2_dir, exp_d)
+        def _build_experiment_section(exp_d: str, title: str, subtitle: str, base_dir: str = study2_dir, url_fn=_url) -> str:
+            exp_path = os.path.join(base_dir, exp_d)
             if not os.path.isdir(exp_path):
                 return (
                     f"<div class='exp-block pending-block'>"
@@ -555,7 +770,7 @@ def write_master_html_index(report, prog):
 
             btn_items = []
             for hf in html_files:
-                u_hf = _url(f"{exp_d}/{hf}")
+                u_hf = url_fn(f"{exp_d}/{hf}")
                 lbl = _friendly_plot_label(hf)
                 btn_items.append(
                     f"<div class='plot-pill'>"
@@ -571,12 +786,12 @@ def write_master_html_index(report, prog):
 
             png_cards = []
             for pf in png_files:
-                u_pf = _url(f"{exp_d}/{pf}")
+                u_pf = url_fn(f"{exp_d}/{pf}")
                 lbl = _friendly_plot_label(pf)
                 matching_html = pf.rsplit(".", 1)[0] + ".html"
                 open_interactive_btn = ""
                 if matching_html in html_files:
-                    u_mh = _url(f"{exp_d}/{matching_html}")
+                    u_mh = url_fn(f"{exp_d}/{matching_html}")
                     open_interactive_btn = f"<button class='btn-card-action' onclick=\"openInViewer('{u_mh}', '{lbl}')\">Vue Interactive Plotly</button>"
                 png_cards.append(
                     f"<div class='card'>"
@@ -624,21 +839,88 @@ def write_master_html_index(report, prog):
             )
         ablations_section_html = "\n".join(ablation_blocks)
 
-        v2_blocks = []
-        if v2_dirs:
-            for v2_d in v2_dirs:
+        v2_blocks = [
+            "<div class='exp-block'>"
+            "<h3>Avancement Pipeline Study 2 V2 (Domaine Réel Gaia DR3 — 3 Classes)</h3>"
+            f"<p class='subtitle'>Observables &amp; Contaminants : <strong>{prog.get('n_v2_obs', 0)}/81</strong> | "
+            f"Graphes Clean : <strong>{prog.get('n_v2_graphs_clean', 0)}/81</strong> | "
+            f"Graphes Gaia Noisy : <strong>{prog.get('n_v2_graphs_noisy', 0)}/81</strong> | "
+            f"CSVs d'inférence Gaia DR3 : <strong>{prog.get('n_v2_infer_csvs', 0)}</strong></p>"
+            "</div>"
+        ]
+
+        v2_rows = prog.get("v2_training_rows", [])
+        if v2_rows:
+            v2_tr_html = []
+            for vr in v2_rows:
+                bf1_s = f"{vr['test_bound_f1']:.4f}" if vr["test_bound_f1"] is not None else (f"{vr['va_bound_f1']:.4f} (val)" if vr["va_bound_f1"] is not None else "-")
+                pe_s = f"{vr['test_pe_rec']:.2f}%" if vr["test_pe_rec"] is not None else (f"{vr['va_pe_rec']:.2f}% (val)" if vr["va_pe_rec"] is not None else "-")
+                cfnr_s = f"{vr['test_core_fnr']:.2f}%" if vr["test_core_fnr"] is not None else (f"{vr['va_core_fnr']:.2f}% (val)" if vr["va_core_fnr"] is not None else "-")
+                ffpr_s = f"{vr['test_field_fpr']:.2f}%" if vr["test_field_fpr"] is not None else (f"{vr['va_field_fpr']:.2f}% (val)" if vr["va_field_fpr"] is not None else "-")
+                te_acc_s = f"<strong>{vr['test_acc']:.2f}%</strong>" if vr["test_acc"] is not None else "<span class='status-live'>In progress</span>"
+                te_mf1_s = f"<strong>{vr['test_macro_f1']:.4f}</strong>" if vr["test_macro_f1"] is not None else "-"
+                badge_cls = "badge-gat" if "GAT" in vr["arch"] else "badge-gcn"
+                v2_tr_html.append(
+                    f"<tr>"
+                    f"<td><code>{vr['exp_key']}</code></td>"
+                    f"<td><span class='badge {badge_cls}'>{vr['arch']}</span></td>"
+                    f"<td>{vr['ep']}</td>"
+                    f"<td>{vr['tr_loss']:.4f}</td>"
+                    f"<td>{vr['tr_acc']:.2f}%</td>"
+                    f"<td>{vr['va_loss']:.4f}</td>"
+                    f"<td>{vr['va_acc']:.2f}%</td>"
+                    f"<td>{bf1_s}</td>"
+                    f"<td>{pe_s}</td>"
+                    f"<td>{cfnr_s}</td>"
+                    f"<td>{ffpr_s}</td>"
+                    f"<td>{te_acc_s}</td>"
+                    f"<td>{te_mf1_s}</td>"
+                    f"</tr>"
+                )
+            v2_blocks.append(
+                "<div class='exp-block'>"
+                "<h3>Métriques 3-Classes Study 2 V2 (Unbound/Field, Potential Escaper, Bound Core)</h3>"
+                "<table><thead><tr>"
+                "<th>Expérience</th><th>Architecture</th><th>Époque</th><th>TrLoss</th><th>TrAcc</th>"
+                "<th>VaLoss</th><th>VaAcc</th><th>BoundF1</th><th>PE_Rec</th><th>CoreFNR</th>"
+                "<th>FieldFPR</th><th>Test Acc</th><th>Test MacroF1</th>"
+                "</tr></thead><tbody>" + "\n".join(v2_tr_html) + "</tbody></table></div>"
+            )
+
+        if prog.get("v2_inference_csvs"):
+            csv_items = "".join(f"<li><code>{c}</code></li>" for c in prog["v2_inference_csvs"])
+            v2_blocks.append(
+                "<div class='exp-block'>"
+                "<h3>Sorties d'Inférence Gaia DR3 (Ibata 2024)</h3>"
+                f"<ul>{csv_items}</ul></div>"
+            )
+
+        if v2_dedicated_dirs or v2_in_study2_dirs:
+            for v2_d in v2_dedicated_dirs:
+                v2_blocks.append(
+                    _build_experiment_section(
+                        v2_d,
+                        f"Study 2 V2 : v2/{v2_d}",
+                        "Adaptation au domaine réel Gaia DR3 (Erreurs Lindegren DR3 + Contaminants Voie Lactée + Classification 3 classes).",
+                        base_dir=study2_v2_dir,
+                        url_fn=_url_v2,
+                    )
+                )
+            for v2_d in v2_in_study2_dirs:
                 v2_blocks.append(
                     _build_experiment_section(
                         v2_d,
                         f"Study 2 V2 : {v2_d}",
-                        "Adaptation au domaine réel Gaia DR3 (Matrice de covariance 5×5 + Normalisation d'échelle physique + Pondération 3 classes).",
+                        "Adaptation au domaine réel Gaia DR3 (Erreurs Lindegren DR3 + Contaminants Voie Lactée + Classification 3 classes).",
+                        base_dir=study2_dir,
+                        url_fn=_url,
                     )
                 )
         else:
             v2_blocks.append(
                 "<div class='exp-block pending-block'>"
                 "<h3>Study 2 V2 — Domaine Réel Gaia DR3 (En file d'attente SLURM : Jobs 41185009–41185012)</h3>"
-                "<p class='subtitle'>Cette section se remplira automatiquement dès le démarrage des jobs V2 (Génération covariances Gaia DR3, Graphes à échelle physique préservée, GAT/GCN 3 classes : Bound Core / Potential Escaper / Unbound).</p>"
+                "<p class='subtitle'>Cette section se remplira automatiquement dès le démarrage des entraînements V2 (Génération covariances Gaia DR3, Graphes à échelle physique préservée, GAT_V2/GCN_V2 3 classes : Bound Core / Potential Escaper / Unbound).</p>"
                 "</div>"
             )
         v2_section_html = "\n".join(v2_blocks)
@@ -1010,62 +1292,74 @@ def write_master_html_index(report, prog):
     root_index_path = os.path.join(ROOT_DIR, "index.html")
     study2_index_path = os.path.join(study2_dir, "index.html")
     with open(root_index_path, "w", encoding="utf-8") as f:
-        f.write(_render_for_base("GNN-jed/trained_models/study2/"))
+        f.write(_render_for_base("GNN-jed/trained_models/study2/", "GNN-jed/trained_models/study2_v2/"))
     with open(study2_index_path, "w", encoding="utf-8") as f:
-        f.write(_render_for_base(""))
+        f.write(_render_for_base("", "../study2_v2/"))
 
 
 def auto_push_to_github():
-    """Stage LIVE_STATUS.md, index.html, and any new Study 2 figures/logs/weights, commit, pull --rebase, and push to origin/main."""
+    """Stage LIVE_STATUS.md, index.html, and Study 2 V1/V2 outputs under a non-blocking file lock, then push."""
+    lock_path = os.path.join(ROOT_DIR, "slurm_logs", ".live_monitor_git.lock")
     try:
-        subprocess.run(
-            [
-                "git",
-                "add",
-                "-A",
-                ".gitignore",
-                ".gitattributes",
-                "index.html",
-                "README.md",
-                "LIVE_STATUS.md",
-                "REPO_MAP.md",
-                "src/",
-                "scripts/",
-                "slurm/",
-                "tests/",
-                "assets/figures/",
-                "GNN-jed/trained_models/study2/",
-            ],
-            cwd=ROOT_DIR,
-            check=False,
-            timeout=15,
-        )
-        diff_res = subprocess.run(
-            ["git", "diff", "--cached", "--quiet"],
-            cwd=ROOT_DIR,
-            check=False,
-            timeout=10,
-        )
-        if diff_res.returncode != 0:
-            now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-            subprocess.run(
-                ["git", "commit", "-m", f"Update Study 2 live status and figures ({now_str})"],
-                cwd=ROOT_DIR,
-                check=False,
-                timeout=15,
-            )
-            subprocess.run(
-                ["git", "pull", "--rebase", "-X", "ours", "origin", "main"],
-                cwd=ROOT_DIR,
-                check=False,
-                timeout=25,
-            )
-            subprocess.run(
-                ["git", "push", "origin", "main"],
-                cwd=ROOT_DIR,
-                check=False,
-                timeout=30,
-            )
+        os.makedirs(os.path.dirname(lock_path), exist_ok=True)
+        with open(lock_path, "w", encoding="utf-8") as lock_f:
+            try:
+                fcntl.flock(lock_f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return
+            try:
+                candidate_paths = [
+                    ".gitignore",
+                    ".gitattributes",
+                    "index.html",
+                    "README.md",
+                    "LIVE_STATUS.md",
+                    "REPO_MAP.md",
+                    "src/",
+                    "scripts/",
+                    "slurm/",
+                    "tests/",
+                    "assets/figures/",
+                    "GNN-jed/trained_models/study2/",
+                    "GNN-jed/trained_models/study2_v2/",
+                ]
+                add_paths = [p for p in candidate_paths if os.path.exists(os.path.join(ROOT_DIR, p))]
+                if not add_paths:
+                    return
+                subprocess.run(
+                    ["git", "add", "-A", "--"] + add_paths,
+                    cwd=ROOT_DIR,
+                    check=False,
+                    timeout=15,
+                )
+                diff_res = subprocess.run(
+                    ["git", "diff", "--cached", "--quiet"],
+                    cwd=ROOT_DIR,
+                    check=False,
+                    timeout=10,
+                )
+                if diff_res.returncode != 0:
+                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    subprocess.run(
+                        ["git", "commit", "-m", f"Update Study 2 live status and figures ({now_str})"],
+                        cwd=ROOT_DIR,
+                        check=False,
+                        timeout=15,
+                    )
+                    subprocess.run(
+                        ["git", "pull", "--rebase", "-X", "ours", "origin", "main"],
+                        cwd=ROOT_DIR,
+                        check=False,
+                        timeout=25,
+                    )
+                    subprocess.run(
+                        ["git", "push", "origin", "main"],
+                        cwd=ROOT_DIR,
+                        check=False,
+                        timeout=30,
+                    )
+            finally:
+                fcntl.flock(lock_f.fileno(), fcntl.LOCK_UN)
     except Exception:
         pass
 
@@ -1171,6 +1465,10 @@ def main():
             prog["n_labels"],
             prog["n_obs_clean"],
             prog["n_graphs_clean"],
+            prog["n_v2_obs"],
+            prog["n_v2_graphs_clean"],
+            prog["n_v2_graphs_noisy"],
+            prog["n_v2_infer_csvs"],
             tuple(prog["latest_epochs"]),
         )
         if args.once or state_signature != last_sent_report:
@@ -1179,10 +1477,11 @@ def main():
         auto_push_to_github()
 
         # Automatically push newly generated or updated PNG/HTML figures (including live training curves)
-        new_files = glob.glob(
-            os.path.join(ROOT_DIR, "GNN-jed", "trained_models", "study2", "**", "*.*"),
-            recursive=True,
-        )
+        new_files = []
+        for base_rel in ("study2", "study2_v2"):
+            base_dir = os.path.join(ROOT_DIR, "GNN-jed", "trained_models", base_rel)
+            if os.path.isdir(base_dir):
+                new_files.extend(glob.glob(os.path.join(base_dir, "**", "*.*"), recursive=True))
         cache_dirty = False
         for fpath in sorted(new_files):
             if fpath.endswith((".png", ".html")):

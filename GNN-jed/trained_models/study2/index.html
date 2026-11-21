@@ -229,7 +229,7 @@
   <header>
     <div class="header-top">
       <h1>Study 2 — Index des Entraînements & Analyses GNN (GAT vs GCN)</h1>
-      <span class="timestamp">Dernière mise à jour : 2026-11-21 03:18:25</span>
+      <span class="timestamp">Dernière mise à jour : 2026-11-21 13:35:36</span>
     </div>
     <div class="nav-tabs">
       <button class="tab-btn active" onclick="switchTab('tab-overview', this)">Vue Globale & Spectres RMT</button>
@@ -285,7 +285,6 @@
 <tr><td><code>clean_5obs</code></td><td><span class='badge badge-gat'>GAT</span></td><td>20</td><td>0.1006</td><td>96.00%</td><td>0.1495</td><td>94.10%</td><td><strong>94.21%</strong></td><td>6.49% (val: 6.60%)</td><td><span class='status-done'>93.04%</span></td><td><strong>0.9035</strong></td></tr>
 <tr><td><code>clean_5obs</code></td><td><span class='badge badge-gcn'>GCN</span></td><td>25</td><td>0.1136</td><td>95.42%</td><td>0.1820</td><td>92.33%</td><td><strong>92.33%</strong></td><td>-</td><td><span class='status-done'>92.17%</span></td><td><strong>0.8886</strong></td></tr>
 <tr><td><code>noisy_5obs</code></td><td><span class='badge badge-gat'>GAT</span></td><td>20</td><td>0.2683</td><td>88.10%</td><td>0.4221</td><td>81.26%</td><td><strong>81.76%</strong></td><td>19.52% (val: 14.33%)</td><td><span class='status-done'>84.91%</span></td><td><strong>0.7879</strong></td></tr>
-<tr><td><code>4obs_no_pmDec_noisy</code></td><td><span class='badge badge-live'>GAT (In Flight)</span></td><td>Ep 19 (100%)</td><td>0.2326</td><td>-</td><td>-</td><td>-</td><td><strong>-</strong></td><td>-</td><td><span class='status-live'>In progress</span></td><td><strong>-</strong></td></tr>
         </tbody>
       </table>
 
@@ -332,7 +331,8 @@
 
     <!-- TAB 5: STUDY 2 V2 -->
     <section id="tab-v2" class="tab-section">
-      <div class='exp-block pending-block'><h3>Study 2 V2 — Domaine Réel Gaia DR3 (En file d'attente SLURM : Jobs 41185009–41185012)</h3><p class='subtitle'>Cette section se remplira automatiquement dès le démarrage des jobs V2 (Génération covariances Gaia DR3, Graphes à échelle physique préservée, GAT/GCN 3 classes : Bound Core / Potential Escaper / Unbound).</p></div>
+      <div class='exp-block'><h3>Avancement Pipeline Study 2 V2 (Domaine Réel Gaia DR3 — 3 Classes)</h3><p class='subtitle'>Observables &amp; Contaminants : <strong>15/81</strong> | Graphes Clean : <strong>0/81</strong> | Graphes Gaia Noisy : <strong>0/81</strong> | CSVs d'inférence Gaia DR3 : <strong>0</strong></p></div>
+<div class='exp-block pending-block'><h3>Study 2 V2 — Domaine Réel Gaia DR3 (En file d'attente SLURM : Jobs 41185009–41185012)</h3><p class='subtitle'>Cette section se remplira automatiquement dès le démarrage des entraînements V2 (Génération covariances Gaia DR3, Graphes à échelle physique préservée, GAT_V2/GCN_V2 3 classes : Bound Core / Potential Escaper / Unbound).</p></div>
     </section>
 
     <!-- TAB 6: WEIGHTS & SLURM -->
@@ -358,35 +358,37 @@
         </tbody>
       </table>
       <h2>État du Pipeline & Queue SLURM sur Jed</h2>
-      <pre class="status-box">[2026-11-21 03:18:22] Study 2 Pipeline Status on Jed
+      <pre class="status-box">[2026-11-21 13:35:33] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
-- Step 3 (Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
-- Step 4 (5D Graphs): Clean=81/81 | GaiaNoisy=81/81
-- Step 5/6 Live GNN Training Progress:
-  * 4obs_no_Dec_clean/training_metrics_gat_4obs_no_Dec_clean.log: Ep 020 | Train 0.1343 (94.71%) | Val 0.1872 (92.67%, Best=92.78%) | CoreFNR: 6.17% (min=5.48%) | Test=91.48%
-  * 4obs_no_Parallax_clean/training_metrics_gat_4obs_no_Parallax_clean.log: Ep 020 | Train 0.1635 (93.41%) | Val 0.2332 (90.65%, Best=91.03%) | CoreFNR: 6.15% (min=5.63%) | Test=90.25%
-  * 4obs_no_Parallax_noisy/training_metrics_gat_4obs_no_Parallax_noisy.log: Ep 020 | Train 0.2474 (89.07%) | Val 0.4061 (82.69%, Best=83.14%) | CoreFNR: 11.39% (min=7.78%) | Test=86.72%
-  * 4obs_no_RA_clean/training_metrics_gat_4obs_no_RA_clean.log: Ep 020 | Train 0.1632 (93.52%) | Val 0.2301 (90.57%, Best=90.59%) | CoreFNR: 11.50% (min=8.41%) | Test=89.54%
-  * 4obs_no_RA_noisy/training_metrics_gat_4obs_no_RA_noisy.log: Ep 011 | Train 0.3614 (83.41%) | Val 0.4919 (76.33%, Best=77.82%) | CoreFNR: 36.76% (min=10.87%) | Test=76.62%
-  * 4obs_no_pmDec_clean/training_metrics_gat_4obs_no_pmDec_clean.log: Ep 020 | Train 0.1305 (94.83%) | Val 0.1981 (91.87%, Best=91.97%) | CoreFNR: 9.29% (min=7.19%) | Test=92.02%
-  * 4obs_no_pmDec_noisy/training_metrics_gat_4obs_no_pmDec_noisy.log: Ep 019 | Train 0.2656 (88.05%) | Val 0.3954 (81.74%, Best=82.09%) | CoreFNR: 20.57% (min=12.74%) | Test=84.15%
-  * 4obs_no_pmRA_clean/training_metrics_gat_4obs_no_pmRA_clean.log: Ep 020 | Train 0.1221 (95.17%) | Val 0.1851 (92.72%, Best=92.86%) | CoreFNR: 8.40% (min=6.92%) | Test=92.25%
-  * 4obs_no_pmRA_noisy/training_metrics_gat_4obs_no_pmRA_noisy.log: Ep 019 | Train 0.2670 (87.96%) | Val 0.4005 (81.56%, Best=81.92%) | CoreFNR: 20.42% (min=13.75%) | Test=84.06%
-  * clean_5obs/training_metrics_gat_clean.log: Ep 020 | Train 0.1006 (96.00%) | Val 0.1495 (94.10%, Best=94.21%) | CoreFNR: 6.64% (min=6.60%) | Test=93.04%
-  * clean_5obs/training_metrics_gcn_clean.log: Ep 025 | Train 0.1136 (95.42%) | Val 0.1820 (92.33%, Best=92.33%) | Test=92.17%
-  * noisy_5obs/training_metrics_gat_noisy.log: Ep 020 | Train 0.2683 (88.10%) | Val 0.4221 (81.26%, Best=81.76%) | CoreFNR: 23.60% (min=14.33%) | Test=84.91%
-  * [IN FLIGHT] 4obs_no_pmDec_noisy (GAT): Ep 019 | Batch 0103/0103 (100.0%) | Batch Loss 0.2326 | LR: 1.30e-05 | RAM: 112.6G
-- Saved Model Checkpoints (.pth): 12 mirrored in GNN-jed/trained_models/study2/weights/
+- Step 3 (V1 Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
+- Step 4 (V1 5D Graphs): Clean=81/81 | GaiaNoisy=81/81
+- V2 Step 3 (Obs + Gaia DR3 + Contaminants): 15 / 81 completed
+- V2 Step 4 (Sky-kNN Graphs): Clean=0/81 | GaiaNoisy=0/81
+- V2 Inference CSVs: 0 file(s) in GNN-jed/trained_models/study2_v2/inference/
+- Step 5/6/7 Live GNN Training Progress (V1 & V2):
+  * 4obs_no_Dec_clean (GAT): Ep 020 | Train 0.1343 (94.71%) | Val 0.1872 (92.67%, Best=92.78%) | CoreFNR: 6.17% (min=5.48%) | Test=91.48%
+  * 4obs_no_Parallax_clean (GAT): Ep 020 | Train 0.1635 (93.41%) | Val 0.2332 (90.65%, Best=91.03%) | CoreFNR: 6.15% (min=5.63%) | Test=90.25%
+  * 4obs_no_Parallax_noisy (GAT): Ep 020 | Train 0.2474 (89.07%) | Val 0.4061 (82.69%, Best=83.14%) | CoreFNR: 11.39% (min=7.78%) | Test=86.72%
+  * 4obs_no_RA_clean (GAT): Ep 020 | Train 0.1632 (93.52%) | Val 0.2301 (90.57%, Best=90.59%) | CoreFNR: 11.50% (min=8.41%) | Test=89.54%
+  * 4obs_no_RA_noisy (GAT): Ep 011 | Train 0.3614 (83.41%) | Val 0.4919 (76.33%, Best=77.82%) | CoreFNR: 36.76% (min=10.87%) | Test=76.62%
+  * 4obs_no_pmDec_clean (GAT): Ep 020 | Train 0.1305 (94.83%) | Val 0.1981 (91.87%, Best=91.97%) | CoreFNR: 9.29% (min=7.19%) | Test=92.02%
+  * 4obs_no_pmDec_noisy (GAT): Ep 019 | Train 0.2656 (88.05%) | Val 0.3954 (81.74%, Best=82.09%) | CoreFNR: 20.57% (min=12.74%) | Test=84.15%
+  * 4obs_no_pmRA_clean (GAT): Ep 020 | Train 0.1221 (95.17%) | Val 0.1851 (92.72%, Best=92.86%) | CoreFNR: 8.40% (min=6.92%) | Test=92.25%
+  * 4obs_no_pmRA_noisy (GAT): Ep 019 | Train 0.2670 (87.96%) | Val 0.4005 (81.56%, Best=81.92%) | CoreFNR: 20.42% (min=13.75%) | Test=84.06%
+  * clean_5obs (GAT): Ep 020 | Train 0.1006 (96.00%) | Val 0.1495 (94.10%, Best=94.21%) | CoreFNR: 6.64% (min=6.60%) | Test=93.04%
+  * clean_5obs (GCN): Ep 025 | Train 0.1136 (95.42%) | Val 0.1820 (92.33%, Best=92.33%) | Test=92.17%
+  * noisy_5obs (GAT): Ep 020 | Train 0.2683 (88.10%) | Val 0.4221 (81.26%, Best=81.76%) | CoreFNR: 23.60% (min=14.33%) | Test=84.91%
+- Saved Model Checkpoints (.pth): 12 mirrored in weights/
 
 SLURM Queue:
 JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
-      41185012   academic  Study2V2_Step6_Best4D   PD       0:00      2 (Dependency)
-      41185011   academic Study2V2_Step5_Train5D   PD       0:00      2 (Dependency)
-      41185010   academic Study2V2_Step4_BuildGr   PD       0:00      1 (Dependency)
-41185009_[0-80   academic Study2V2_Step3_Extract   PD       0:00      1 (Dependency)
-      41146836   academic Study2_Step7_GCNStocha   PD       0:00      2 (Dependency)
-    41146835_4   academic      Study2_Step6_4Obs    R 1-04:58:30      2 jst[282,294]</pre>
+      41910484   academic Study2V2_Step7_TrainGC   PD       0:00      2 (Dependency)
+      41910483   academic  Study2V2_Step6_Best4D   PD       0:00      2 (Dependency)
+      41910482   academic Study2V2_Step5_Train5D   PD       0:00      2 (Dependency)
+      41910481   academic Study2V2_Step4_BuildGr   PD       0:00      1 (Dependency)
+41910480_[8-80   academic Study2V2_Step3_Extract   PD       0:00      1 (JobArrayTaskLimit)
+    41910480_0   academic Study2V2_Step3_Extract    R       0:40      1 jst316</pre>
     </section>
   </main>
 

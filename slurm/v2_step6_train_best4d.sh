@@ -36,7 +36,8 @@ CONFIG_ENV="${STUDY2_V2_MODELS}/best_4d_config.env"
 if [ ! -f "$CONFIG_ENV" ]; then
     python3 scripts/v2_select_best_4d.py \
         --study2_models_dir "$STUDY2_V1_MODELS" \
-        --out_dir "$STUDY2_V2_MODELS"
+        --out_dir "$STUDY2_V2_MODELS" \
+        --allow_partial
 fi
 # shellcheck source=/dev/null
 source "$CONFIG_ENV"
@@ -96,6 +97,8 @@ run_ddp_with_oom_fallback scripts/v2_train_gat.py 8 \
     --save_model "${OUT_4D_CLEAN}/best_v2_${BEST_4D_TAG}_clean.pth" \
     --log_file "${OUT_4D_CLEAN}/training_metrics_v2_${BEST_4D_TAG}_clean.log"
 
+python3 scripts/live_monitor.py --once || true
+
 echo "=== Step 6B: Gaia DR3 Noisy Best-4D ($BEST_4D_TAG) Curriculum Fine-Tune ==="
 run_ddp_with_oom_fallback scripts/v2_train_gat.py 8 \
     --data_folder "$GRAPH_V2_NOISY" \
@@ -112,6 +115,8 @@ run_ddp_with_oom_fallback scripts/v2_train_gat.py 8 \
     --save_model "${OUT_4D_NOISY}/best_v2_${BEST_4D_TAG}_noisy.pth" \
     --log_file "${OUT_4D_NOISY}/training_metrics_v2_${BEST_4D_TAG}_noisy.log"
 
+python3 scripts/live_monitor.py --once || true
+
 echo "=== Step 6C: Automated Gaia DR3 Catalog Inference (Ibata 2024 6D/5D/4D Streams) ==="
 python3 scripts/v2_infer_gaia_dr3.py \
     --input_csv "make_ICs/stars_6D_ibata2024.csv" \
@@ -127,5 +132,7 @@ python3 scripts/v2_infer_gaia_dr3.py \
     --model_4d "${OUT_4D_NOISY}/best_v2_${BEST_4D_TAG}_noisy.pth" \
     --config_4d "${STUDY2_V2_MODELS}/best_4d_config.json" \
     --mode 4d
+
+python3 scripts/live_monitor.py --once || true
 
 echo "[DONE] Study 2 V2 Step 6 Best-4D training and Gaia DR3 inference complete."
