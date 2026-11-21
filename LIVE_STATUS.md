@@ -1,7 +1,7 @@
 # Live Pipeline Status on Jed
 
 ```text
-[2026-11-21 13:46:24] Study 2 Pipeline Status on Jed
+[2026-11-21 13:49:13] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (V1 Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
@@ -30,14 +30,13 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
       41910483   academic  Study2V2_Step6_Best4D   PD       0:00      2 (Dependency)
       41910482   academic Study2V2_Step5_Train5D   PD       0:00      2 (Dependency)
       41910481   academic Study2V2_Step4_BuildGr   PD       0:00      1 (Dependency)
-41910480_[61-8   academic Study2V2_Step3_Extract   PD       0:00      1 (JobArrayTaskLimit)
-   41910480_54   academic Study2V2_Step3_Extract    R       0:22      1 jst318
-   41910480_55   academic Study2V2_Step3_Extract    R       0:22      1 jst320
-   41910480_56   academic Study2V2_Step3_Extract    R       0:22      1 jst048
-   41910480_57   academic Study2V2_Step3_Extract    R       0:22      1 jst049
-   41910480_58   academic Study2V2_Step3_Extract    R       0:22      1 jst049
-   41910480_59   academic Study2V2_Step3_Extract    R       0:22      1 jst051
-   41910480_60   academic Study2V2_Step3_Extract    R       0:22      1 jst053
+   41910480_75   academic Study2V2_Step3_Extract    R       0:19      1 jst318
+   41910480_76   academic Study2V2_Step3_Extract    R       0:19      1 jst320
+   41910480_77   academic Study2V2_Step3_Extract    R       0:19      1 jst048
+   41910480_78   academic Study2V2_Step3_Extract    R       0:19      1 jst049
+   41910480_79   academic Study2V2_Step3_Extract    R       0:19      1 jst049
+   41910480_80   academic Study2V2_Step3_Extract    R       0:19      1 jst051
+   41910480_60   academic Study2V2_Step3_Extract    R       3:19      1 jst053
 ```
 
 ## Live Neural Network Training Metrics
