@@ -1,12 +1,12 @@
 # Live Pipeline Status on Jed
 
 ```text
-[2026-11-21 13:40:15] Study 2 Pipeline Status on Jed
+[2026-11-21 13:41:09] Study 2 Pipeline Status on Jed
 - Step 1 (Plummer ICs): 81 / 81 ready
 - Step 2 (SWIFT Runs): 81 / 81 completed (101 snapshots)
 - Step 3 (V1 Observables): Labels=81/81 | Clean=81/81 | GaiaNoisy=81/81
 - Step 4 (V1 5D Graphs): Clean=81/81 | GaiaNoisy=81/81
-- V2 Step 3 (Obs + Gaia DR3 + Contaminants): 42 / 81 completed
+- V2 Step 3 (Obs + Gaia DR3 + Contaminants): 48 / 81 completed
 - V2 Step 4 (Sky-kNN Graphs): Clean=0/81 | GaiaNoisy=0/81
 - V2 Inference CSVs: 0 file(s) in GNN-jed/trained_models/study2_v2/inference/
 - Step 5/6/7 Live GNN Training Progress (V1 & V2):
@@ -30,14 +30,10 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
       41910483   academic  Study2V2_Step6_Best4D   PD       0:00      2 (Dependency)
       41910482   academic Study2V2_Step5_Train5D   PD       0:00      2 (Dependency)
       41910481   academic Study2V2_Step4_BuildGr   PD       0:00      1 (Dependency)
-41910480_[22-8   academic Study2V2_Step3_Extract   PD       0:00      1 (JobArrayTaskLimit)
-   41910480_15   academic Study2V2_Step3_Extract    R       0:20      1 jst316
-   41910480_16   academic Study2V2_Step3_Extract    R       0:20      1 jst048
-   41910480_17   academic Study2V2_Step3_Extract    R       0:20      1 jst049
-   41910480_18   academic Study2V2_Step3_Extract    R       0:20      1 jst049
-   41910480_19   academic Study2V2_Step3_Extract    R       0:20      1 jst051
-   41910480_20   academic Study2V2_Step3_Extract    R       0:20      1 jst051
-    41910480_0   academic Study2V2_Step3_Extract    R       2:20      1 jst316
+41910480_[42-8   academic Study2V2_Step3_Extract   PD       0:00      1 (JobArrayTaskLimit)
+   41910480_36   academic Study2V2_Step3_Extract    R       0:25      1 jst320
+   41910480_40   academic Study2V2_Step3_Extract    R       0:25      1 jst051
+   41910480_20   academic Study2V2_Step3_Extract    R       3:25      1 jst051
 ```
 
 ## Live Neural Network Training Metrics
@@ -59,7 +55,7 @@ JOBID  PARTITION                   NAME   ST       TIME  NODES NODELIST(REASON)
 
 ## Study 2 V2 — Real Gaia DR3 Domain Adaptation
 
-- **Observables & Contaminants** (`/scratch/cozma/study2_v2/obs_unbiased`): **42 / 81** ICs completed
+- **Observables & Contaminants** (`/scratch/cozma/study2_v2/obs_unbiased`): **48 / 81** ICs completed
 - **Sky-kNN Clean Graphs** (`/scratch/cozma/study2_v2/graphs_clean`): **0 / 81** ICs completed
 - **Sky-kNN Noisy Graphs** (`/scratch/cozma/study2_v2/graphs_noisy`): **0 / 81** ICs completed
 - **Gaia DR3 Inference CSVs** (`GNN-jed/trained_models/study2_v2/inference/`): **0** file(s)
